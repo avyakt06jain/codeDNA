@@ -11,7 +11,7 @@
 
 ## G0 — Repository and documentation bootstrap
 
-**Status:** In progress
+**Status:** Verified
 
 ### Deliverables
 
@@ -28,7 +28,7 @@
 
 ## G1 — Real Hindsight memory proof
 
-**Status:** Not started
+**Status:** In progress — live integration blocked on Gemini credential
 
 **Priority:** First implementation milestone
 
@@ -40,8 +40,8 @@
 
 ### Deliverables
 
-- Minimal SQLite provenance registry for repositories, PR sources, decisions, and memory documents.
-- Backend-controlled repository-to-Hindsight-bank mapping.
+- Minimal SQLite provenance registry for repositories, PR sources, decisions, and memory documents. **Implemented; verification checkpoint pending.**
+- Backend-controlled repository-to-Hindsight-bank mapping. **Implemented; live service unverified.**
 - Real retain of synthetic PR #42 decision `DEC-0042` as `decision-DEC-0042`.
 - Semantically related recall from PR #87 context with source chunks.
 - Deterministic provenance validation against SQLite.

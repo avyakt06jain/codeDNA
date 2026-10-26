@@ -30,7 +30,7 @@
 | ADR-001 | React + TS + Vite frontend | Fast, flexible, open tooling | Proposed |
 | ADR-002 | Python + FastAPI backend | Typed contracts, convenient SDKs | Proposed |
 | ADR-003 | SQLAlchemy + SQLite for application state | No paid DB; authoritative relationships | Proposed |
-| ADR-004 | Self-hosted Hindsight full Docker image | Mandatory memory; local embeddings/reranker | Docs verified; runtime untested |
+| ADR-004 | Self-hosted Hindsight full Docker image | Mandatory memory; local embeddings/reranker | Deferred for G1 because Docker is unavailable locally |
 | ADR-005 | One Hindsight bank per repository | Strong isolation and relevance | Proposed |
 | ADR-006 | `hindsight-client` official Python SDK | Narrow stable integration | SDK docs verified; runtime untested |
 | ADR-007 | Gemini API via adapter | Free-tier-eligible option, structured JSON | Provider/quota compatibility untested |
@@ -39,6 +39,7 @@
 | ADR-010 | Source IDs validated against SQLite | Prevent fabricated provenance | Proposed |
 | ADR-011 | Reflect selectively | Lower latency and limit ungrounded synthesis | Proposed |
 | ADR-012 | No extra agent framework/vector DB | Simpler integration and lower failure risk | Proposed |
+| ADR-013 | Native Windows `hindsight-api` with embedded pg0 for G1 | Officially supported and preserves real service/restart semantics without unavailable Docker | Accepted; packages installed, live service unverified |
 
 If a decision changes, document the new decision, rationale, tradeoff, validation and affected contracts here; don't silently modify another doc only.
 
@@ -285,6 +286,8 @@ stateDiagram-v2
 ## 4. Hindsight memory architecture
 
 ### 4.1 Deployment
+
+**G1 implementation decision (2026-10-27):** The first memory spike uses native Windows `hindsight-api==1.1.0` with embedded pg0 and `hindsight-client==1.1.0`. Docker was not present on the development machine. This changes local process packaging, not the memory boundary or persistence requirement: CodeDNA still talks to a separate Hindsight API on localhost and must prove recall after that process restarts. Docker remains a later reproducibility option. Gemini `gemini-3.1-flash-lite` is the candidate extraction model but is **UNVERIFIED** until a real free-tier retain succeeds.
 
 Use Hindsight full Docker image with embedded PostgreSQL and local embedding/reranking models, persistent named volume, and an LLM API key. As documented on 2026-10-26:
 

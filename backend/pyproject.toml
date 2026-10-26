@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools==84.2.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codedna-memory"
+version = "0.1.0.dev0"
+description = "CodeDNA provenance-backed Hindsight memory spike"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "hindsight-client==1.1.0",
+  "pydantic==2.14.1",
+  "SQLAlchemy==2.0.55",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1"]
+service = ["hindsight-api==1.1.0"]
+
+[project.scripts]
+codedna-memory-smoke = "codedna_memory.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+

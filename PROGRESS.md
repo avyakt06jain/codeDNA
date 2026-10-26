@@ -4,37 +4,39 @@
 
 ## Current State
 
-- Date: 2026-10-26
-- Phase: G0 repository and documentation bootstrap.
-- Implementation: **not started / unverified**.
-- Repository contents at inspection: `AGENTS.md`, `PROJECT.md`, and `ARCHITECTURE.md` only.
-- Git: not initialized at the start of this session.
+- Date: 2026-10-27
+- Phase: G1 real Hindsight memory proof.
+- Implementation: provenance registry and smoke harness implemented; real retain/recall **unverified**.
+- Git: `main` is initialized, connected to GitHub, and the bootstrap commit is pushed.
 
 ## Working
 
 - The three authoritative initial documents are present and readable.
 - Python 3.12.0, Git 2.51.0, Node 24.14.0, and npm 11.21.0 are available.
-- SSH access to the empty GitHub repository was verified during planning.
+- Bootstrap commit `b770321` is present on `origin/main`.
+- Native dependencies installed in ignored `.venv`: Hindsight API/client 1.1.0, SQLAlchemy 2.0.55, Pydantic 2.14.1, and pytest 9.1.1.
+- Minimal SQLite provenance models, deterministic synthetic fixtures, source validation, backend-owned bank selection, and three-operation smoke CLI are implemented.
+- The CLI reports an unavailable Hindsight service as structured failure with exit code 2.
 
 ## In Progress
 
-- Creating minimal roadmap/progress tracking and Git hygiene.
-- Preparing the G1 provenance-backed Hindsight smoke-test contract.
+- Preparing the first native Hindsight startup with Gemini.
+- Real retain, recall, restart persistence, isolation, and stable-document checks remain to be executed.
 
 ## Blocked
 
-- A real Hindsight retain/recall run requires a Gemini API key with sufficient free quota; no Gemini/Hindsight environment variable was present at inspection.
+- A real Hindsight retain/recall run requires a Gemini API key with sufficient free quota; no Gemini/Hindsight environment variable is configured.
 
 ## Known Limitations
 
-- Docker is not installed; the planned G1 spike will use officially supported native Windows Hindsight with embedded pg0.
-- `hindsight-client` and `hindsight-api` are not installed.
-- No source package, database migration, fixture, or automated test exists yet.
-- Hindsight, Gemini compatibility, source-object shapes, and persistence have not been locally verified.
+- Docker is not installed; G1 uses officially supported native Windows Hindsight with embedded pg0.
+- The schema currently uses controlled `create_all` initialization for the isolated spike; migrations are deferred until G2.
+- Hindsight startup, Gemini compatibility/quota, actual recall relevance, restart persistence, and bank isolation have not been locally verified.
+- No review engine, HTTP API, frontend, feedback flow, or ablation implementation exists.
 
 ## Next Action
 
-Initialize and push the documentation bootstrap, then establish the pinned Python environment and implement the smallest G1 smoke harness without building the review engine or UI.
+Provide `HINDSIGHT_API_LLM_API_KEY` through a local ignored `.env`, start native Hindsight, and execute `seed-and-recall`, process restart, `recall-only`, `isolation-check`, and stable-ID reingestion.
 
 ## Session Log
 
