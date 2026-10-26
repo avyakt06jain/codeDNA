@@ -16,6 +16,7 @@
 - Bootstrap commit `b770321` is present on `origin/main`.
 - Native dependencies installed in ignored `.venv`: Hindsight API/client 1.1.0, SQLAlchemy 2.0.55, Pydantic 2.14.1, and pytest 9.1.1.
 - Minimal SQLite provenance models, deterministic synthetic fixtures, source validation, backend-owned bank selection, and three-operation smoke CLI are implemented.
+- Six focused provenance tests pass.
 - The CLI reports an unavailable Hindsight service as structured failure with exit code 2.
 
 ## In Progress
@@ -50,6 +51,19 @@ Provide `HINDSIGHT_API_LLM_API_KEY` through a local ignored `.env`, start native
 - Tests: **NOT RUN — no executable implementation exists**.
 - Decision: target native Windows Hindsight/pg0 and Gemini free tier; never silently enable paid usage.
 - Next: commit and push bootstrap, then add the minimal provenance-backed memory harness.
+
+### 2026-10-27 — G1 smoke harness implementation
+
+- Goal: Build the smallest source-validated retain/recall harness without starting the review engine or UI.
+- Files: `.env.example`, `backend/pyproject.toml`, `backend/requirements.lock`, `backend/src/codedna_memory/`, `backend/tests/test_provenance.py`, `ARCHITECTURE.md`.
+- Implemented: four-table provenance registry, synthetic PR #42/PR #87 data, active `DEC-0042`, stable `decision-DEC-0042`, backend-owned repository bank mapping, synchronous retain, chunk-enabled recall, fail-closed provenance resolution, document-count check, isolation operation, and sanitized JSON CLI output.
+- Installed: `hindsight-api==1.1.0`, `hindsight-client==1.1.0`, `SQLAlchemy==2.0.55`, `pydantic==2.14.1`, `pytest==9.1.1` in ignored `.venv`.
+- Checks: `.\\.venv\\Scripts\\python.exe -m pytest backend\\tests` → **6 passed in 0.89s** on the final pre-commit rerun.
+- Checks: `.\\.venv\\Scripts\\python.exe -m compileall -q backend\\src backend\\tests` → **PASS**.
+- Failure-path check: `codedna-memory-smoke recall-only` with no service → structured `service_error`, exit code 2, no fabricated success.
+- Live integration: **NOT RUN — no Gemini API key is configured and no Hindsight service is running**.
+- Risks: first native startup/model download, Gemini free-tier quota, and actual Hindsight response relevance remain unverified.
+- Next: configure the Gemini key locally and execute the complete G1 sequence.
 
 ## Maintenance Checklist
 

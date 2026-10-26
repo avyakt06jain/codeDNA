@@ -40,7 +40,7 @@
 
 ### Deliverables
 
-- Minimal SQLite provenance registry for repositories, PR sources, decisions, and memory documents. **Implemented; verification checkpoint pending.**
+- Minimal SQLite provenance registry for repositories, PR sources, decisions, and memory documents. **Implemented; unit tested.**
 - Backend-controlled repository-to-Hindsight-bank mapping. **Implemented; live service unverified.**
 - Real retain of synthetic PR #42 decision `DEC-0042` as `decision-DEC-0042`.
 - Semantically related recall from PR #87 context with source chunks.
