@@ -18,6 +18,7 @@
 - Minimal SQLite provenance models, deterministic synthetic fixtures, source validation, backend-owned bank selection, and three-operation smoke CLI are implemented.
 - Six focused provenance tests pass.
 - The CLI reports an unavailable Hindsight service as structured failure with exit code 2.
+- Native Hindsight started successfully with embedded pg0 and the LLM provider disabled; `get_version()` reported API 1.1.0 and the process was stopped cleanly.
 
 ## In Progress
 
@@ -32,7 +33,8 @@
 
 - Docker is not installed; G1 uses officially supported native Windows Hindsight with embedded pg0.
 - The schema currently uses controlled `create_all` initialization for the isolated spike; migrations are deferred until G2.
-- Hindsight startup, Gemini compatibility/quota, actual recall relevance, restart persistence, and bank isolation have not been locally verified.
+- Gemini compatibility/quota, actual retain/recall relevance, restart persistence, and bank isolation have not been locally verified.
+- Native startup requires process-level UTF-8 environment settings on this Windows console; without them Hindsight 1.1.0 fails while printing its banner.
 - No review engine, HTTP API, frontend, feedback flow, or ablation implementation exists.
 
 ## Next Action
@@ -62,8 +64,19 @@ Provide `HINDSIGHT_API_LLM_API_KEY` through a local ignored `.env`, start native
 - Checks: `.\\.venv\\Scripts\\python.exe -m compileall -q backend\\src backend\\tests` → **PASS**.
 - Failure-path check: `codedna-memory-smoke recall-only` with no service → structured `service_error`, exit code 2, no fabricated success.
 - Live integration: **NOT RUN — no Gemini API key is configured and no Hindsight service is running**.
-- Risks: first native startup/model download, Gemini free-tier quota, and actual Hindsight response relevance remain unverified.
+- Risks: Gemini free-tier quota and actual Hindsight retain/recall relevance remain unverified.
 - Next: configure the Gemini key locally and execute the complete G1 sequence.
+
+### 2026-10-27 — Native Hindsight preflight
+
+- Goal: Reduce runtime uncertainty without claiming a memory integration pass.
+- First attempt: **FAILED** with `UnicodeEncodeError` while printing the Hindsight banner under Windows CP-1252.
+- Correction: set process-local `PYTHONUTF8=1` and `PYTHONIOENCODING=utf-8`.
+- Second attempt: embedded pg0 initialized; local `BAAI/bge-small-en-v1.5` embeddings and `cross-encoder/ms-marco-MiniLM-L-6-v2` reranker assets downloaded and loaded.
+- Check: `Hindsight.get_version()` returned `api_version: 1.1.0`; advertised features included MCP, worker, bank config API, document export/import, LLM trace, and stored document text.
+- Provider: explicitly `none`; Gemini connectivity and retain were **NOT RUN**.
+- Shutdown: service launcher and child process stopped cleanly.
+- Next: start the same runtime with a local Gemini key, then run the complete G1 acceptance sequence.
 
 ## Maintenance Checklist
 
