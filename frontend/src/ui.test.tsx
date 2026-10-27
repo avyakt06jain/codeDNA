@@ -93,6 +93,7 @@ function json(data: unknown, status = 200): Response {
 
 function installFetch(options?: {
   hindsight?: "starting" | "ready" | "unavailable";
+  interruptedJobs?: number;
   decisionsWrapped?: boolean;
   comparison?: Record<string, unknown>;
   latestReview?: boolean;
@@ -102,7 +103,7 @@ function installFetch(options?: {
     const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const path = new URL(raw, "http://localhost").pathname;
     const method = (init?.method ?? "GET").toUpperCase();
-    if (path === "/api/health") return json({ status: "ok", memory: "configured", hindsight });
+    if (path === "/api/health") return json({ status: "ok", memory: "configured", hindsight, interrupted_jobs: options?.interruptedJobs ?? 0 });
     if (path === "/api/repositories") return json(repositories);
     if (path.endsWith("/summary")) {
       return json({
@@ -180,6 +181,12 @@ function feedbackBody(fetchMock: ReturnType<typeof installFetch>) {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+});
+
+it("announces jobs reconciled after an API restart", async () => {
+  installFetch({ interruptedJobs: 2 });
+  renderAt("/");
+  expect(await screen.findByText("2 interrupted jobs were marked failed after restart. Start a new review to retry safely.")).toBeTruthy();
 });
 
 async function reviewedPage() {

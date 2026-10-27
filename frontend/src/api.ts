@@ -4,6 +4,7 @@ export type Health = {
   status?: string;
   memory?: string;
   hindsight?: HindsightState;
+  interrupted_jobs?: number;
 };
 
 export type Repository = {
@@ -418,6 +419,7 @@ function normalizeHealth(payload: unknown): Health {
     status: asString(row.status),
     memory: asString(row.memory),
     hindsight,
+    interrupted_jobs: asNumber(row.interrupted_jobs),
   };
 }
 

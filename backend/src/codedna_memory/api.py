@@ -23,7 +23,7 @@ from .hindsight_runtime import get_runtime, shared_memory_client
 from .models import Decision, MemoryDocument, PullRequest, Repository, ReviewJob, ReviewRun
 from .policy_service import prepare_evolved_demo, record_feedback, supersede_decision
 from .review_model import GeminiReviewModel, ReviewModel
-from .review_jobs import create_review_job, execute_review_job
+from .review_jobs import create_review_job, execute_review_job, reconcile_interrupted_jobs
 from .review_schemas import FeedbackRequest, ReviewCreated, ReviewRequest, SupersedeRequest
 from .review_service import ReviewService, serialize_review
 
@@ -141,6 +141,7 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
+        _app.state.interrupted_jobs = reconcile_interrupted_jobs(sessions)
         if os.getenv("CODEDNA_DEMO_SCENE") == "evolved":
             with sessions() as session:
                 prepare_evolved_demo(session)
@@ -152,6 +153,7 @@ def create_app(
             runtime.shutdown()
 
     app = FastAPI(title="CodeDNA API", version="0.2.0", lifespan=lifespan)
+    app.state.interrupted_jobs = 0
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -160,11 +162,12 @@ def create_app(
     )
 
     @app.get("/api/health")
-    def health() -> dict[str, str]:
+    def health() -> dict[str, str | int]:
         return {
             "status": "ok",
             "memory": "configured" if os.getenv("HINDSIGHT_API_LLM_API_KEY") else "unconfigured",
             "hindsight": get_runtime().status,
+            "interrupted_jobs": app.state.interrupted_jobs,
         }
 
     @app.get("/api/repositories")

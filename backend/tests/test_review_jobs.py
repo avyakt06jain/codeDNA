@@ -3,7 +3,7 @@ from pathlib import Path
 from codedna_memory.constants import CANDIDATE_PR_ID
 from codedna_memory.database import create_database_engine, initialize_schema, seed_synthetic_provenance, session_factory
 from codedna_memory.models import ReviewJob
-from codedna_memory.review_jobs import create_review_job, execute_review_job
+from codedna_memory.review_jobs import create_review_job, execute_review_job, reconcile_interrupted_jobs
 from codedna_memory.review_schemas import CandidateFinding, ReviewModelOutput
 
 
@@ -55,3 +55,38 @@ def test_background_job_records_sanitized_failure(tmp_path: Path):
         assert stored is not None
         assert stored.status == "failed"
         assert stored.error_code == "review_service_unavailable"
+
+
+def test_restart_reconciliation_fails_only_nonterminal_jobs(tmp_path: Path):
+    engine = create_database_engine(f"sqlite:///{tmp_path / 'reconcile-jobs.sqlite3'}")
+    initialize_schema(engine)
+    sessions = session_factory(engine)
+    with sessions() as session:
+        seed_synthetic_provenance(session)
+        queued = create_review_job(session, pr_id=CANDIDATE_PR_ID, memory_enabled=False)
+        running = create_review_job(session, pr_id=CANDIDATE_PR_ID, memory_enabled=True)
+        running.status = "running"
+        running.stage = "recalling_and_reviewing"
+        complete = create_review_job(session, pr_id=CANDIDATE_PR_ID, memory_enabled=False)
+        complete.status = "complete"
+        complete.stage = "complete"
+        already_failed = create_review_job(session, pr_id=CANDIDATE_PR_ID, memory_enabled=False)
+        already_failed.status = "failed"
+        already_failed.stage = "failed"
+        already_failed.error_code = "review_service_unavailable"
+        session.commit()
+        ids = queued.id, running.id, complete.id, already_failed.id
+
+    assert reconcile_interrupted_jobs(sessions) == 2
+    assert reconcile_interrupted_jobs(sessions) == 0
+
+    with sessions() as session:
+        queued, running, complete, already_failed = (
+            session.get(ReviewJob, job_id) for job_id in ids
+        )
+        assert queued.status == running.status == "failed"
+        assert queued.stage == running.stage == "failed"
+        assert queued.error_code == running.error_code == "job_interrupted_by_restart"
+        assert complete.status == "complete"
+        assert complete.error_code is None
+        assert already_failed.error_code == "review_service_unavailable"

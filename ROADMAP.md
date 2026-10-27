@@ -109,7 +109,8 @@
 - **Verified:** The judge workspace now provides routed repository overview, PR review, Team DNA, decision evolution, and Memory Lab views with keyboard navigation and explicit dependency health.
 - **Verified:** A second isolated `analytics-service` fixture broadens repository navigation without seeding the Acme evaluation answer into its bank.
 - **Verified:** The PR workspace restores the latest completed memory review after refresh so evidence and feedback remain available during the judge demo.
-- **Next:** Reconcile interrupted jobs after an API restart, then broaden the labeled evaluation set with additional uncontaminated policy cases.
+- **Verified:** API startup atomically marks stale queued/running jobs as failed with `job_interrupted_by_restart`, reports the count through health, and gives the UI a safe-retry notice without replaying external model calls.
+- **Next:** Broaden the labeled evaluation set with additional uncontaminated policy cases.
 
 ## Documentation and version-control policy
 

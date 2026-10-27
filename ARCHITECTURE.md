@@ -49,6 +49,7 @@
 | ADR-020 | Share one API-owned Hindsight server lifecycle while creating SDK clients per caller thread | Avoids repeated local model/server startup without reusing event-loop-bound client state across threads | Accepted and verified post-G5 |
 | ADR-021 | Represent reviews and paired comparisons as typed persisted jobs | One observable contract covers long-running work while preserving distinct memory and baseline stages | Accepted and verified post-G5 |
 | ADR-022 | Use a routed, repository-first judge workspace | Keeps overview, review, policy lineage, and ablation inspectable with independent loading and error states | Accepted and verified post-G5 |
+| ADR-023 | Fail interrupted jobs on startup instead of replaying them automatically | A crash may follow external calls or partial persistence; explicit retry avoids duplicate Gemini/Hindsight work while preserving observable failure | Accepted and verified post-G5 |
 
 If a decision changes, document the new decision, rationale, tradeoff, validation and affected contracts here; don't silently modify another doc only.
 
@@ -617,13 +618,14 @@ What if two confirmed rules appear to conflict without explicit precedence? Sign
 - Timestamps: ISO 8601 UTC (e.g. `2026-10-26T10:00:00Z`).
 - Status: explicit `pending | running | complete | degraded | failed`, if applicable.
 - Errors: `{ "error": {"code": "MEMORY_UNAVAILABLE", "message": "...", "retryable": true}, "request_id": "..." }`.
-- Single review requests and Memory Lab comparisons use a persisted `ReviewJob` and FastAPI background task. The UI polls queued/running stage/complete/failed state and reads the serialized run, or the comparison payload, from the completed job. The stored job survives a browser refresh; the review page does not automatically reload it. Stopping the API process interrupts active work. A durable worker is future production hardening.
+- Single review requests and Memory Lab comparisons use a persisted `ReviewJob` and FastAPI background task. The UI polls queued/running stage/complete/failed state and reads the serialized run, or the comparison payload, from the completed job. Stored jobs survive browser refresh, and the review page restores the latest completed run. Stopping the API process interrupts active work. A durable worker is future production hardening.
+- On startup, any job still marked `queued` or `running` is atomically changed to `failed` with bounded code `job_interrupted_by_restart`. Completed and already-failed jobs are unchanged. Health exposes only the reconciled count; the UI requests an explicit retry and never silently replays provider traffic.
 
 ### 7.2 Endpoint summary
 
 | Method | Route | Purpose |
 |---|---|---|
-| GET | `/api/health` | App and optional dependency health; never echo credentials |
+| GET | `/api/health` | App/dependency health and interrupted-job reconciliation count; never echo credentials |
 | GET | `/api/repositories` | List demo repositories |
 | GET | `/api/repositories/{repo_id}/prs` | PR list |
 | GET | `/api/prs/{pr_id}` | Full PR fixture diff/details |

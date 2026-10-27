@@ -5,6 +5,7 @@ from contextlib import nullcontext
 from datetime import datetime, timezone
 from typing import Any, Callable
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from .models import PullRequest, ReviewJob
@@ -38,6 +39,28 @@ def create_review_job(
     session.add(job)
     session.commit()
     return job
+
+
+def reconcile_interrupted_jobs(sessions: sessionmaker[Session]) -> int:
+    """Fail nonterminal jobs left behind by a previous API process.
+
+    Retrying a partially executed review could duplicate provider calls or persisted
+    review runs. A new request is therefore required after a restart.
+    """
+    with sessions() as session:
+        jobs = session.scalars(
+            select(ReviewJob).where(ReviewJob.status.in_(("queued", "running")))
+        ).all()
+        if not jobs:
+            return 0
+        reconciled_at = utc_now()
+        for job in jobs:
+            job.status = "failed"
+            job.stage = "failed"
+            job.error_code = "job_interrupted_by_restart"
+            job.updated_at = reconciled_at
+        session.commit()
+        return len(jobs)
 
 
 def execute_review_job(

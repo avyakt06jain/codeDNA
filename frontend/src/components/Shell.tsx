@@ -24,7 +24,7 @@ export function RepoScope() {
 export function Shell() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { repositories, repoId, setRepoId, prs, hindsight, loadingRepos, repoError } = useWorkspace();
+  const { repositories, repoId, setRepoId, prs, health, hindsight, loadingRepos, repoError } = useWorkspace();
   const routeRepo = pathname.match(/\/repos\/([^/]+)/)?.[1];
   const currentRepoId = routeRepo || repoId;
   const repo = repositories.find((item) => item.id === currentRepoId);
@@ -140,6 +140,11 @@ export function Shell() {
             ))}
           </p>
         </header>
+        {(health?.interrupted_jobs ?? 0) > 0 ? (
+          <p className="recovery-banner" role="status">
+            {health?.interrupted_jobs} interrupted {health?.interrupted_jobs === 1 ? "job was" : "jobs were"} marked failed after restart. Start a new review to retry safely.
+          </p>
+        ) : null}
         <main id="main" className="workspace-body">
           <Outlet />
         </main>

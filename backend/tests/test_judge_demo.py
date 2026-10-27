@@ -229,6 +229,7 @@ def test_warm_runtime_is_not_started_under_pytest(tmp_path, monkeypatch):
     assert body["status"] == "ok"
     assert body["memory"] in {"configured", "unconfigured"}
     assert body["hindsight"] == "unavailable"
+    assert body["interrupted_jobs"] == 0
     assert calls == []
     assert get_runtime().status == "unavailable"
 

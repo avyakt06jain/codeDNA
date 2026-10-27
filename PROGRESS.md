@@ -34,10 +34,11 @@
 - A clean-state CLI evaluation and a live browser evaluation both passed all six guardrails.
 - Review Workspace and Memory Lab both queue persisted background jobs and poll explicit stages.
 - The evolved judge scene is idempotent: `DEC-0103` stays the active shipping rule, and Analytics Service keeps UTC decision `DEC-0211`.
+- API startup reconciles stale queued/running jobs to explicit failed state, health reports the count, and the UI explains that a new review is required for a safe retry.
 
 ## In Progress
 
-- Post-MVP reliability work continues with interrupted-job reconciliation and broader uncontaminated evaluation fixtures.
+- Post-MVP reliability work continues with broader uncontaminated evaluation fixtures.
 
 ## Blocked
 
@@ -51,7 +52,7 @@
 - Gemini free tier reported a zero cached-content storage-token limit. Hindsight logged the failure and completed via uncached fallback; this adds noise and may increase latency.
 - The standalone Gemini-backed Hindsight process did not bind its HTTP listener on this Windows host. G1 therefore uses the official in-process server, which was verified.
 - First execution downloads and loads local embedding/reranker assets and is materially slower than later runs.
-- Review and comparison jobs are asynchronous and observable. The pull-request page restores its latest completed memory review after refresh, but stopping the API still interrupts an in-process job.
+- Review and comparison jobs are asynchronous and observable. The pull-request page restores its latest completed memory review after refresh. An API crash interrupts active work; the next startup marks that job failed rather than automatically replaying potentially duplicated provider work.
 - The baseline model reported a generic missing-`where` concern on the intentionally abbreviated synthetic Prisma fixture. It was persisted honestly and did not receive team-policy authority.
 - The authorization model is a narrow demo boundary (`demo-maintainer`), not production authentication or role-based access control.
 - The feedback UI exposes accept and dismiss. The evolution page shows the supersession timeline. A free-text correction flow is still limited.
@@ -60,9 +61,19 @@
 
 ## Next Action
 
-Reconcile queued/running jobs interrupted by an API restart, then expand the labeled evaluation set without contaminating baselines.
+Expand the labeled evaluation set with a second held-out policy case without contaminating its baseline or another repository bank.
 
 ## Session Log
+
+### 2026-10-27 — Interrupted-job restart reconciliation
+
+- Goal: Prevent persisted queued/running jobs from remaining indefinitely stuck after an API-process interruption.
+- Implemented: atomic startup reconciliation to `failed`/`job_interrupted_by_restart`, idempotent terminal-state preservation, health count, and an accessible safe-retry notice in the workspace.
+- Safety decision: startup does not automatically replay interrupted work because a crash can occur after external provider calls or partial review persistence; retry remains an explicit new job.
+- Focused checks: backend recovery/judge tests → **12 passed**; frontend UI tests → **10 passed**.
+- Live isolated process check: a queued job in `recovery-smoke.sqlite3` became failed after starting an API on port 8011; health reported `interrupted_jobs: 1`, and the job returned `job_interrupted_by_restart`. The main demo processes were not stopped.
+- Final regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 ..\.venv\Scripts\python.exe -m pytest -q` → **28 passed**; `npm test -- --run` → **17 passed across 4 files**; `npm run build` → **PASS**, 38 modules, 303.94 kB JavaScript and 13.38 kB CSS before gzip.
+- Next: add a second separately labeled evaluation case and prove its no-memory baseline remains uncontaminated.
 
 ### 2026-10-27 — Refresh-safe evidence and project handoff
 

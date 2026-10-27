@@ -17,8 +17,12 @@ The browser maps stages to readable loading text and stops after six minutes. Th
 - Job state and completed results survive browser reloads.
 - Active work does not resume after API-process termination because the local MVP uses in-process FastAPI background tasks, not an external worker queue.
 - The shared Hindsight server is API-owned, while each worker creates its own SDK client to avoid sharing event-loop-bound client state across threads.
+- The next API startup atomically marks every leftover `queued`/`running` job `failed` with `job_interrupted_by_restart`. It does not replay work that may already have called an external provider or partially persisted a run.
+- `/api/health` reports the number reconciled during this process start, and the UI renders an accessible safe-retry notice when the count is nonzero.
 
 ## Verification
 
 - Unit tests cover review/comparison queued-to-complete persistence and sanitized unexpected failure.
+- Recovery tests cover queued/running reconciliation, idempotency, and preservation of completed/already-failed jobs.
 - A live paired job returned queued state immediately and later resolved to two persisted runs with all six provenance/contamination guardrails passing.
+- An isolated live API restart converted a persisted queued job to `job_interrupted_by_restart` and reported `interrupted_jobs: 1` without touching the running demo.
