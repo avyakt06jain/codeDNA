@@ -13,7 +13,7 @@ class GeneralFindingModel:
     model_name = "test"
 
     def generate(self, parsed, evidence):
-        return ReviewModelOutput(findings=[CandidateFinding(file_path="src/orders/update.ts", new_line=18, severity="warning", category="general", title="Review this direct update", explanation="This direct persistence update deserves explicit review.", confidence="medium")])
+        return ReviewModelOutput(findings=[CandidateFinding(file_path="src/orders/update.ts", new_line=16, severity="warning", category="general", title="Review this direct update", explanation="This direct persistence update deserves explicit review.", confidence="medium")])
 
 
 def seeded_session():
@@ -53,6 +53,7 @@ def test_explicit_maintainer_supersession_changes_authoritative_state():
         actor_label="demo-maintainer",
     )
     assert replacement.id == SUPERSEDING_DECISION_ID
+    assert replacement.supersedes_decision_id == DECISION_ID
     assert replacement.status == "active"
     assert session.get(Decision, DECISION_ID).status == "superseded"
     document = session.get(MemoryDocument, SUPERSEDING_DOCUMENT_ID)

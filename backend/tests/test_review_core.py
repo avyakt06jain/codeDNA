@@ -20,7 +20,7 @@ class FakeModel:
             findings=[
                 CandidateFinding(
                     file_path="src/orders/update.ts",
-                    new_line=19,
+                    new_line=16,
                     severity="warning",
                     category="general",
                     title="Review direct status mutation",
@@ -95,7 +95,11 @@ def test_baseline_review_persists_validated_finding(tmp_path: Path):
     assert payload["mode"] == "baseline"
     assert payload["status"] == "complete"
     assert len(payload["findings"]) == 1
-    assert payload["findings"][0]["new_line"] == 19
+    assert payload["findings"][0]["new_line"] == 16
+    timings = payload["retrieval"]["timings_ms"]
+    assert timings["recall"] == 0
+    assert timings["query"] == 0
+    assert set(timings) == {"query", "recall", "validation", "generation"}
     assert payload["findings"][0]["evidence_ids"] == []
 
 

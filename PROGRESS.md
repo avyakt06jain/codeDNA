@@ -5,9 +5,9 @@
 ## Current State
 
 - Date: 2026-10-27
-- Phase: G0–G5 MVP gates complete; continuous improvement is active.
-- Implementation: The retain → recall → validate → review → feedback → supersede → ablate loop is verified locally against real Hindsight and Gemini.
-- Git: `main` is initialized, connected to GitHub, and the bootstrap commit is pushed.
+- Phase: G0–G5 MVP gates complete; the evolved judge demo was exercised against a restarted local API.
+- Implementation: The retain → recall → validate → review → feedback → supersede → ablate loop is verified locally against real Hindsight and Gemini. `CODEDNA_DEMO_SCENE=evolved` leaves `DEC-0103` active and `DEC-0042` superseded.
+- Git: `main` is initialized, connected to GitHub, and verified checkpoints are pushed without rewriting published history.
 
 ## Working
 
@@ -32,11 +32,12 @@
 - The Memory Lab runs paired same-PR/same-model reviews, persists both, and reports deterministic contamination/provenance checks.
 - The guarded reset deleted only the two CodeDNA demo banks and designated demo database, then restored deterministic fixtures.
 - A clean-state CLI evaluation and a live browser evaluation both passed all six guardrails.
-- Review Workspace now queues persisted background review jobs and polls explicit stages instead of holding the review request open through Hindsight/model startup.
+- Review Workspace and Memory Lab both queue persisted background jobs and poll explicit stages.
+- The evolved judge scene is idempotent: `DEC-0103` stays the active shipping rule, and Analytics Service keeps UTC decision `DEC-0211`.
 
 ## In Progress
 
-- Memory Lab comparison remains synchronous; converting that paired operation is the next reliability slice.
+- Post-MVP reliability work continues with interrupted-job reconciliation and broader uncontaminated evaluation fixtures. The review page still does not reload a finished job after refresh.
 
 ## Blocked
 
@@ -50,18 +51,31 @@
 - Gemini free tier reported a zero cached-content storage-token limit. Hindsight logged the failure and completed via uncached fallback; this adds noise and may increase latency.
 - The standalone Gemini-backed Hindsight process did not bind its HTTP listener on this Windows host. G1 therefore uses the official in-process server, which was verified.
 - First execution downloads and loads local embedding/reranker assets and is materially slower than later runs.
-- Review creation is asynchronous and observable, but the paired Memory Lab comparison still holds one HTTP request open while both runs execute.
+- Review and comparison jobs are asynchronous and observable. Refreshing the pull-request page does not replay the on-screen findings, and stopping the API interrupts an in-process job.
 - The baseline model reported a generic missing-`where` concern on the intentionally abbreviated synthetic Prisma fixture. It was persisted honestly and did not receive team-policy authority.
 - The authorization model is a narrow demo boundary (`demo-maintainer`), not production authentication or role-based access control.
-- The feedback UI currently exposes two common actions; correction reason entry and a visual supersession timeline remain future UX improvements.
+- The feedback UI exposes accept and dismiss. The evolution page shows the supersession timeline. A free-text correction flow is still limited.
 - The evaluation has one synthetic held-out policy case, so results are reported as counts, not generalized accuracy claims.
 - A polished recorded video and hackathon portal submission are external presentation actions and are not created or submitted automatically.
 
 ## Next Action
 
-Move the paired Memory Lab comparison onto the verified persisted-job boundary, then expand the labeled evaluation set without contaminating baselines.
+Reconcile queued/running jobs interrupted by an API restart, then expand the labeled evaluation set without contaminating baselines.
 
 ## Session Log
+
+### 2026-10-27 — Judge demo verification
+
+- Goal: Restart the API on port 8000 with the evolved scene, verify health, lineage, one memory review, one Memory Lab comparison, and the UI, then record only what happened.
+- API: stopped the previous listener on `127.0.0.1:8000` and started `uvicorn codedna_memory.api:app` from `backend` with `CODEDNA_DEMO_SCENE=evolved` and `CODEDNA_HINDSIGHT_AUTOSTART=1`. Vite on `127.0.0.1:5173` was already serving the current frontend and was left running.
+- Health: `{"status":"ok","memory":"configured","hindsight":"ready"}`. On the server that ran the successful review, health was still `starting` about 10 seconds after process start and first reported `ready` at 91 seconds. The first boot in this session also reached `ready`; its last demo retain writes were about 65 seconds after start, and a Gemini cached-content create logged `429 RESOURCE_EXHAUSTED` (free-tier cache limit 0) before the uncached fallback.
+- Policy: `DEC-0103` active, `DEC-0042` superseded, lineage in both directions. `pr-analytics-11` and active `DEC-0211` are the UTC analytics rule, not the order rule. All three memory documents were `ingestion_status: ready`.
+- Live review: the first attempt, `job-532a5d17e2964592`, failed in about 1.5 seconds with `review_service_unavailable`. Cause: the shared Hindsight client was first used on the startup thread, and a later request thread hit `RuntimeError: Timeout context manager should be used inside a task`. Fix: each request opens its own client for the shared server URL. Focused pytest: `tests/test_judge_demo.py::test_shared_client_is_opened_on_the_caller_thread`, `test_warm_runtime_is_not_started_under_pytest`, and `tests/test_review_jobs.py` → **4 passed**. After restart, `job-46388a2357ac42ef` completed in 16,242 ms and cited only `DEC-0103` as `team_convention` on `src/orders/update.ts` line 14. Run timings: recall 1,612 ms, generation 10,546 ms, validation 4 ms, query 0 ms; run elapsed 12,182 ms.
+- Comparison: `job-227bd332a40b4152` completed in 82,825 ms with `evaluation.passed: true` and all six checks true. Memory run elapsed 76,238 ms (generation 75,887 ms, recall 331 ms). Baseline elapsed 2,386 ms, one general finding, no citations.
+- UI: the IDE browser server did not stay available, so the clicks were made in headless Chrome. Clicked Overview, Pull Requests (PR #87), Team DNA, View evolution, Memory Lab, and Analytics Service. Evidence and Dismiss were not on the PR page because that page had not started a review. Evolution initially painted `DEC-0042`'s memory document inside the current-design card; the card now shows only the active decision when the opened id is historical. `npm test -- --run src/ui.test.tsx` → **8 passed**.
+- Final regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 ..\.venv\Scripts\python.exe -m pytest -q` → **27 passed**; `npm test -- --run` → **15 passed across 4 files**; `npm run build` → **PASS**, 38 modules, 303.64 kB JavaScript and 13.18 kB CSS before gzip. The in-app browser also rendered the running overview with Hindsight `Memory connected` after the managed shell's loopback probe was denied by its sandbox.
+- Docs: `README.md`, `docs/DEMO.md`, `PROGRESS.md`, `ARCHITECTURE.md`.
+- Next: optional reload of the latest completed review on the pull-request page.
 
 ### 2026-10-27 — Observable background review jobs
 

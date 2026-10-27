@@ -17,14 +17,21 @@ def utc_now() -> datetime:
 
 
 def create_review_job(
-    session: Session, *, pr_id: str, memory_enabled: bool
+    session: Session,
+    *,
+    pr_id: str,
+    memory_enabled: bool,
+    kind: str = "review",
 ) -> ReviewJob:
+    if kind not in {"review", "comparison"}:
+        raise ValueError("invalid_review_job_kind")
     if session.get(PullRequest, pr_id) is None:
         raise ValueError("pull_request_not_found")
     job = ReviewJob(
         id=f"job-{uuid.uuid4().hex[:16]}",
         pr_id=pr_id,
         memory_enabled=memory_enabled,
+        kind=kind,
         status="queued",
         stage="queued",
     )
@@ -47,24 +54,50 @@ def execute_review_job(
             if job is None or job.status != "queued":
                 return
             job.status = "running"
-            job.stage = "starting_hindsight" if job.memory_enabled else "reviewing_diff"
+            comparison = job.kind == "comparison"
+            job.stage = (
+                "starting_hindsight"
+                if comparison or job.memory_enabled
+                else "reviewing_diff"
+            )
             job.updated_at = utc_now()
             session.commit()
 
             model = model_factory()
-            memory_context = (
-                memory_client_factory()
-                if job.memory_enabled and memory_client_factory is not None
-                else nullcontext(None)
-            )
-            with memory_context as client:
-                job.stage = "recalling_and_reviewing" if job.memory_enabled else "reviewing_diff"
+            if comparison:
+                if memory_client_factory is None:
+                    raise ValueError("hindsight_unavailable")
+                with memory_client_factory() as client:
+                    job.stage = "recalling_and_reviewing"
+                    job.updated_at = utc_now()
+                    session.commit()
+                    memory_run = ReviewService(session, model).run(
+                        pr_id=job.pr_id, memory_client=client
+                    )
+                job.stage = "reviewing_baseline"
                 job.updated_at = utc_now()
                 session.commit()
-                run = ReviewService(session, model).run(
-                    pr_id=job.pr_id, memory_client=client
+                baseline_run = ReviewService(session, model).run(
+                    pr_id=job.pr_id, memory_client=None
                 )
-            job.review_run_id = run.id
+                job.review_run_id = memory_run.id
+                job.baseline_run_id = baseline_run.id
+            else:
+                memory_context = (
+                    memory_client_factory()
+                    if job.memory_enabled and memory_client_factory is not None
+                    else nullcontext(None)
+                )
+                with memory_context as client:
+                    job.stage = (
+                        "recalling_and_reviewing" if job.memory_enabled else "reviewing_diff"
+                    )
+                    job.updated_at = utc_now()
+                    session.commit()
+                    run = ReviewService(session, model).run(
+                        pr_id=job.pr_id, memory_client=client
+                    )
+                job.review_run_id = run.id
             job.status = "complete"
             job.stage = "complete"
             job.updated_at = utc_now()

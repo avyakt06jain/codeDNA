@@ -105,7 +105,10 @@
 ## Post-MVP reliability improvements
 
 - **Verified:** Persisted background review jobs return `202 Accepted`, expose queued/running/stage/complete/failed state, sanitize failures, and let the UI poll without holding one HTTP request open.
-- **Next:** Extend the same observable job boundary to the two-run Memory Lab comparison.
+- **Verified:** Memory Lab comparisons use the same persisted job boundary, expose separate memory/baseline stages, and return both stored runs plus deterministic evaluation results.
+- **Verified:** The judge workspace now provides routed repository overview, PR review, Team DNA, decision evolution, and Memory Lab views with keyboard navigation and explicit dependency health.
+- **Verified:** A second isolated `analytics-service` fixture broadens repository navigation without seeding the Acme evaluation answer into its bank.
+- **Next:** Reconcile interrupted jobs after an API restart, then broaden the labeled evaluation set with additional uncontaminated policy cases.
 
 ## Documentation and version-control policy
 

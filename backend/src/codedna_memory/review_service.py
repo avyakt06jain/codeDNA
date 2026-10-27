@@ -16,6 +16,10 @@ from .review_model import ReviewModel
 from .review_schemas import CandidateFinding
 
 
+def _elapsed_ms(started: float) -> int:
+    return max(0, int((time.perf_counter() - started) * 1000))
+
+
 def validate_candidate(
     candidate: CandidateFinding,
     *,
@@ -69,11 +73,17 @@ class ReviewService:
         retrieval: dict[str, Any] = {"query": None, "validated_evidence": []}
         evidence_prompt: list[dict[str, object]] = []
         fact_by_decision: dict[str, str] = {}
+        query_ms = 0
+        recall_ms = 0
         if memory_client is not None:
+            query_started = time.perf_counter()
             query = build_memory_query(parsed)
+            query_ms = _elapsed_ms(query_started)
+            recall_started = time.perf_counter()
             recalled = HindsightMemoryService(
                 self._session, memory_client
             ).recall_validated(repository.slug, query)
+            recall_ms = _elapsed_ms(recall_started)
             retrieval = recalled
             for item in recalled["validated_evidence"]:
                 decision = self._session.get(Decision, item["decision_id"])
@@ -89,9 +99,12 @@ class ReviewService:
                 )
                 fact_by_decision[decision.id] = item["fact_id"]
 
+        generation_started = time.perf_counter()
         output = self._model.generate(parsed, evidence_prompt)
+        generation_ms = _elapsed_ms(generation_started)
         allowed = set(fact_by_decision)
         dropped: list[dict[str, str]] = []
+        validation_started = time.perf_counter()
         for candidate in output.findings:
             reason = validate_candidate(
                 candidate, parsed=parsed, allowed_decision_ids=allowed
@@ -121,6 +134,13 @@ class ReviewService:
                         memory_fact_id=fact_by_decision.get(decision_id),
                     )
                 )
+        validation_ms = _elapsed_ms(validation_started)
+        retrieval["timings_ms"] = {
+            "query": query_ms,
+            "recall": recall_ms,
+            "validation": validation_ms,
+            "generation": generation_ms,
+        }
 
         run.status = "complete"
         run.retrieval_trace_json = json.dumps(retrieval, sort_keys=True, default=str)
@@ -153,7 +173,8 @@ def serialize_review(session: Session, run: ReviewRun) -> dict[str, Any]:
                 "evidence_ids": [item.decision_id for item in evidence],
             }
         )
-    return {
+    retrieval = json.loads(run.retrieval_trace_json)
+    payload = {
         "run_id": run.id,
         "status": run.status,
         "mode": run.mode,
@@ -161,7 +182,11 @@ def serialize_review(session: Session, run: ReviewRun) -> dict[str, Any]:
         "provider": run.provider,
         "pr_id": run.pr_id,
         "elapsed_ms": run.elapsed_ms,
-        "retrieval": json.loads(run.retrieval_trace_json),
+        "retrieval": retrieval,
         "validation": json.loads(run.validation_trace_json),
         "findings": result_findings,
     }
+    stored_timings = retrieval.get("timings_ms")
+    if isinstance(stored_timings, dict):
+        payload["timings_ms"] = stored_timings
+    return payload

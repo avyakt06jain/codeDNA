@@ -13,7 +13,7 @@ class JobModel:
 
     def generate(self, parsed, evidence):
         return ReviewModelOutput(
-            findings=[CandidateFinding(file_path="src/orders/update.ts", new_line=18, severity="warning", category="general", title="Review direct persistence update", explanation="The direct persistence update deserves explicit review before merge.", confidence="medium")]
+            findings=[CandidateFinding(file_path="src/orders/update.ts", new_line=16, severity="warning", category="general", title="Review direct persistence update", explanation="The direct persistence update deserves explicit review before merge.", confidence="medium")]
         )
 
 

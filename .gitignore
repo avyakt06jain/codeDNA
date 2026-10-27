@@ -40,6 +40,9 @@ frontend/coverage/
 frontend/*.js
 frontend/*.d.ts
 
+# Local UI design references (not runtime assets)
+/assets/ui/*.png
+
 # Editors and operating systems
 .idea/
 .vscode/

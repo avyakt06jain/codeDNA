@@ -6,7 +6,16 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from .constants import SUPERSEDING_DECISION_ID, SUPERSEDING_DOCUMENT_ID
+from .constants import (
+    DECISION_ID,
+    SHIPPING_DECISION_RATIONALE,
+    SHIPPING_DECISION_RULE,
+    SHIPPING_DECISION_SCOPE,
+    SHIPPING_DECISION_TITLE,
+    SUPERSEDING_DECISION_ID,
+    SUPERSEDING_DOCUMENT_ID,
+    SUPERSESSION_SOURCE_PR_ID,
+)
 from .hindsight_service import HindsightMemoryService
 from .models import Decision, FeedbackEvent, Finding, MemoryDocument, PullRequest, Repository
 
@@ -75,6 +84,7 @@ def supersede_decision(
         authority="reviewer_confirmed",
         status="active",
         effective_at=source.created_at,
+        supersedes_decision_id=previous.id,
     )
     session.add(replacement)
     session.flush()
@@ -93,3 +103,33 @@ def supersede_decision(
             repository.slug, replacement.id
         )
     return replacement
+
+
+def prepare_evolved_demo(session: Session, memory_client: Any | None = None) -> Decision:
+    """Apply the shipping-workflow scene once. A second call only retries a failed retain."""
+    existing = session.get(Decision, SUPERSEDING_DECISION_ID)
+    if existing is None:
+        return supersede_decision(
+            session,
+            decision_id=DECISION_ID,
+            source_pr_id=SUPERSESSION_SOURCE_PR_ID,
+            title=SHIPPING_DECISION_TITLE,
+            rule_text=SHIPPING_DECISION_RULE,
+            rationale=SHIPPING_DECISION_RATIONALE,
+            scope=dict(SHIPPING_DECISION_SCOPE),
+            actor_label="demo-maintainer",
+            memory_client=memory_client,
+        )
+    document = session.get(MemoryDocument, SUPERSEDING_DOCUMENT_ID)
+    if (
+        memory_client is not None
+        and document is not None
+        and document.ingestion_status == "failed"
+    ):
+        repository = session.get(Repository, existing.repository_id)
+        if repository is None:
+            raise ValueError("repository_not_found")
+        HindsightMemoryService(session, memory_client).retain_decision(
+            repository.slug, existing.id
+        )
+    return existing

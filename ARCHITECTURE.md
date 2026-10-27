@@ -46,6 +46,9 @@
 | ADR-017 | Memory Lab pairs the same candidate and model, varying only validated history access | Makes the product's memory effect inspectable without leaking the answer into baseline | Accepted and verified in G5 |
 | ADR-018 | Demo reset requires an explicit flag and exact synthetic storage targets | Reproducibility must not risk unrelated banks or developer databases | Accepted and verified in G5 |
 | ADR-019 | Persist review jobs before executing them as FastAPI background tasks | Returns promptly, exposes truthful stages/results, and sanitizes external failures while keeping the local MVP dependency-free | Accepted and verified post-G5 |
+| ADR-020 | Share one API-owned Hindsight server lifecycle while creating SDK clients per caller thread | Avoids repeated local model/server startup without reusing event-loop-bound client state across threads | Accepted and verified post-G5 |
+| ADR-021 | Represent reviews and paired comparisons as typed persisted jobs | One observable contract covers long-running work while preserving distinct memory and baseline stages | Accepted and verified post-G5 |
+| ADR-022 | Use a routed, repository-first judge workspace | Keeps overview, review, policy lineage, and ablation inspectable with independent loading and error states | Accepted and verified post-G5 |
 
 If a decision changes, document the new decision, rationale, tradeoff, validation and affected contracts here; don't silently modify another doc only.
 
@@ -296,6 +299,8 @@ stateDiagram-v2
 **G1 implementation decision (2026-10-27):** The first memory spike uses the official `hindsight-all==1.1.0` `HindsightServer` on native Windows with embedded pg0 and `hindsight-client==1.1.0`. The CLI owns the server lifecycle, while the application adapter still communicates through Hindsight's real localhost HTTP API on an automatically selected port. Separate CLI processes proved stop/restart persistence against the same pg0 data. This is an intentional revision to proposed ADR-004: Docker was unavailable, and the standalone Gemini-backed `hindsight-api` process reached application construction but did not bind its listener on this host. Docker remains a later reproducibility option.
 
 Gemini `gemini-3.1-flash-lite` completed real retain and recall. Its startup health probe intermittently returned `503 UNAVAILABLE` under high demand, but later operation calls succeeded. Hindsight also attempted Gemini cached-content creation, which the free tier rejected because its cache storage token limit was zero; Hindsight logged the documented fallback and completed uncached calls. No paid fallback was selected. The CLI gives shutdown up to 60 seconds so the consolidation worker and pg0 close cleanly.
+
+**Shared API runtime (verified 2026-10-27):** One FastAPI process owns one in-process Hindsight server when `CODEDNA_HINDSIGHT_AUTOSTART` is not `0`. `GET /api/health` reports that server as `starting`, `ready`, or `unavailable`. SQLite `decisions.supersedes_decision_id` is the lineage column and is added on startup when an older database file does not have it. Memory reviews and Memory Lab comparisons are both `ReviewJob` rows. A finished comparison returns `kind: comparison` with `evaluation`, `memory`, and `baseline`. The startup thread keeps the client that retains demo documents. Each later request opens a new client for the same server URL, because the Python SDK binds its HTTP session to the thread that first uses a client.
 
 Use Hindsight full Docker image with embedded PostgreSQL and local embedding/reranking models, persistent named volume, and an LLM API key. As documented on 2026-10-26:
 
@@ -612,7 +617,7 @@ What if two confirmed rules appear to conflict without explicit precedence? Sign
 - Timestamps: ISO 8601 UTC (e.g. `2026-10-26T10:00:00Z`).
 - Status: explicit `pending | running | complete | degraded | failed`, if applicable.
 - Errors: `{ "error": {"code": "MEMORY_UNAVAILABLE", "message": "...", "retryable": true}, "request_id": "..." }`.
-- Single review requests use a persisted `ReviewJob` and FastAPI background task. The UI polls queued/running stage/complete/failed state and fetches the serialized run from the completed job. This survives browser refresh but not API-process termination; a durable worker is future production hardening. The paired comparison remains synchronous.
+- Single review requests and Memory Lab comparisons use a persisted `ReviewJob` and FastAPI background task. The UI polls queued/running stage/complete/failed state and reads the serialized run, or the comparison payload, from the completed job. The stored job survives a browser refresh; the review page does not automatically reload it. Stopping the API process interrupts active work. A durable worker is future production hardening.
 
 ### 7.2 Endpoint summary
 
@@ -632,7 +637,7 @@ What if two confirmed rules appear to conflict without explicit precedence? Sign
 | GET | `/api/reviews/{run_id}` | Status, findings and timings |
 | GET | `/api/reviews/{run_id}/evidence` | Retrieved/validated evidence and source links |
 | POST | `/api/findings/{finding_id}/feedback` | Persist review feedback |
-| POST | `/api/memory-lab/compare` | Run/queue controlled comparison for same PR |
+| POST | `/api/prs/{pr_id}/comparison` | Queue a paired memory/baseline job for one PR; poll `GET /api/review-jobs/{job_id}` |
 | GET | `/api/memory-documents/{document_id}` | Ingestion status for selected source |
 
 ### 7.3 Example create decision
