@@ -21,3 +21,14 @@ The immediately preceding clean attempt failed on a transient Gemini `503 UNAVAI
 - Baseline run: `review-215fbf1c9b5f4636`, 2.3 s, no memory citation
 
 The latency difference between runs and executions reflects local model warmup plus external provider conditions; it is not presented as a performance claim.
+
+## Post-G5 analytics expansion — 2026-10-27
+
+- Candidate: synthetic Analytics Service PR #29; historical source PR #11 was absent from candidate/model baseline context.
+- Job: `job-e1afe7434b974c8c`
+- Result: **PASS, 6 of 6 guardrails**
+- Memory run: `review-166ed59f23614459`, 15,778 ms, two team-convention findings, one validated source and citation (`DEC-0211`, source PR #11, analytics bank only)
+- Baseline run: `review-a3d5f1e523ec4ae8`, 2,000 ms, one general finding, zero citations, zero team-policy findings
+- Retrieval query used by the already-running API: `Review historical guidance relevant to changed behavior in src/events/session.ts.`
+
+This expands the recorded set to two synthetic held-out cases. It still does not support a generalized accuracy percentage.

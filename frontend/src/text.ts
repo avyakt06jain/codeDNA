@@ -2,6 +2,7 @@ import type { PullRequestSummary, Timings } from "./api";
 
 export const DEFAULT_REPO_ID = "repo-acme-commerce";
 export const DEFAULT_PR_ID = "pr-acme-87";
+export const ANALYTICS_EVALUATION_PR_ID = "pr-analytics-29";
 
 export type FeedbackChoice = "not_applicable" | "incorrect" | "outdated" | "other";
 
@@ -110,7 +111,9 @@ export function statValue(value: number | undefined): string {
 }
 
 export function preferredPullRequestId(prs: PullRequestSummary[], repoId: string): string {
-  const match = prs.find((item) => item.id === DEFAULT_PR_ID || item.number === 87);
+  const targetId = repoId === "repo-analytics-service" ? ANALYTICS_EVALUATION_PR_ID : DEFAULT_PR_ID;
+  const targetNumber = repoId === "repo-analytics-service" ? 29 : 87;
+  const match = prs.find((item) => item.id === targetId || item.number === targetNumber);
   if (match) return match.id;
   if (prs[0]) return prs[0].id;
   if (repoId === DEFAULT_REPO_ID) return DEFAULT_PR_ID;

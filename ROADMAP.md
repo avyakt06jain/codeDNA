@@ -110,7 +110,8 @@
 - **Verified:** A second isolated `analytics-service` fixture broadens repository navigation without seeding the Acme evaluation answer into its bank.
 - **Verified:** The PR workspace restores the latest completed memory review after refresh so evidence and feedback remain available during the judge demo.
 - **Verified:** API startup atomically marks stale queued/running jobs as failed with `job_interrupted_by_restart`, reports the count through health, and gives the UI a safe-retry notice without replaying external model calls.
-- **Next:** Broaden the labeled evaluation set with additional uncontaminated policy cases.
+- **Verified:** A second held-out analytics case uses source PR #11, candidate PR #29, `DEC-0211`, and the isolated analytics bank. Its real Hindsight/Gemini comparison passed all six guardrails without placing the expected answer in the candidate or baseline context.
+- **Next:** Restore the latest completed Memory Lab comparison after a browser refresh, then continue accessibility and reliability hardening.
 
 ## Documentation and version-control policy
 

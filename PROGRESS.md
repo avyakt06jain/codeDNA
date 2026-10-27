@@ -35,10 +35,11 @@
 - Review Workspace and Memory Lab both queue persisted background jobs and poll explicit stages.
 - The evolved judge scene is idempotent: `DEC-0103` stays the active shipping rule, and Analytics Service keeps UTC decision `DEC-0211`.
 - API startup reconciles stale queued/running jobs to explicit failed state, health reports the count, and the UI explains that a new review is required for a safe retry.
+- The labeled evaluation set now has two distinct repository cases: Acme shipping policy and Analytics timestamp policy. Analytics PR #29 omits the expected answer and retrieves only validated `DEC-0211` from source PR #11 in its own bank.
 
 ## In Progress
 
-- Post-MVP reliability work continues with broader uncontaminated evaluation fixtures.
+- Post-MVP reliability work continues with refresh-safe Memory Lab results and accessibility hardening.
 
 ## Blocked
 
@@ -56,14 +57,26 @@
 - The baseline model reported a generic missing-`where` concern on the intentionally abbreviated synthetic Prisma fixture. It was persisted honestly and did not receive team-policy authority.
 - The authorization model is a narrow demo boundary (`demo-maintainer`), not production authentication or role-based access control.
 - The feedback UI exposes accept and dismiss. The evolution page shows the supersession timeline. A free-text correction flow is still limited.
-- The evaluation has one synthetic held-out policy case, so results are reported as counts, not generalized accuracy claims.
+- The evaluation has two synthetic held-out policy cases, so results are reported as case counts, not generalized accuracy claims.
 - A polished recorded video and hackathon portal submission are external presentation actions and are not created or submitted automatically.
 
 ## Next Action
 
-Expand the labeled evaluation set with a second held-out policy case without contaminating its baseline or another repository bank.
+Restore the latest completed Memory Lab comparison after refresh without rerunning Gemini or Hindsight.
 
 ## Session Log
+
+### 2026-10-27 — Second uncontaminated evaluation case
+
+- Goal: Broaden evaluation beyond the order-status example without leaking the expected answer or crossing repository banks.
+- Implemented: analytics source PR #11, held-out candidate PR #29, deterministic timestamp-query concept extraction, repository-specific default candidate selection, and an end-to-end fixture contract test using the real review/provenance/evaluation services.
+- Contamination checks: candidate title, description, diff, and generated query omit `UTC`, `toISOString`, `DEC-0211`, `decision-DEC-0211`, and source PR `pr-analytics-11`.
+- Deterministic proof: memory mode resolved `DEC-0211`/PR #11 from `codedna-repo-analytics-service`; baseline received no evidence; all six comparison guardrails passed.
+- Real live proof: queued job `job-e1afe7434b974c8c` completed against the already-running Hindsight/Gemini app with **6/6 guardrails**. Memory run `review-166ed59f23614459` validated one analytics source and produced two grounded team findings in 15,778 ms; baseline `review-a3d5f1e523ec4ae8` produced one general finding, zero citations, and zero team-policy findings in 2,000 ms.
+- UI proof: Analytics Service displayed both PR #11 and held-out PR #29; the repository-specific selector was corrected to prefer PR #29 rather than the historical source.
+- Final regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 ..\.venv\Scripts\python.exe -m pytest -q` → **29 passed**; `npm test -- --run` → **18 passed across 4 files**; `npm run build` → **PASS**, 38 modules, 304.03 kB JavaScript and 13.38 kB CSS before gzip.
+- Scope: two synthetic cases remain too small for an accuracy percentage.
+- Next: restore the latest completed Memory Lab comparison after browser refresh without issuing another provider call.
 
 ### 2026-10-27 — Interrupted-job restart reconciliation
 

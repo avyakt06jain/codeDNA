@@ -104,7 +104,7 @@ Latest results:
 - Frontend: **16 passed**
 - Production frontend build: **passed**
 - Live PR #87 memory review: active `DEC-0103` only
-- Memory Lab: **6/6 guardrails passed** on one synthetic held-out case
+- Memory Lab: **6/6 guardrails passed** on each of two repository-isolated synthetic held-out cases
 
 These are controlled demo results, not a generalized accuracy benchmark.
 

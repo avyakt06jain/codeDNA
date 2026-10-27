@@ -12,6 +12,8 @@ from codedna_memory.api import create_app
 from codedna_memory.constants import (
     ACME_REPOSITORY_ID,
     ANALYTICS_BANK_ID,
+    ANALYTICS_CANDIDATE_PR_DIFF,
+    ANALYTICS_CANDIDATE_PR_ID,
     ANALYTICS_DECISION_ID,
     ANALYTICS_DOCUMENT_ID,
     ANALYTICS_PR_DIFF,
@@ -136,7 +138,7 @@ def test_repository_summary_and_decision_lineage(tmp_path):
     assert detail["authority"] == "reviewer_confirmed"
 
     analytics = route["/api/repositories/{repository_id}/summary"](ANALYTICS_REPOSITORY_ID)
-    assert analytics["pr_count"] == 1
+    assert analytics["pr_count"] == 2
     assert analytics["active_decisions"] == 1
     assert analytics["hindsight"] == "unavailable"
 
@@ -375,11 +377,15 @@ def test_analytics_fixture_is_a_separate_design(tmp_path):
         seed_synthetic_provenance(session)
         decision = session.get(Decision, ANALYTICS_DECISION_ID)
         pull_request = session.get(PullRequest, ANALYTICS_PR_ID)
+        candidate = session.get(PullRequest, ANALYTICS_CANDIDATE_PR_ID)
         document = session.get(MemoryDocument, ANALYTICS_DOCUMENT_ID)
         assert decision.status == "active"
         assert decision.repository_id == ANALYTICS_REPOSITORY_ID
         assert pull_request.repository_id == ANALYTICS_REPOSITORY_ID
         assert pull_request.number == 11
+        assert candidate.repository_id == ANALYTICS_REPOSITORY_ID
+        assert candidate.number == 29
+        assert candidate.diff_text == ANALYTICS_CANDIDATE_PR_DIFF
         assert document.bank_id == ANALYTICS_BANK_ID
         assert document.ingestion_status == "pending"
         blob = " ".join(
@@ -392,6 +398,11 @@ def test_analytics_fixture_is_a_separate_design(tmp_path):
         ).lower()
         assert "order" not in blob
         assert "dec-0042" not in blob
+        candidate_blob = f"{candidate.title} {candidate.description} {candidate.diff_text}".lower()
+        assert "utc" not in candidate_blob
+        assert "toisostring" not in candidate_blob
+        assert ANALYTICS_DECISION_ID.lower() not in candidate_blob
+        assert ANALYTICS_PR_ID.lower() not in candidate_blob
         assert session.get(Decision, DECISION_ID).status == "active"
 
 

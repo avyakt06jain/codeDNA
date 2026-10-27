@@ -9,13 +9,13 @@ Observed on 2026-10-27 against the API restarted from `backend` with `CODEDNA_DE
 5. Open Team DNA, then View evolution. The chain shows superseded `DEC-0042` and current `DEC-0103`. The current-design card shows the shipping rule and source PR #103.
 6. Run one Memory Lab comparison for the same PR. Job `job-227bd332a40b4152` completed in 82,825 ms and `evaluation.passed` was true. All six checks passed: `same_candidate`, `same_model`, `memory_retrieved_validated_source`, `memory_produced_grounded_team_finding`, `baseline_has_no_memory_citations`, and `baseline_has_no_team_policy_finding`. The memory run elapsed 76,238 ms (recall 331 ms, generation 75,887 ms, validation 4 ms) and again cited only `DEC-0103` at line 14. The baseline elapsed 2,386 ms (generation 2,368 ms, recall 0 ms, validation 2 ms) and kept a general finding on line 15 with no evidence ids.
 7. Dismiss or accept on a finding stores feedback and does not change the active decision. This pass did not submit a new feedback event: the review page shows findings only for the run started on that page, and the live review above was the one memory run.
-8. Select Analytics Service in the sidebar. It has PR #11 and active `DEC-0211`, "Store and compare analytics event timestamps in UTC," on `src/events/**`. That bank and rule are separate from the order-status design.
+8. Select Analytics Service in the sidebar. Historical PR #11 and active `DEC-0211` are separate from the order-status design; held-out PR #29 is the Memory Lab candidate. Its recorded live comparison passed 6/6 guardrails with one validated analytics source and no baseline citation.
 
 For a clean replay, stop the API, execute the guarded reset and evaluation commands from the README, then restart the API with the evolved scene. Do not reset while a review request is active.
 
 ## Truthful limits to state
 
-- Fixtures are synthetic and the recorded evaluation contains one held-out policy case.
+- Fixtures are synthetic and the recorded evaluation contains two held-out policy cases; report them as counts, not an accuracy percentage.
 - Gemini is an externally rate-limited free-tier dependency; no paid fallback is enabled. During the first boot in this session Hindsight logged `429 RESOURCE_EXHAUSTED` because the free-tier cached-content storage limit was 0, then continued with an uncached call. The successful review and comparison above did not return 429 or 503.
 - The first API boot loads local retrieval models once. Later clicks reuse the running server, but a memory review still calls Gemini and can be slow. The comparison's memory generation was 75,887 ms.
 - The review page does not restore a completed job after refresh.

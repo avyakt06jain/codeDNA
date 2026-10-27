@@ -15,6 +15,13 @@ The deterministic evaluator passes only when:
 
 The UI displays raw run IDs, timings, findings, categories, citations, and every guardrail. It does not claim that a passing comparison proves general review accuracy.
 
+## Labeled cases
+
+- Acme Commerce: historical PR #103 → held-out PR #120 → active `DEC-0103`.
+- Analytics Service: historical PR #11 → held-out PR #29 → active `DEC-0211`.
+
+The analytics candidate uses locale-formatted timestamp persistence but its title, description, diff, and generated memory query omit the expected representation, decision/document IDs, and source PR ID. Repository lookup selects `codedna-repo-analytics-service`; the baseline receives no memory evidence. Both cases passed the same six guardrails against real Hindsight/Gemini. This is a count of two synthetic cases, not an accuracy benchmark.
+
 The browser polls explicit `starting_hindsight`, `recalling_and_reviewing`, and `reviewing_baseline` stages. Reloading the browser does not erase the stored job or completed runs; API-process termination can still interrupt active in-process execution.
 
 ## Reset boundary

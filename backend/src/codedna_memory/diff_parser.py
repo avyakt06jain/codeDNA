@@ -83,5 +83,10 @@ def build_memory_query(parsed: ParsedDiff) -> str:
         tokens.append("state transition")
     if "transitionorder" in snippets.lower() or "shiporder" in snippets.lower():
         tokens.append("order workflow")
+    if any(
+        marker in snippets.lower()
+        for marker in ("tolocalestring", "tolocaledatestring", "occurredat", "receivedat")
+    ):
+        tokens.append("timestamp persistence")
     concepts = ", ".join(tokens) if tokens else "changed behavior"
     return f"Review historical guidance relevant to {concepts} in {', '.join(parsed.files)}."

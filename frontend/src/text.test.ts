@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bindingCopy, feedbackPayload, formatSeconds, memoryLabel, traceSteps } from "./text";
+import { bindingCopy, feedbackPayload, formatSeconds, memoryLabel, preferredPullRequestId, traceSteps } from "./text";
 
 describe("feedback reasons", () => {
   it("maps each dismiss choice to a stored action and keeps the label", () => {
@@ -29,5 +29,15 @@ describe("memory and timings", () => {
     expect(steps.map((step) => step.key)).toEqual(["query", "generation"]);
     expect(formatSeconds(400)).toBe("0.4s");
     expect(steps.map((step) => formatSeconds(step.ms))).toEqual(["0.4s", "0.9s"]);
+  });
+});
+
+describe("evaluation fixture selection", () => {
+  it("prefers each repository's held-out candidate instead of its historical source", () => {
+    const analytics = [
+      { id: "pr-analytics-11", number: 11, title: "Historical source" },
+      { id: "pr-analytics-29", number: 29, title: "Held-out candidate" },
+    ];
+    expect(preferredPullRequestId(analytics, "repo-analytics-service")).toBe("pr-analytics-29");
   });
 });

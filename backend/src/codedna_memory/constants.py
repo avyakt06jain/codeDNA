@@ -6,6 +6,7 @@ ANALYTICS_REPOSITORY_ID = "repo-analytics-service"
 ANALYTICS_REPOSITORY_SLUG = "analytics-service"
 ANALYTICS_BANK_ID = "codedna-repo-analytics-service"
 ANALYTICS_PR_ID = "pr-analytics-11"
+ANALYTICS_CANDIDATE_PR_ID = "pr-analytics-29"
 ANALYTICS_DECISION_ID = "DEC-0211"
 ANALYTICS_DOCUMENT_ID = "decision-DEC-0211"
 
@@ -66,6 +67,21 @@ ANALYTICS_PR_DIFF = "\n".join(
         "-    occurredAt: occurredAt.toString(),",
         "+    occurredAt: occurredAt.toISOString(),",
         "+    storedAtUtc: occurredAt.toISOString(),",
+        "   });",
+        " }",
+    ]
+) + "\n"
+
+ANALYTICS_CANDIDATE_PR_DIFF = "\n".join(
+    [
+        "--- a/src/events/session.ts",
+        "+++ b/src/events/session.ts",
+        "@@ -1,5 +1,7 @@",
+        " export function recordSessionStarted(sessionId: string, receivedAt: Date) {",
+        "   return db.sessions.insert({",
+        "     sessionId,",
+        "+    receivedAt: receivedAt.toLocaleString(\"en-US\"),",
+        "+    receivedDay: receivedAt.toLocaleDateString(\"en-US\"),",
         "   });",
         " }",
     ]

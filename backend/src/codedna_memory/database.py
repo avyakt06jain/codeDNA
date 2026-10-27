@@ -13,6 +13,8 @@ from .constants import (
     ACME_REPOSITORY_ID,
     ACME_REPOSITORY_SLUG,
     ANALYTICS_BANK_ID,
+    ANALYTICS_CANDIDATE_PR_DIFF,
+    ANALYTICS_CANDIDATE_PR_ID,
     ANALYTICS_DECISION_ID,
     ANALYTICS_DOCUMENT_ID,
     ANALYTICS_PR_DIFF,
@@ -244,6 +246,24 @@ def seed_synthetic_provenance(session: Session) -> None:
                 created_at=datetime(2026, 10, 18, tzinfo=timezone.utc),
             )
         )
+    analytics_candidate = session.get(PullRequest, ANALYTICS_CANDIDATE_PR_ID)
+    if analytics_candidate is None:
+        session.add(
+            PullRequest(
+                id=ANALYTICS_CANDIDATE_PR_ID,
+                repository_id=ANALYTICS_REPOSITORY_ID,
+                number=29,
+                title="Record session start metadata",
+                description=(
+                    "Synthetic held-out analytics candidate; it contains no "
+                    "historical answer or source reference."
+                ),
+                diff_text=ANALYTICS_CANDIDATE_PR_DIFF,
+                created_at=datetime(2026, 10, 26, tzinfo=timezone.utc),
+            )
+        )
+    else:
+        analytics_candidate.diff_text = ANALYTICS_CANDIDATE_PR_DIFF
     session.flush()
     if session.get(Decision, ANALYTICS_DECISION_ID) is None:
         session.add(
