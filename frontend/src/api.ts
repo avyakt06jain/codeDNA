@@ -364,6 +364,11 @@ export const api = {
     const row = isRecord(payload) ? payload : {};
     return isRecord(row.review) ? normalizeReview(row.review) : null;
   },
+  latestComparison: async (prId: string) => {
+    const payload = await request<unknown>(`/api/prs/${prId}/comparisons/latest`);
+    const row = isRecord(payload) ? payload : {};
+    return normalizeComparison(row.comparison);
+  },
   async review(prId: string, memoryEnabled: boolean, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
     const created = await request<ReviewJob>(`/api/prs/${prId}/review-jobs`, {
       method: "POST",

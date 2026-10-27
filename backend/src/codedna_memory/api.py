@@ -124,6 +124,27 @@ def _lineage_item(session: Session, decision: Decision) -> dict[str, Any]:
     }
 
 
+def _serialize_comparison(session: Session, job: ReviewJob) -> dict[str, Any] | None:
+    if job.status != "complete" or job.kind != "comparison":
+        return None
+    memory_run = session.get(ReviewRun, job.review_run_id) if job.review_run_id else None
+    baseline_run = session.get(ReviewRun, job.baseline_run_id) if job.baseline_run_id else None
+    if (
+        memory_run is None
+        or baseline_run is None
+        or memory_run.pr_id != job.pr_id
+        or baseline_run.pr_id != job.pr_id
+    ):
+        return None
+    memory = serialize_review(session, memory_run)
+    baseline = serialize_review(session, baseline_run)
+    return {
+        "evaluation": evaluate_comparison(memory, baseline),
+        "memory": memory,
+        "baseline": baseline,
+    }
+
+
 def create_app(
     *,
     database_url: str | None = None,
@@ -360,20 +381,9 @@ def create_app(
                 "review_run_id": job.review_run_id,
             }
             if job.status == "complete" and job.kind == "comparison":
-                memory_run = (
-                    session.get(ReviewRun, job.review_run_id) if job.review_run_id else None
-                )
-                baseline_run = (
-                    session.get(ReviewRun, job.baseline_run_id) if job.baseline_run_id else None
-                )
-                if memory_run is not None and baseline_run is not None:
-                    memory = serialize_review(session, memory_run)
-                    baseline = serialize_review(session, baseline_run)
-                    payload["comparison"] = {
-                        "evaluation": evaluate_comparison(memory, baseline),
-                        "memory": memory,
-                        "baseline": baseline,
-                    }
+                comparison = _serialize_comparison(session, job)
+                if comparison is not None:
+                    payload["comparison"] = comparison
             elif job.status == "complete" and job.review_run_id:
                 run = session.get(ReviewRun, job.review_run_id)
                 if run is not None:
@@ -418,6 +428,29 @@ def create_app(
                 "pr_id": pr_id,
                 "mode": mode,
                 "review": None if run is None else serialize_review(session, run),
+            }
+
+    @app.get("/api/prs/{pr_id}/comparisons/latest")
+    def latest_comparison(pr_id: str) -> dict[str, Any]:
+        with sessions() as session:
+            if session.get(PullRequest, pr_id) is None:
+                raise HTTPException(404, "Pull request not found")
+            job = session.scalar(
+                select(ReviewJob)
+                .where(
+                    ReviewJob.pr_id == pr_id,
+                    ReviewJob.kind == "comparison",
+                    ReviewJob.status == "complete",
+                    ReviewJob.review_run_id.is_not(None),
+                    ReviewJob.baseline_run_id.is_not(None),
+                )
+                .order_by(ReviewJob.updated_at.desc(), ReviewJob.id.desc())
+            )
+            comparison = None if job is None else _serialize_comparison(session, job)
+            return {
+                "pr_id": pr_id,
+                "job_id": None if job is None else job.id,
+                "comparison": comparison,
             }
 
     @app.get("/api/reviews/{run_id}")

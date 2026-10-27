@@ -33,6 +33,7 @@ export function MemoryLabPage() {
   const [prs, setPrs] = useState<PullRequestSummary[]>([]);
   const [prId, setPrId] = useState("");
   const [loading, setLoading] = useState(true);
+  const [restoring, setRestoring] = useState(false);
   const [running, setRunning] = useState(false);
   const [stage, setStage] = useState("");
   const [error, setError] = useState("");
@@ -67,8 +68,30 @@ export function MemoryLabPage() {
   }, [repoId]);
 
   useEffect(() => {
+    let cancelled = false;
     setComparison(null);
     setStage("");
+    if (!prId) {
+      setRestoring(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+    setRestoring(true);
+    setError("");
+    api.latestComparison(prId)
+      .then((result) => {
+        if (!cancelled) setComparison(result);
+      })
+      .catch((reason: Error) => {
+        if (!cancelled) setError(reason.message);
+      })
+      .finally(() => {
+        if (!cancelled) setRestoring(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [prId]);
 
   const selected = prs.some((item) => item.id === prId) ? prId : "";
@@ -113,15 +136,16 @@ export function MemoryLabPage() {
             {prs.map((item) => <option key={item.id} value={item.id}>#{item.number} {item.title}</option>)}
           </select>
         </label>
-        <button type="button" className="primary" disabled={!selected || running || blocked || loading} onClick={() => void runComparison()}>
+        <button type="button" className="primary" disabled={!selected || running || blocked || loading || restoring} onClick={() => void runComparison()}>
           Run comparison
         </button>
       </div>
       {blocked ? <p className="hint">Comparison waits until memory is connected. A baseline review can still run from the pull request.</p> : null}
       {loading ? <LoadingNote>Loading pull requests…</LoadingNote> : null}
+      {restoring ? <LoadingNote>Restoring the latest completed comparison…</LoadingNote> : null}
       {error ? <ErrorNote>{error}</ErrorNote> : null}
       {running ? <p className="stage" role="status">{stageLabel(stage)}</p> : null}
-      {!comparison && !running && !loading ? <EmptyNote title="No comparison yet">Run both modes to compare validated findings and guardrails.</EmptyNote> : null}
+      {!comparison && !running && !loading && !restoring ? <EmptyNote title="No comparison yet">Run both modes to compare validated findings and guardrails.</EmptyNote> : null}
       {comparison ? (
         <>
           <div className="lab-columns">

@@ -36,14 +36,15 @@
 - The evolved judge scene is idempotent: `DEC-0103` stays the active shipping rule, and Analytics Service keeps UTC decision `DEC-0211`.
 - API startup reconciles stale queued/running jobs to explicit failed state, health reports the count, and the UI explains that a new review is required for a safe retry.
 - The labeled evaluation set now has two distinct repository cases: Acme shipping policy and Analytics timestamp policy. Analytics PR #29 omits the expected answer and retrieves only validated `DEC-0211` from source PR #11 in its own bank.
+- Memory Lab restores the latest completed comparison for the selected PR after refresh from persisted SQLite runs, without posting a job or calling Hindsight/Gemini again.
 
 ## In Progress
 
-- Post-MVP reliability work continues with refresh-safe Memory Lab results and accessibility hardening.
+- Post-MVP work continues with keyboard-focus and live-status accessibility hardening.
 
 ## Blocked
 
-- None for the completed MVP gates.
+- No implementation blocker. The currently restarted API reports Hindsight unavailable after Gemini returned `503 UNAVAILABLE` during provider verification; saved reviews/comparisons and citation inspection remain usable, while new memory calls require provider recovery and an API restart.
 
 ## Known Limitations
 
@@ -58,13 +59,25 @@
 - The authorization model is a narrow demo boundary (`demo-maintainer`), not production authentication or role-based access control.
 - The feedback UI exposes accept and dismiss. The evolution page shows the supersession timeline. A free-text correction flow is still limited.
 - The evaluation has two synthetic held-out policy cases, so results are reported as case counts, not generalized accuracy claims.
+- Memory Lab restores completed comparisons, but it does not reconnect to a still-running in-process job after a browser refresh.
 - A polished recorded video and hackathon portal submission are external presentation actions and are not created or submitted automatically.
 
 ## Next Action
 
-Restore the latest completed Memory Lab comparison after refresh without rerunning Gemini or Hindsight.
+Audit and improve keyboard focus plus live-status announcements across the review, evidence, and comparison flows.
 
 ## Session Log
+
+### 2026-10-27 — Refresh-safe Memory Lab comparison
+
+- Goal: Keep completed ablation evidence visible after refresh without spending quota or rerunning external services.
+- Implemented: `GET /api/prs/{pr_id}/comparisons/latest`, shared conservative comparison serialization, run-to-PR integrity checks, frontend restoration/loading state, and a no-POST UI regression.
+- Backend check: `CODEDNA_HINDSIGHT_AUTOSTART=0 ..\.venv\Scripts\python.exe -m pytest -q` → **29 passed**.
+- Frontend checks: initial default-pool full run **FAILED before collecting tests** because four Windows Vitest fork workers timed out during the resource-heavy Hindsight restart. The focused UI suite had passed 11/11. Rerun with one reused worker, `npm test -- --run --pool=threads --maxWorkers=1 --isolate=false`, → **19 passed across 4 files**. `npm run build` → **PASS**, 38 modules, 304.41 kB JavaScript and 13.38 kB CSS before gzip.
+- Live proof: restarted the API on port 8000 with current code, refreshed Analytics Memory Lab, and restored job `job-e1afe7434b974c8c` with both persisted runs, timings, `DEC-0211` citations, and all six guardrails visible before memory startup completed. No new comparison job was posted.
+- External state: the restarted Hindsight runtime later became unavailable after Gemini returned `503 UNAVAILABLE` during provider verification. CodeDNA exposed `Memory unavailable`; it did not select a fallback or fabricate readiness. Saved comparison inspection remains functional.
+- Limitation: only completed comparisons restore; a browser refresh does not reconnect to an active in-process job.
+- Next: audit keyboard focus and live-status announcements across review, evidence, and comparison flows.
 
 ### 2026-10-27 — Second uncontaminated evaluation case
 

@@ -30,6 +30,7 @@ CodeDNA separates memory from authority:
 - Persisted background review and comparison jobs
 - One warm Hindsight runtime reused by all review clicks
 - Latest memory review restored after refreshing the pull-request page
+- Latest completed Memory Lab comparison restored after refresh without rerunning providers
 
 The synthetic Acme Commerce scenario evolves from `DEC-0042` to active `DEC-0103`. Analytics Service has an isolated UTC-timestamp decision, `DEC-0211`.
 

@@ -96,6 +96,7 @@ function installFetch(options?: {
   interruptedJobs?: number;
   decisionsWrapped?: boolean;
   comparison?: Record<string, unknown>;
+  latestComparison?: Record<string, unknown>;
   latestReview?: boolean;
 }) {
   const hindsight = options?.hindsight ?? "ready";
@@ -125,6 +126,9 @@ function installFetch(options?: {
     }
     if (path === "/api/prs/pr-acme-87/reviews/latest" && method === "GET") {
       return json({ pr_id: "pr-acme-87", mode: "memory", review: options?.latestReview ? review : null });
+    }
+    if (path === "/api/prs/pr-acme-87/comparisons/latest" && method === "GET") {
+      return json({ pr_id: "pr-acme-87", job_id: options?.latestComparison ? "job-restored" : null, comparison: options?.latestComparison ?? null });
     }
     if (path.endsWith("/lineage")) {
       return json({
@@ -356,4 +360,34 @@ it("shows a memory-lab trace only for recorded timings and lists guardrails", as
   expect(within(memory).getByText("Design mismatch")).toBeTruthy();
   expect(within(baseline).getByText("General")).toBeTruthy();
   expect(baseline.textContent?.toLowerCase()).not.toContain("historical evidence");
+});
+
+it("restores the latest completed comparison without starting a new job", async () => {
+  const restored = {
+    evaluation: {
+      passed: true,
+      checks: { same_candidate: true, baseline_has_no_memory_citations: true },
+      counts: { memory_findings: 1 },
+    },
+    memory: {
+      run_id: "run-restored-memory",
+      status: "complete",
+      mode: "memory",
+      findings: [teamFinding],
+      retrieval: { timings_ms: { recall: 250 } },
+    },
+    baseline: {
+      run_id: "run-restored-baseline",
+      status: "complete",
+      mode: "baseline",
+      findings: [generalFinding],
+      retrieval: {},
+    },
+  };
+  const fetchMock = installFetch({ latestComparison: restored });
+  renderAt("/repos/repo-acme-commerce/lab");
+  expect(await screen.findByText("Guardrails passed")).toBeTruthy();
+  expect(screen.getByText("0.3s")).toBeTruthy();
+  const posts = fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST");
+  expect(posts).toHaveLength(0);
 });

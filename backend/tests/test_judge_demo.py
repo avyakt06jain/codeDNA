@@ -263,6 +263,9 @@ def test_comparison_job_completes_with_injected_clients(tmp_path, monkeypatch):
         )
     assert queued.status == "queued"
     assert queued.stage == "queued"
+    empty = endpoints(app)["/api/prs/{pr_id}/comparisons/latest"](CANDIDATE_PR_ID)
+    assert empty["job_id"] is None
+    assert empty["comparison"] is None
     execute_review_job(
         sessions,
         job_id=queued.id,
@@ -292,6 +295,11 @@ def test_comparison_job_completes_with_injected_clients(tmp_path, monkeypatch):
     assert "evaluation" in comparison
     assert comparison["evaluation"]["run_ids"]["memory"]
     assert comparison["evaluation"]["run_ids"]["baseline"]
+    restored = endpoints(app)["/api/prs/{pr_id}/comparisons/latest"](CANDIDATE_PR_ID)
+    assert restored["job_id"] == queued.id
+    assert restored["comparison"]["evaluation"]["run_ids"] == comparison["evaluation"]["run_ids"]
+    assert restored["comparison"]["memory"]["pr_id"] == CANDIDATE_PR_ID
+    assert restored["comparison"]["baseline"]["pr_id"] == CANDIDATE_PR_ID
 
 
 def test_supersession_column_and_prepare_idempotency(tmp_path):

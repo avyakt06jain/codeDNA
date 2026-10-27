@@ -24,6 +24,8 @@ The analytics candidate uses locale-formatted timestamp persistence but its titl
 
 The browser polls explicit `starting_hindsight`, `recalling_and_reviewing`, and `reviewing_baseline` stages. Reloading the browser does not erase the stored job or completed runs; API-process termination can still interrupt active in-process execution.
 
+On selection or browser refresh, the UI reads `/api/prs/{pr_id}/comparisons/latest`. The backend returns only a completed comparison with two persisted runs that both belong to the requested PR, then recomputes the same deterministic guardrails. An empty response renders the normal no-comparison state. Restoration never posts a job or calls Hindsight/Gemini. A still-running browser job is not reattached by this endpoint.
+
 ## Reset boundary
 
 `codedna-demo-reset --confirm-demo-reset` deletes only `codedna-repo-acme-commerce`, `codedna-repo-analytics-service`, and a SQLite URL ending in `codedna.sqlite3`. It then recreates the application schema and deterministic synthetic fixtures. Missing banks are treated as already reset; other failures stop the operation.

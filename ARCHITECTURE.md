@@ -629,6 +629,7 @@ What if two confirmed rules appear to conflict without explicit precedence? Sign
 | GET | `/api/repositories` | List demo repositories |
 | GET | `/api/repositories/{repo_id}/prs` | PR list |
 | GET | `/api/prs/{pr_id}` | Full PR fixture diff/details |
+| GET | `/api/prs/{pr_id}/comparisons/latest` | Restore the latest complete paired job without rerunning providers |
 | GET | `/api/repositories/{repo_id}/decisions` | Decisions by status/scope |
 | POST | `/api/repositories/{repo_id}/decisions` | Create/confirm decision; enqueue retain |
 | GET | `/api/decisions/{decision_id}` | Decision details and lineage |
@@ -779,6 +780,8 @@ Use typed API client and a simple state/query layer (native hooks or a small que
 **G3 implementation (2026-10-27):** The React/Vite client now implements the Review Workspace and a read-only Team DNA view against live FastAPI endpoints. The diff uses explicit new-side numbers, accepted findings flag their linked line, memory and baseline actions are distinct, and the evidence drawer shows backend-resolved status/rationale/source rather than model-authored citation text. A live browser run verified PR #87 through the real memory review path.
 
 **G5 implementation (2026-10-27):** Memory Lab calls a paired API operation that reuses the exact candidate PR and Gemini model instance. The memory run alone receives validated Hindsight evidence; the baseline receives an empty evidence list. Both `ReviewRun` records persist independently. A deterministic evaluator checks candidate/model equality, validated retrieval, grounded team citations, and absence of citations/team-policy claims in baseline. The UI renders actual findings, IDs, timings, and each guardrail rather than a derived score.
+
+Completed comparisons are refresh-safe. A read-only latest-comparison query selects the newest completed `comparison` job for the requested PR, requires both run IDs, verifies both persisted runs belong to that PR, and then reconstructs the deterministic evaluation. The UI restores this payload without creating a background job or invoking a provider. Active in-process jobs are not reattached after browser refresh.
 
 **Evaluation breadth (verified 2026-10-27):** The set contains two repository-isolated cases. Acme uses historical PR #103 and held-out PR #120 for shipping workflow guidance. Analytics uses historical PR #11 and held-out PR #29 for timestamp persistence. The analytics candidate and deterministic query omit the target representation, decision/document IDs, and source PR ID. Review routing derives `codedna-repo-analytics-service` from SQLite; the baseline receives no recalled evidence. Both cases have passed the same six checks against real Hindsight/Gemini, reported as two cases rather than an accuracy percentage.
 - Historical rule status is visually marked active vs superseded.
