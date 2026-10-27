@@ -78,14 +78,14 @@
 
 ## G3 — Product UI
 
-**Status:** In progress
+**Status:** Verified
 
-- Review Workspace with real fixture diff, findings, evidence, and truthful errors.
-- Team DNA decision inspection and confirmation flow.
+- Review Workspace with real fixture diff, memory/baseline actions, findings, evidence drawer, and truthful loading/empty/error states. **Verified live.**
+- Team DNA active-decision/source inspection. **Verified live.** Decision mutation remains intentionally in G4.
 
 ## G4 — Feedback and living conventions
 
-**Status:** Not started
+**Status:** In progress
 
 - Persisted feedback with nonbinding-by-default semantics.
 - Explicit supersession and PR #103 to PR #120 behavior proof.

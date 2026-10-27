@@ -5,8 +5,8 @@
 ## Current State
 
 - Date: 2026-10-27
-- Phase: G2 complete; G3 product UI is in progress.
-- Implementation: G1 memory proof and G2 parsed, evidence-validated, persisted review engine are verified against real Hindsight and Gemini.
+- Phase: G3 complete; G4 feedback and living conventions is in progress.
+- Implementation: G1 memory, G2 review engine/API, and G3 live React product UI are verified.
 - Git: `main` is initialized, connected to GitHub, and the bootstrap commit is pushed.
 
 ## Working
@@ -25,10 +25,12 @@
 - Unified diffs are bounded and parsed with `unidiff`; unsafe paths, binary/malformed input, and non-added line citations fail closed.
 - Review runs/findings/evidence are persisted in SQLite, and FastAPI exposes repository, PR, decision, review, and evidence read contracts.
 - A real paired PR #87 run produced a memory-backed line-18 finding citing validated `DEC-0042`; the independent baseline contained no team-policy category or evidence IDs.
+- React/Vite Review Workspace loads live repository/PR data, renders the changed lines, runs memory or baseline reviews, links findings to lines, and opens validated decision provenance.
+- Team DNA renders the backend's active decision, authority, rationale, and source PR.
 
 ## In Progress
 
-- Building the G3 React Review Workspace and Team DNA read view against the verified API.
+- Implementing G4 persisted feedback plus explicit decision confirmation/supersession behavior.
 
 ## Blocked
 
@@ -44,11 +46,11 @@
 - First execution downloads and loads local embedding/reranker assets and is materially slower than later runs.
 - Review creation is synchronous for the tiny fixture and may take over a minute during Hindsight startup; background jobs are deferred.
 - The baseline model reported a generic missing-`where` concern on the intentionally abbreviated synthetic Prisma fixture. It was persisted honestly and did not receive team-policy authority.
-- No frontend, feedback mutation, supersession flow, or broader evaluation suite exists yet.
+- Feedback mutation, supersession flow, and the broader G5 evaluation/submission suite do not exist yet.
 
 ## Next Action
 
-Complete G3: wire a readable React workspace to the live repository/PR/review/evidence endpoints with loading, empty, success, and failure states; add a Team DNA decision view; verify a production build.
+Implement G4: persist finding feedback as nonbinding by default, add explicit authorized decision supersession, retain new authoritative events under stable IDs, and prove later reviews use only current policy.
 
 ## Session Log
 
@@ -113,6 +115,15 @@ Complete G3: wire a readable React workspace to the live repository/PR/review/ev
 - Baseline result: one generic error on line 18 about the abbreviated Prisma call, no evidence IDs, no team-policy category, elapsed 2618 ms.
 - Validation: no generated findings were dropped in this run; all accepted lines and evidence passed deterministic checks.
 - Next: connect the G3 UI to these persisted live API results.
+
+### 2026-10-27 — G3 live product UI
+
+- Goal: Put the verified backend loop in a readable, judge-demonstrable product surface.
+- Implemented: React 19.3.1 + TypeScript 7.0.2 + Vite 8.3.5 workspace, typed API client, responsive diff viewer, line markers, memory/baseline controls, finding cards, evidence drawer, Team DNA view, and honest loading/empty/error states.
+- Frontend checks: `npm test` → **1 passed**; `npm run build` → **PASS**, 17 modules transformed, 228.53 kB JavaScript and 6.30 kB CSS before gzip.
+- Live browser check: repository and PR #87 loaded from FastAPI; Team DNA showed active `DEC-0042`; memory review completed in 52.6 s; line 18 was flagged; evidence drawer showed the rule, rationale, active status, and source `pr-acme-42`.
+- Dependency check: pinned versions installed with `npm audit` reporting **0 vulnerabilities**. `jsdom` was revised from 30.1.3 to 29.0.1 to match Node 24.14.0's supported engine range.
+- Next: add G4 feedback and living-policy mutation without weakening authority boundaries.
 
 ## Maintenance Checklist
 

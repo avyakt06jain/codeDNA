@@ -757,6 +757,8 @@ Use typed API client and a simple state/query layer (native hooks or a small que
 
 - A judge can see the **same code** and the memory-informed source within seconds.
 - Memory citations are clearly distinguishable from generic recommendations.
+
+**G3 implementation (2026-10-27):** The React/Vite client now implements the Review Workspace and a read-only Team DNA view against live FastAPI endpoints. The diff uses explicit new-side numbers, accepted findings flag their linked line, memory and baseline actions are distinct, and the evidence drawer shows backend-resolved status/rationale/source rather than model-authored citation text. A live browser run verified PR #87 through the real memory review path.
 - Historical rule status is visually marked active vs superseded.
 - If no memory was used, UI explicitly says so.
 - An ingestion failure isn't displayed as successful memory learning.

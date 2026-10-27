@@ -29,4 +29,3 @@ class ReviewCreated(BaseModel):
     run_id: str
     status: Literal["complete", "degraded", "failed"]
     mode: Literal["baseline", "memory"]
-

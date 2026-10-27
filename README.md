@@ -35,3 +35,15 @@ Run the API for the product UI:
 Set-Location backend
 ..\.venv\Scripts\python.exe -m uvicorn codedna_memory.api:app --host 127.0.0.1 --port 8000
 ```
+
+In a second PowerShell window, run the verified frontend:
+
+```powershell
+Set-Location frontend
+npm install
+npm test
+npm run build
+npm run dev
+```
+
+Open `http://127.0.0.1:5173`, select synthetic PR #87, and run the memory-assisted review. The first run loads local retrieval models and can take longer than subsequent runs.
