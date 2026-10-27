@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterator
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 
@@ -17,9 +17,10 @@ from .database import (
     session_factory,
 )
 from .evaluation import evaluate_comparison
-from .models import Decision, MemoryDocument, PullRequest, Repository, ReviewRun
+from .models import Decision, MemoryDocument, PullRequest, Repository, ReviewJob, ReviewRun
 from .policy_service import record_feedback, supersede_decision
 from .review_model import GeminiReviewModel, ReviewModel
+from .review_jobs import create_review_job, execute_review_job
 from .review_schemas import FeedbackRequest, ReviewCreated, ReviewRequest, SupersedeRequest
 from .review_service import ReviewService, serialize_review
 
@@ -176,6 +177,47 @@ def create_app(
             close = getattr(model, "close", None)
             if callable(close):
                 close()
+
+    @app.post("/api/prs/{pr_id}/review-jobs", status_code=202)
+    def queue_review(
+        pr_id: str, request: ReviewRequest, background_tasks: BackgroundTasks
+    ) -> dict[str, Any]:
+        try:
+            with sessions() as session:
+                job = create_review_job(
+                    session, pr_id=pr_id, memory_enabled=request.memory_enabled
+                )
+            background_tasks.add_task(
+                execute_review_job,
+                sessions,
+                job_id=job.id,
+                model_factory=model_factory or _default_model,
+                memory_client_factory=(memory_client_factory or _default_memory_client)
+                if request.memory_enabled
+                else None,
+            )
+            return {"job_id": job.id, "status": job.status, "stage": job.stage}
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.get("/api/review-jobs/{job_id}")
+    def review_job(job_id: str) -> dict[str, Any]:
+        with sessions() as session:
+            job = session.get(ReviewJob, job_id)
+            if job is None:
+                raise HTTPException(404, "Review job not found")
+            payload: dict[str, Any] = {
+                "job_id": job.id,
+                "status": job.status,
+                "stage": job.stage,
+                "error_code": job.error_code,
+                "review_run_id": job.review_run_id,
+            }
+            if job.status == "complete" and job.review_run_id:
+                run = session.get(ReviewRun, job.review_run_id)
+                if run is not None:
+                    payload["review"] = serialize_review(session, run)
+            return payload
 
     @app.post("/api/prs/{pr_id}/comparison")
     def create_comparison(pr_id: str) -> dict[str, Any]:

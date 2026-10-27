@@ -102,6 +102,11 @@
 - Reproducible end-to-end commands, judge demo script, feature/evaluation notes, and truthful limitations. **Documented and executed.**
 - Local Review Workspace, Team DNA, and Memory Lab remain available at `http://127.0.0.1:5173` while the development servers are running.
 
+## Post-MVP reliability improvements
+
+- **Verified:** Persisted background review jobs return `202 Accepted`, expose queued/running/stage/complete/failed state, sanitize failures, and let the UI poll without holding one HTTP request open.
+- **Next:** Extend the same observable job boundary to the two-run Memory Lab comparison.
+
 ## Documentation and version-control policy
 
 For every meaningful increment: inspect the diff, run relevant checks, update `ROADMAP.md` and `PROGRESS.md`, commit atomically, and push. Mark tests `NOT RUN` when they were not executed. Update `ARCHITECTURE.md` when contracts or deployment decisions change. Create `README.md` only after its commands have been run successfully.

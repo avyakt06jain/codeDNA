@@ -164,3 +164,20 @@ class FeedbackEvent(Base):
 
     finding: Mapped[Finding] = relationship()
 
+
+class ReviewJob(Base):
+    __tablename__ = "review_jobs"
+    __table_args__ = (
+        CheckConstraint("status IN ('queued', 'running', 'complete', 'failed')"),
+    )
+
+    id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    pr_id: Mapped[str] = mapped_column(ForeignKey("pull_requests.id"), nullable=False)
+    memory_enabled: Mapped[bool] = mapped_column(nullable=False)
+    status: Mapped[str] = mapped_column(String(24), default="queued", nullable=False)
+    stage: Mapped[str] = mapped_column(String(80), default="queued", nullable=False)
+    review_run_id: Mapped[str | None] = mapped_column(ForeignKey("review_runs.id"))
+    error_code: Mapped[str | None] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(default=utc_now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(default=utc_now, nullable=False)
+

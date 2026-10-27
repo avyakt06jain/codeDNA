@@ -61,12 +61,19 @@ export const api = {
   prs: (repositoryId: string) => request<PullRequestSummary[]>(`/api/repositories/${repositoryId}/prs`),
   pr: (prId: string) => request<PullRequest>(`/api/prs/${prId}`),
   decisions: (repositoryId: string) => request<Decision[]>(`/api/repositories/${repositoryId}/decisions`),
-  async review(prId: string, memoryEnabled: boolean) {
-    const created = await request<{ run_id: string }>(`/api/prs/${prId}/reviews`, {
+  async review(prId: string, memoryEnabled: boolean, onProgress?: (stage: string) => void) {
+    const created = await request<{ job_id: string }>(`/api/prs/${prId}/review-jobs`, {
       method: "POST",
       body: JSON.stringify({ memory_enabled: memoryEnabled })
     });
-    return request<Review>(`/api/reviews/${created.run_id}`);
+    for (let attempt = 0; attempt < 360; attempt += 1) {
+      const job = await request<{ status: string; stage: string; error_code: string | null; review?: Review }>(`/api/review-jobs/${created.job_id}`);
+      onProgress?.(job.stage);
+      if (job.status === "complete" && job.review) return job.review;
+      if (job.status === "failed") throw new Error(job.error_code ?? "Review failed");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    throw new Error("Review timed out after 6 minutes");
   },
   evidence: (runId: string) => request<{ decisions: Decision[] }>(`/api/reviews/${runId}/evidence`),
   feedback: (findingId: string, action: string, reason: string) => request<{ id: string; binding: boolean }>(`/api/findings/${findingId}/feedback`, {

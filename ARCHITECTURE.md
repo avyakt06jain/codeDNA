@@ -45,6 +45,7 @@
 | ADR-016 | Feedback is nonbinding; only an explicit authorized supersession changes active policy | Prevents a reviewer click or model output from silently becoming organization guidance | Accepted and verified in G4 |
 | ADR-017 | Memory Lab pairs the same candidate and model, varying only validated history access | Makes the product's memory effect inspectable without leaking the answer into baseline | Accepted and verified in G5 |
 | ADR-018 | Demo reset requires an explicit flag and exact synthetic storage targets | Reproducibility must not risk unrelated banks or developer databases | Accepted and verified in G5 |
+| ADR-019 | Persist review jobs before executing them as FastAPI background tasks | Returns promptly, exposes truthful stages/results, and sanitizes external failures while keeping the local MVP dependency-free | Accepted and verified post-G5 |
 
 If a decision changes, document the new decision, rationale, tradeoff, validation and affected contracts here; don't silently modify another doc only.
 
@@ -611,7 +612,7 @@ What if two confirmed rules appear to conflict without explicit precedence? Sign
 - Timestamps: ISO 8601 UTC (e.g. `2026-10-26T10:00:00Z`).
 - Status: explicit `pending | running | complete | degraded | failed`, if applicable.
 - Errors: `{ "error": {"code": "MEMORY_UNAVAILABLE", "message": "...", "retryable": true}, "request_id": "..." }`.
-- Long tasks may initially run synchronously for tiny fixture workloads, but don't block HTTP indefinitely; use background job/run polling with persisted status when necessary.
+- Single review requests use a persisted `ReviewJob` and FastAPI background task. The UI polls queued/running stage/complete/failed state and fetches the serialized run from the completed job. This survives browser refresh but not API-process termination; a durable worker is future production hardening. The paired comparison remains synchronous.
 
 ### 7.2 Endpoint summary
 
@@ -626,6 +627,8 @@ What if two confirmed rules appear to conflict without explicit precedence? Sign
 | GET | `/api/decisions/{decision_id}` | Decision details and lineage |
 | POST | `/api/decisions/{decision_id}/supersede` | Confirm revised decision |
 | POST | `/api/prs/{pr_id}/reviews` | Start review, baseline or memory mode |
+| POST | `/api/prs/{pr_id}/review-jobs` | Queue persisted review work; returns `202` with job/stage |
+| GET | `/api/review-jobs/{job_id}` | Poll sanitized progress, failure, and completed review |
 | GET | `/api/reviews/{run_id}` | Status, findings and timings |
 | GET | `/api/reviews/{run_id}/evidence` | Retrieved/validated evidence and source links |
 | POST | `/api/findings/{finding_id}/feedback` | Persist review feedback |

@@ -32,10 +32,11 @@
 - The Memory Lab runs paired same-PR/same-model reviews, persists both, and reports deterministic contamination/provenance checks.
 - The guarded reset deleted only the two CodeDNA demo banks and designated demo database, then restored deterministic fixtures.
 - A clean-state CLI evaluation and a live browser evaluation both passed all six guardrails.
+- Review Workspace now queues persisted background review jobs and polls explicit stages instead of holding the review request open through Hindsight/model startup.
 
 ## In Progress
 
-- No milestone work is incomplete. The next loop selects one high-value, safe improvement at a time.
+- Memory Lab comparison remains synchronous; converting that paired operation is the next reliability slice.
 
 ## Blocked
 
@@ -49,7 +50,7 @@
 - Gemini free tier reported a zero cached-content storage-token limit. Hindsight logged the failure and completed via uncached fallback; this adds noise and may increase latency.
 - The standalone Gemini-backed Hindsight process did not bind its HTTP listener on this Windows host. G1 therefore uses the official in-process server, which was verified.
 - First execution downloads and loads local embedding/reranker assets and is materially slower than later runs.
-- Review creation is synchronous for the tiny fixture and may take over a minute during Hindsight startup; background jobs are deferred.
+- Review creation is asynchronous and observable, but the paired Memory Lab comparison still holds one HTTP request open while both runs execute.
 - The baseline model reported a generic missing-`where` concern on the intentionally abbreviated synthetic Prisma fixture. It was persisted honestly and did not receive team-policy authority.
 - The authorization model is a narrow demo boundary (`demo-maintainer`), not production authentication or role-based access control.
 - The feedback UI currently exposes two common actions; correction reason entry and a visual supersession timeline remain future UX improvements.
@@ -58,9 +59,20 @@
 
 ## Next Action
 
-Improve reliability first: move long review/comparison requests to observable background jobs, then expand the labeled evaluation set without contaminating baselines.
+Move the paired Memory Lab comparison onto the verified persisted-job boundary, then expand the labeled evaluation set without contaminating baselines.
 
 ## Session Log
+
+### 2026-10-27 — Observable background review jobs
+
+- Goal: Prevent long Hindsight/model review work from holding the initiating HTTP request open while preserving truthful progress and failure state.
+- Implemented: persisted `ReviewJob`, `202` queue endpoint, job-status/result endpoint, background execution with independent DB sessions, sanitized failure codes, and frontend polling with human-readable stages.
+- Backend checks: `..\.venv\Scripts\python.exe -m pytest -q` → **18 passed**.
+- Frontend checks: `npm test -- --run` → **1 passed**; `npm run build` → **PASS**, 17 modules, 232.79 kB JavaScript and 7.68 kB CSS before gzip. Vitest completed in 63.57 s on this run.
+- Live API check: queued `job-361fb644f39f4186` returned immediately, then completed as baseline run `review-06a7ee6cdd874e6d` in 3,359 ms with no evidence IDs and no persisted error.
+- Failure test: unexpected model construction text is reduced to `review_service_unavailable`; credentials/provider payloads are not stored in job state.
+- Remaining limitation: in-process FastAPI background tasks do not survive API process termination; durable external workers remain future production hardening.
+- Next: apply the same observable job contract to Memory Lab comparisons.
 
 ### 2026-10-26 — Initial repository bootstrap
 

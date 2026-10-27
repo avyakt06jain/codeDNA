@@ -96,7 +96,15 @@ export default function App() {
     setError(""); setReview(null); setEvidence([]);
     setLoading(memoryEnabled ? "Starting Hindsight, recalling team history, and reviewing…" : "Running independent no-memory review…");
     try {
-      const result = await api.review(prId, memoryEnabled);
+      const result = await api.review(prId, memoryEnabled, (stage) => {
+        const label: Record<string, string> = {
+          queued: "Review queued…",
+          starting_hindsight: "Starting local Hindsight…",
+          recalling_and_reviewing: "Recalling validated history and reviewing…",
+          reviewing_diff: "Reviewing the diff without memory…",
+        };
+        setLoading(label[stage] ?? "Review in progress…");
+      });
       setReview(result);
       setLoading("");
     } catch (reason) {

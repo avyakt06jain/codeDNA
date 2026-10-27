@@ -64,3 +64,5 @@ npm run dev
 ```
 
 Open `http://127.0.0.1:5173`. Use PR #87 for the original memory proof, or select PR #120 and open Memory Lab for the current-policy ablation. The first run loads local retrieval models and can take longer than subsequent runs. See `docs/DEMO.md` for the verified judge path and `docs/evaluation/g5-result.md` for the recorded result.
+
+Review Workspace submits reviews as persisted background jobs and displays queued, Hindsight startup, recall/review, and completion state while polling. A browser request can end without losing the stored job/result, but stopping the API process interrupts active in-process work. Memory Lab comparisons remain synchronous in the current version.
