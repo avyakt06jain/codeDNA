@@ -30,7 +30,7 @@
 | ADR-001 | React + TS + Vite frontend | Fast, flexible, open tooling | Proposed |
 | ADR-002 | Python + FastAPI backend | Typed contracts, convenient SDKs | Proposed |
 | ADR-003 | SQLAlchemy + SQLite for application state | No paid DB; authoritative relationships | Proposed |
-| ADR-004 | Self-hosted Hindsight full Docker image | Mandatory memory; local embeddings/reranker | Deferred for G1 because Docker is unavailable locally |
+| ADR-004 | Self-hosted Hindsight full Docker image | Mandatory memory; local embeddings/reranker | Deferred beyond G1 because Docker is unavailable locally |
 | ADR-005 | One Hindsight bank per repository | Strong isolation and relevance | Proposed |
 | ADR-006 | `hindsight-client` official Python SDK | Narrow stable integration | SDK docs verified; runtime untested |
 | ADR-007 | Gemini API via adapter | Free-tier-eligible option, structured JSON | Provider/quota compatibility untested |
@@ -39,7 +39,7 @@
 | ADR-010 | Source IDs validated against SQLite | Prevent fabricated provenance | Proposed |
 | ADR-011 | Reflect selectively | Lower latency and limit ungrounded synthesis | Proposed |
 | ADR-012 | No extra agent framework/vector DB | Simpler integration and lower failure risk | Proposed |
-| ADR-013 | Native Windows `hindsight-api` with embedded pg0 for G1 | Officially supported and preserves real service/restart semantics without unavailable Docker | Accepted; API 1.1.0 startup verified with LLM disabled, Gemini path unverified |
+| ADR-013 | Official `hindsight-all` in-process server with embedded pg0 for G1 | Avoids a Windows standalone-listener stall while preserving the real localhost API and restart semantics | Accepted and verified with Hindsight 1.1.0 plus Gemini |
 
 If a decision changes, document the new decision, rationale, tradeoff, validation and affected contracts here; don't silently modify another doc only.
 
@@ -287,7 +287,9 @@ stateDiagram-v2
 
 ### 4.1 Deployment
 
-**G1 implementation decision (2026-10-27):** The first memory spike uses native Windows `hindsight-api==1.1.0` with embedded pg0 and `hindsight-client==1.1.0`. Docker was not present on the development machine. This changes local process packaging, not the memory boundary or persistence requirement: CodeDNA still talks to a separate Hindsight API on localhost and must prove recall after that process restarts. Docker remains a later reproducibility option. Native startup and `get_version()` were verified with the LLM provider explicitly disabled; Gemini `gemini-3.1-flash-lite` remains **UNVERIFIED** until a real free-tier retain succeeds. On this Windows host the service process requires `PYTHONUTF8=1` and `PYTHONIOENCODING=utf-8` to print its Unicode banner under a redirected console.
+**G1 implementation decision (2026-10-27):** The first memory spike uses the official `hindsight-all==1.1.0` `HindsightServer` on native Windows with embedded pg0 and `hindsight-client==1.1.0`. The CLI owns the server lifecycle, while the application adapter still communicates through Hindsight's real localhost HTTP API on an automatically selected port. Separate CLI processes proved stop/restart persistence against the same pg0 data. This is an intentional revision to proposed ADR-004: Docker was unavailable, and the standalone Gemini-backed `hindsight-api` process reached application construction but did not bind its listener on this host. Docker remains a later reproducibility option.
+
+Gemini `gemini-3.1-flash-lite` completed real retain and recall. Its startup health probe intermittently returned `503 UNAVAILABLE` under high demand, but later operation calls succeeded. Hindsight also attempted Gemini cached-content creation, which the free tier rejected because its cache storage token limit was zero; Hindsight logged the documented fallback and completed uncached calls. No paid fallback was selected. The CLI gives shutdown up to 60 seconds so the consolidation worker and pg0 close cleanly.
 
 Use Hindsight full Docker image with embedded PostgreSQL and local embedding/reranking models, persistent named volume, and an LLM API key. As documented on 2026-10-26:
 
@@ -315,7 +317,7 @@ CODEDNA_DATABASE_URL=sqlite:///./data/codedna.sqlite3
 CODEDNA_DEMO_MODE=true
 ```
 
-**These model and provider values are candidate configuration, not proof of working integration.** Verify official Hindsight model-provider mapping, rate limits and quota; some free-tier LLM providers cannot sustain retain operations. For free API terms/quotas: https://ai.google.dev/gemini-api/docs/pricing . Never silently switch to a paid model.
+**The G1 Gemini provider/model pair is locally verified, not guaranteed available.** Free-tier demand and quota remain external constraints, and the cache API was unavailable on the tested free tier. For current terms/quotas: https://ai.google.dev/gemini-api/docs/pricing . Never silently switch to a paid model.
 
 ### 4.2 One bank per repository
 
@@ -338,7 +340,7 @@ For feedback retain: original finding ID, reviewer action, context, precise reas
 
 ### 4.4 Ingestion and idempotency
 
-Official Python SDK (API verified from docs, runtime untested):
+Official Python SDK (retain/recall response behavior verified locally with version 1.1.0):
 
 ```python
 from hindsight_client import Hindsight

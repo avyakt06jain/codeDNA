@@ -63,7 +63,15 @@ class HindsightMemoryService:
                 offset=0,
             )
 
-        response = asyncio.run(list_documents())
+        # Keep generated-client calls on the same loop used by Hindsight's sync
+        # wrappers. asyncio.run() creates and closes a second loop, leaving the
+        # shared aiohttp session impossible to close cleanly on Windows.
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        response = loop.run_until_complete(list_documents())
         return sum(1 for item in response.items if item.id == document_id)
 
     def retain_demo_decision(self, repository_slug: str) -> Any:

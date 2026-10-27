@@ -65,7 +65,9 @@ h2==4.4.1
 hf-xet==1.7.0
 hindsight-api==1.1.0
 hindsight-api-slim==1.1.0
+hindsight-all==1.1.0
 hindsight-client==1.1.0
+hindsight-embed==1.1.0
 hpack==4.2.0
 httpcore==1.0.9
 httpcore2==2.16.0

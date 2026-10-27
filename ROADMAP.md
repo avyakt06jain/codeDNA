@@ -28,25 +28,25 @@
 
 ## G1 — Real Hindsight memory proof
 
-**Status:** In progress — live integration blocked on Gemini credential
+**Status:** Verified
 
 **Priority:** First implementation milestone
 
 ### Dependencies
 
-- Native Windows Python environment with compatible pinned Hindsight API/client packages.
-- Working Gemini API key with free-tier access to a Hindsight-compatible model.
+- Native Windows Python environment with pinned Hindsight all-in-one/client packages. **Verified.**
+- Working Gemini API key with free-tier access to `gemini-3.1-flash-lite`. **Verified for G1 run.**
 - Network access for dependency and model downloads.
 
 ### Deliverables
 
 - Minimal SQLite provenance registry for repositories, PR sources, decisions, and memory documents. **Implemented; unit tested.**
-- Backend-controlled repository-to-Hindsight-bank mapping. **Implemented; live service unverified.**
-- Real retain of synthetic PR #42 decision `DEC-0042` as `decision-DEC-0042`.
-- Semantically related recall from PR #87 context with source chunks.
-- Deterministic provenance validation against SQLite.
-- Recall after a clean Hindsight process restart without re-retaining.
-- Second-bank isolation and stable-document reingestion checks.
+- Backend-controlled repository-to-Hindsight-bank mapping. **Verified live.**
+- Real retain of synthetic PR #42 decision `DEC-0042` as `decision-DEC-0042`. **Verified.**
+- Semantically related recall from PR #87 context with source chunks. **Verified.**
+- Deterministic provenance validation against SQLite. **Verified.**
+- Recall after a clean Hindsight process restart without re-retaining. **Verified.**
+- Second-bank isolation and stable-document reingestion checks. **Verified.**
 
 ### Acceptance criteria
 
@@ -60,13 +60,16 @@
 
 ### Risks
 
-- Gemini free-tier quota, region, or model compatibility may block extraction.
+- Gemini free-tier demand/quota can still transiently block extraction; the startup probe returned intermittent 503 responses during the successful run.
+- Gemini cached-content storage is unavailable on the tested free tier; Hindsight 1.1.0 fell back to uncached calls.
 - First-run Hindsight/embedding model downloads may be large or slow.
-- Native pg0 behavior and installed SDK response shapes remain unverified locally.
+- The in-process runtime is the verified Windows G1 path; the standalone Gemini-backed listener stalled before binding on this host.
 
 ## G2 — Backend review core
 
 **Status:** Not started
+
+**Next milestone:** Parse a real synthetic diff and produce one structured finding whose team-policy claim can cite only the G1-validated evidence allowlist; also run an independent memory-disabled baseline.
 
 - Diff parsing and new-side line validation.
 - Memory query building, policy filtering, structured review generation, and evidence validation.
