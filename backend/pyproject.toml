@@ -26,6 +26,8 @@ service = ["hindsight-all==1.1.0"]
 codedna-memory-smoke = "codedna_memory.cli:main"
 codedna-review-smoke = "codedna_memory.review_cli:main"
 codedna-policy-smoke = "codedna_memory.policy_cli:main"
+codedna-evaluation-smoke = "codedna_memory.evaluation_cli:main"
+codedna-demo-reset = "codedna_memory.reset_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

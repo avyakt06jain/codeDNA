@@ -16,6 +16,7 @@ from .database import (
     seed_synthetic_provenance,
     session_factory,
 )
+from .evaluation import evaluate_comparison
 from .models import Decision, MemoryDocument, PullRequest, Repository, ReviewRun
 from .policy_service import record_feedback, supersede_decision
 from .review_model import GeminiReviewModel, ReviewModel
@@ -169,6 +170,32 @@ def create_app(
                 else:
                     run = ReviewService(session, model).run(pr_id=pr_id, memory_client=None)
                 return ReviewCreated(run_id=run.id, status=run.status, mode=run.mode)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        finally:
+            close = getattr(model, "close", None)
+            if callable(close):
+                close()
+
+    @app.post("/api/prs/{pr_id}/comparison")
+    def create_comparison(pr_id: str) -> dict[str, Any]:
+        model = (model_factory or _default_model)()
+        try:
+            factory = memory_client_factory or _default_memory_client
+            with factory() as client, sessions() as session:
+                memory_run = ReviewService(session, model).run(
+                    pr_id=pr_id, memory_client=client
+                )
+                baseline_run = ReviewService(session, model).run(
+                    pr_id=pr_id, memory_client=None
+                )
+                memory = serialize_review(session, memory_run)
+                baseline = serialize_review(session, baseline_run)
+            return {
+                "evaluation": evaluate_comparison(memory, baseline),
+                "memory": memory,
+                "baseline": baseline,
+            }
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
         finally:

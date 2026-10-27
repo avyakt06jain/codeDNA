@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import time
 from typing import Protocol
 
 from google import genai
+from google.genai import errors
 from google.genai import types
 
 from .diff_parser import ParsedDiff
@@ -47,17 +49,27 @@ class GeminiReviewModel:
                     f"- decision_id={item['decision_id']}; source_pr={item['source_pr_number']}; "
                     f"rule={item['rule_text']}; rationale={item['rationale']}\n"
                 )
-        response = self._client.models.generate_content(
-            model=self.model_name,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_INSTRUCTION,
-                temperature=0,
-                max_output_tokens=2000,
-                response_mime_type="application/json",
-                response_schema=ReviewModelOutput,
-            ),
-        )
+        response = None
+        for attempt in range(3):
+            try:
+                response = self._client.models.generate_content(
+                    model=self.model_name,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        system_instruction=SYSTEM_INSTRUCTION,
+                        temperature=0,
+                        max_output_tokens=2000,
+                        response_mime_type="application/json",
+                        response_schema=ReviewModelOutput,
+                    ),
+                )
+                break
+            except errors.APIError as exc:
+                if exc.code not in {429, 503} or attempt == 2:
+                    raise
+                time.sleep(2**attempt)
+        if response is None:
+            raise RuntimeError("review_model_no_response")
         if response.parsed is not None:
             return ReviewModelOutput.model_validate(response.parsed)
         if not response.text:

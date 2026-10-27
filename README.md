@@ -36,6 +36,16 @@ Set-Location backend
 ..\.venv\Scripts\codedna-policy-smoke.exe
 ```
 
+Reset only the synthetic demo state, then run the verified G5 controlled comparison:
+
+```powershell
+Set-Location backend
+..\.venv\Scripts\codedna-demo-reset.exe --confirm-demo-reset
+..\.venv\Scripts\codedna-evaluation-smoke.exe
+```
+
+The reset refuses non-designated databases and requires the explicit confirmation flag. The evaluation exits nonzero if the memory run lacks validated provenance or if the baseline contains a memory citation/team-policy finding. Gemini free-tier demand can still produce transient `429`/`503` responses; the review adapter makes only two bounded retries and never selects a paid fallback.
+
 Run the API for the product UI:
 
 ```powershell
@@ -53,4 +63,4 @@ npm run build
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173`, select synthetic PR #87, and run the memory-assisted review. The first run loads local retrieval models and can take longer than subsequent runs.
+Open `http://127.0.0.1:5173`. Use PR #87 for the original memory proof, or select PR #120 and open Memory Lab for the current-policy ablation. The first run loads local retrieval models and can take longer than subsequent runs. See `docs/DEMO.md` for the verified judge path and `docs/evaluation/g5-result.md` for the recorded result.

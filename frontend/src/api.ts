@@ -31,6 +31,16 @@ export type Review = {
   retrieval: { query?: string | null; validated_evidence?: Array<Record<string, unknown>> };
   findings: Finding[];
 };
+export type Comparison = {
+  evaluation: {
+    passed: boolean;
+    checks: Record<string, boolean>;
+    counts: Record<string, number>;
+    run_ids: { memory: string; baseline: string };
+  };
+  memory: Review;
+  baseline: Review;
+};
 
 const API_ROOT = import.meta.env.VITE_API_URL ?? "";
 
@@ -62,5 +72,6 @@ export const api = {
   feedback: (findingId: string, action: string, reason: string) => request<{ id: string; binding: boolean }>(`/api/findings/${findingId}/feedback`, {
     method: "POST",
     body: JSON.stringify({ action, reason, actor_label: "demo-reviewer", confirm_as_policy: false })
-  })
+  }),
+  comparison: (prId: string) => request<Comparison>(`/api/prs/${prId}/comparison`, { method: "POST" })
 };

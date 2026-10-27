@@ -2,7 +2,7 @@
 
 > **Engineering source of truth** for CodeDNA v0.1. Defines system topology, service contracts, data ownership, Hindsight lifecycle, review algorithm, security, tests, failure handling and technical execution order.
 >
-> **Design status:** G1–G4 are implemented and locally verified as recorded in `PROGRESS.md`; G5 evaluation/submission work is in progress. Proposed future sections remain explicitly aspirational.
+> **Design status:** G0–G5 are implemented and locally verified as recorded in `PROGRESS.md`. Proposed production-hardening sections remain explicitly aspirational.
 >
 > **Companion documents:** `AGENTS.md` governs development practice; `PROJECT.md` governs product scope. `ROADMAP.md` / `PROGRESS.md` will be created during engineering bootstrap.
 
@@ -43,6 +43,8 @@
 | ADR-014 | `unidiff` parser plus deterministic post-model validation | Model output cannot invent changed lines, files, or evidence authority | Accepted and verified in G2 |
 | ADR-015 | Same Gemini adapter/schema for memory and baseline modes | Isolates historical-evidence access as the intended ablation variable | Accepted and verified in G2 |
 | ADR-016 | Feedback is nonbinding; only an explicit authorized supersession changes active policy | Prevents a reviewer click or model output from silently becoming organization guidance | Accepted and verified in G4 |
+| ADR-017 | Memory Lab pairs the same candidate and model, varying only validated history access | Makes the product's memory effect inspectable without leaking the answer into baseline | Accepted and verified in G5 |
+| ADR-018 | Demo reset requires an explicit flag and exact synthetic storage targets | Reproducibility must not risk unrelated banks or developer databases | Accepted and verified in G5 |
 
 If a decision changes, document the new decision, rationale, tradeoff, validation and affected contracts here; don't silently modify another doc only.
 
@@ -764,6 +766,8 @@ Use typed API client and a simple state/query layer (native hooks or a small que
 - Memory citations are clearly distinguishable from generic recommendations.
 
 **G3 implementation (2026-10-27):** The React/Vite client now implements the Review Workspace and a read-only Team DNA view against live FastAPI endpoints. The diff uses explicit new-side numbers, accepted findings flag their linked line, memory and baseline actions are distinct, and the evidence drawer shows backend-resolved status/rationale/source rather than model-authored citation text. A live browser run verified PR #87 through the real memory review path.
+
+**G5 implementation (2026-10-27):** Memory Lab calls a paired API operation that reuses the exact candidate PR and Gemini model instance. The memory run alone receives validated Hindsight evidence; the baseline receives an empty evidence list. Both `ReviewRun` records persist independently. A deterministic evaluator checks candidate/model equality, validated retrieval, grounded team citations, and absence of citations/team-policy claims in baseline. The UI renders actual findings, IDs, timings, and each guardrail rather than a derived score.
 - Historical rule status is visually marked active vs superseded.
 - If no memory was used, UI explicitly says so.
 - An ingestion failure isn't displayed as successful memory learning.

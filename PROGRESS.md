@@ -5,8 +5,8 @@
 ## Current State
 
 - Date: 2026-10-27
-- Phase: G4 complete; G5 evaluation and submission is in progress.
-- Implementation: G1 memory, G2 review engine/API, G3 product UI, and G4 living-policy behavior are verified.
+- Phase: G0–G5 MVP gates complete; continuous improvement is active.
+- Implementation: The retain → recall → validate → review → feedback → supersede → ablate loop is verified locally against real Hindsight and Gemini.
 - Git: `main` is initialized, connected to GitHub, and the bootstrap commit is pushed.
 
 ## Working
@@ -29,14 +29,17 @@
 - Team DNA renders the backend's active decision, authority, rationale, and source PR.
 - Finding feedback is stored durably and remains nonbinding; an ordinary review action cannot promote itself to policy.
 - An explicit demo-maintainer supersession retained `DEC-0103`, preserved superseded `DEC-0042`, and a later PR #120 review cited only the new active rule.
+- The Memory Lab runs paired same-PR/same-model reviews, persists both, and reports deterministic contamination/provenance checks.
+- The guarded reset deleted only the two CodeDNA demo banks and designated demo database, then restored deterministic fixtures.
+- A clean-state CLI evaluation and a live browser evaluation both passed all six guardrails.
 
 ## In Progress
 
-- Implementing G5 controlled Memory Lab comparison, reproducible evaluation output, and final demo verification.
+- No milestone work is incomplete. The next loop selects one high-value, safe improvement at a time.
 
 ## Blocked
 
-- None for the completed G1 milestone.
+- None for the completed MVP gates.
 
 ## Known Limitations
 
@@ -50,11 +53,12 @@
 - The baseline model reported a generic missing-`where` concern on the intentionally abbreviated synthetic Prisma fixture. It was persisted honestly and did not receive team-policy authority.
 - The authorization model is a narrow demo boundary (`demo-maintainer`), not production authentication or role-based access control.
 - The feedback UI currently exposes two common actions; correction reason entry and a visual supersession timeline remain future UX improvements.
-- The broader G5 evaluation/submission suite is not verified yet.
+- The evaluation has one synthetic held-out policy case, so results are reported as counts, not generalized accuracy claims.
+- A polished recorded video and hackathon portal submission are external presentation actions and are not created or submitted automatically.
 
 ## Next Action
 
-Implement and verify G5: a same-input Memory Lab comparison, reproducible evaluation artifact, full regression checks, and a documented runnable demo.
+Improve reliability first: move long review/comparison requests to observable background jobs, then expand the labeled evaluation set without contaminating baselines.
 
 ## Session Log
 
@@ -140,6 +144,19 @@ Implement and verify G5: a same-input Memory Lab comparison, reproducible evalua
 - Final live check: `..\.venv\Scripts\codedna-policy-smoke.exe` → **PASS**, exit 0. Recall returned `DEC-0103` and historical `DEC-0042`; SQLite rejected the old fact as `decision_not_authoritative`; the accepted line-31 finding cited only `DEC-0103` and source PR #103.
 - Feedback observation: the recorded demo review action remained `binding: false`; direct feedback-to-policy promotion is rejected by service tests.
 - Next: build and verify the controlled G5 Memory Lab and end-to-end demo path.
+
+### 2026-10-27 — G5 controlled evaluation and runnable submission
+
+- Goal: Prove what memory causally changes, from a resettable clean demo state, and expose the result in the product.
+- Implemented: paired comparison API, deterministic evaluation module, `codedna-evaluation-smoke`, guarded `codedna-demo-reset`, Memory Lab UI, bounded Gemini `429`/`503` retry, and demo/evaluation documentation.
+- Reset check: `..\.venv\Scripts\codedna-demo-reset.exe --confirm-demo-reset` → **PASS**, deleted only `codedna-repo-acme-commerce` and `codedna-repo-analytics-service`, recreated the designated SQLite schema, and reseeded both repositories.
+- Reset implementation correction: the first attempt failed because the generated low-level bank-list method is async. The corrected implementation uses the installed client's synchronous `delete_bank` wrapper and catches only `NotFoundException` for idempotency.
+- First clean evaluation: **FAILED honestly** when Gemini returned `503 UNAVAILABLE` on the baseline call after the memory call. The adapter now performs at most two bounded retries (2 and 4 seconds) for only `429`/`503`; no paid fallback exists.
+- Clean CLI rerun: `..\.venv\Scripts\codedna-evaluation-smoke.exe` → **PASS**, 6/6 checks. Memory: one team finding, one validated source/citation (`DEC-0103`/PR #103), 78,626 ms. Baseline: one general finding, zero citations/team findings, 26,449 ms.
+- Live browser check: Memory Lab on PR #120 → **PASS**, 6/6 guardrails; memory run `review-a9c2ce1f1fc74a39` showed `DEC-0103` in 4.9 s and baseline `review-215fbf1c9b5f4636` showed no memory citation in 2.3 s.
+- Final regression checks: `..\.venv\Scripts\python.exe -m pytest -q` → **16 passed**; `npm test -- --run` → **1 passed**; `npm run build` → **PASS**, 17 modules, 232.28 kB JavaScript and 7.68 kB CSS before gzip.
+- Scope: these are two successful executions of one synthetic policy case, not an accuracy percentage or production benchmark.
+- Next: preserve the runnable demo and begin reliability-focused continuous improvements.
 
 ## Maintenance Checklist
 

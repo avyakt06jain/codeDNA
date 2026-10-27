@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { api, type Decision, type Finding, type PullRequest, type PullRequestSummary, type Repository, type Review } from "./api";
+import { api, type Comparison, type Decision, type Finding, type PullRequest, type PullRequestSummary, type Repository, type Review } from "./api";
 import "./styles.css";
 
-type Page = "review" | "dna";
+type Page = "review" | "dna" | "lab";
 
 export function DiffView({ diff, findings = [] }: { diff: string; findings?: Finding[] }) {
   let newLine = 0;
@@ -59,6 +59,7 @@ export default function App() {
   const [evidence, setEvidence] = useState<Decision[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [feedbackStatus, setFeedbackStatus] = useState("");
+  const [comparison, setComparison] = useState<Comparison | null>(null);
   const [loading, setLoading] = useState("Loading repositories…");
   const [error, setError] = useState("");
 
@@ -123,6 +124,19 @@ export default function App() {
     }
   }
 
+  async function runComparison() {
+    if (!prId) return;
+    setError(""); setComparison(null);
+    setLoading("Running controlled memory and no-memory reviews with the same model…");
+    try {
+      setComparison(await api.comparison(prId));
+      setLoading("");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Comparison failed");
+      setLoading("");
+    }
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -130,13 +144,14 @@ export default function App() {
         <nav aria-label="Primary navigation">
           <button className={page === "review" ? "active" : ""} onClick={() => setPage("review")}>Review workspace</button>
           <button className={page === "dna" ? "active" : ""} onClick={() => setPage("dna")}>Team DNA</button>
+          <button className={page === "lab" ? "active" : ""} onClick={() => setPage("lab")}>Memory Lab</button>
         </nav>
         <span className="runtime-dot"><i /> Local · Hindsight</span>
       </header>
 
       <main>
         <section className="hero">
-          <div><span className="eyebrow">Repository-aware review</span><h1>{page === "review" ? "Review the change. Remember the reason." : "The decisions your codebase remembers."}</h1></div>
+          <div><span className="eyebrow">Repository-aware review</span><h1>{page === "review" ? "Review the change. Remember the reason." : page === "dna" ? "The decisions your codebase remembers." : "See what memory actually changes."}</h1></div>
           <select aria-label="Repository" value={repositoryId} onChange={(event) => setRepositoryId(event.target.value)}>
             {repositories.map((item) => <option key={item.id} value={item.id}>{item.display_name}</option>)}
           </select>
@@ -165,10 +180,23 @@ export default function App() {
               {feedbackStatus && <div className="feedback-status" role="status">{feedbackStatus}</div>}
             </aside>
           </div>
-        ) : (
+        ) : page === "dna" ? (
           <section className="panel dna-panel">
             <div className="panel-head"><div><span className="kicker">{activeRepository?.slug}</span><h2>Confirmed engineering decisions</h2></div><span className="count">{decisions.length} recorded</span></div>
             <div className="decision-list">{decisions.map((decision) => <article className="decision" key={decision.id}><div><span className={`status ${decision.status}`}>{decision.status}</span><span className="decision-id">{decision.id}</span></div><h3>{decision.title}</h3><p className="rule">{decision.rule_text}</p><p>{decision.rationale}</p><footer>Authority: {decision.authority.replace("_", " ")} · Source {decision.source_pr_id}</footer></article>)}</div>
+          </section>
+        ) : (
+          <section className="panel lab-panel">
+            <div className="panel-head"><div><span className="kicker">Controlled ablation</span><h2>Same change. Same model. Memory is the only variable.</h2></div><button className="primary" disabled={!pr || Boolean(loading)} onClick={runComparison}>Run comparison</button></div>
+            <p className="pr-description">Candidate #{pr?.number}: {pr?.title}. Both outputs are persisted; the baseline receives no recalled decisions or derived hints.</p>
+            {!comparison && !loading && <div className="empty-state"><span>↔</span><h3>No comparison yet</h3><p>Run both modes to inspect actual findings, citations, source validation, and timing.</p></div>}
+            {comparison && <>
+              <div className={`lab-verdict ${comparison.evaluation.passed ? "pass" : "fail"}`}><strong>{comparison.evaluation.passed ? "Controlled comparison passed" : "Comparison needs attention"}</strong><span>{Object.values(comparison.evaluation.checks).filter(Boolean).length}/{Object.keys(comparison.evaluation.checks).length} guardrails passed</span></div>
+              <div className="check-grid">{Object.entries(comparison.evaluation.checks).map(([name, passed]) => <div key={name} className={passed ? "check-pass" : "check-fail"}><span>{passed ? "✓" : "×"}</span>{name.replaceAll("_", " ")}</div>)}</div>
+              <div className="comparison-grid">
+                {[comparison.memory, comparison.baseline].map((run) => <article className="comparison-run" key={run.run_id}><div className="panel-head"><div><span className="kicker">{run.mode === "memory" ? "Hindsight assisted" : "Memory disabled"}</span><h3>{run.findings.length} validated finding{run.findings.length === 1 ? "" : "s"}</h3></div><span className="run-time">{(run.elapsed_ms / 1000).toFixed(1)}s</span></div><div className="run-summary"><span>{run.model}</span><span>{run.run_id}</span></div>{run.findings.length === 0 ? <p>No validated findings.</p> : run.findings.map((finding) => <div className="lab-finding" key={finding.id}><strong>{finding.title}</strong><span>{finding.category.replace("_", " ")} · {finding.evidence_ids.join(", ") || "no memory citation"}</span></div>)}</article>)}
+              </div>
+            </>}
           </section>
         )}
       </main>

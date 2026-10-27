@@ -94,9 +94,13 @@
 
 ## G5 — Evaluation and submission
 
-**Status:** In progress
+**Status:** Verified
 
-- Controlled Memory Lab comparison, reproducible seed/reset, end-to-end checks, and submission artifacts.
+- Controlled Memory Lab comparison with the same PR/model and memory as the only changed input. **Verified through CLI, API, and live browser.**
+- Deterministic checks for source retrieval, grounded team citations, baseline citation leakage, and baseline team-policy leakage. **Verified 6/6.**
+- Explicitly guarded demo reset for the designated SQLite database and two synthetic Hindsight banks. **Verified from populated state.**
+- Reproducible end-to-end commands, judge demo script, feature/evaluation notes, and truthful limitations. **Documented and executed.**
+- Local Review Workspace, Team DNA, and Memory Lab remain available at `http://127.0.0.1:5173` while the development servers are running.
 
 ## Documentation and version-control policy
 
