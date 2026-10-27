@@ -36,6 +36,9 @@ test-results/
 node_modules/
 frontend/dist/
 frontend/coverage/
+*.tsbuildinfo
+frontend/*.js
+frontend/*.d.ts
 
 # Editors and operating systems
 .idea/
