@@ -1,52 +1,64 @@
-# CodeDNA G1 Memory Proof
+# CodeDNA
 
-Verified on Windows with Python 3.12, Hindsight 1.1.0, embedded pg0, and Gemini `gemini-3.1-flash-lite`.
+**Engineering memory for better code.**
+
+CodeDNA is a repository-aware AI code reviewer that catches changes which compile and work but violate the team’s current architectural decisions. It retains confirmed engineering experience in Hindsight, validates current authority in SQLite, and produces line-linked findings with source provenance.
+
+> Most AI reviewers understand your code. CodeDNA remembers why your team writes it that way.
+
+![CodeDNA architecture](assets/codedna-architecture.png)
+
+## Why CodeDNA
+
+Important design decisions are often buried in closed pull requests: required workflows, incident lessons, approved helpers, and conventions that later evolve. A compiler cannot enforce that history, and a generic model should not invent it.
+
+CodeDNA separates memory from authority:
+
+- **Hindsight remembers** semantically relevant historical decisions.
+- **SQLite governs** whether a decision is confirmed, active, or superseded.
+- **Gemini explains** how an allowlisted current decision applies to the diff.
+- **CodeDNA validates** files, added lines, repository scope, and citations before displaying a finding.
+
+## Implemented demo
+
+- Repository overview and isolated Hindsight bank per repository
+- Pull-request review with memory or an independent no-memory baseline
+- Line-linked design-mismatch findings with validated historical evidence
+- Team DNA decision catalog and active/superseded evolution timeline
+- Non-binding accept/dismiss feedback
+- Memory Lab comparison using the same pull request and model
+- Persisted background review and comparison jobs
+- One warm Hindsight runtime reused by all review clicks
+- Latest memory review restored after refreshing the pull-request page
+
+The synthetic Acme Commerce scenario evolves from `DEC-0042` to active `DEC-0103`. Analytics Service has an isolated UTC-timestamp decision, `DEC-0211`.
+
+## Technology
+
+- React 19, TypeScript, Vite, React Router
+- Python 3.12, FastAPI, Pydantic
+- SQLAlchemy and SQLite
+- Hindsight 1.1 with embedded pg0
+- Gemini `gemini-3.1-flash-lite`
+- `unidiff`, pytest, Vitest and React Testing Library
+
+## Local setup
+
+Verified on Windows with Python 3.12 and Node 24.
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e "backend[dev,service]"
-if (-not (Test-Path -LiteralPath .env)) { Copy-Item -LiteralPath .env.example -Destination .env }
+if (-not (Test-Path -LiteralPath .env)) {
+  Copy-Item -LiteralPath .env.example -Destination .env
+}
 ```
 
-Set `HINDSIGHT_API_LLM_API_KEY` in the ignored `.env`, then run the verified sequence:
+Set `HINDSIGHT_API_LLM_API_KEY` in the ignored `.env`. No paid fallback is selected.
 
-```powershell
-Set-Location backend
-..\.venv\Scripts\codedna-memory-smoke.exe seed-and-recall --runtime in-process
-..\.venv\Scripts\codedna-memory-smoke.exe recall-only --runtime in-process
-..\.venv\Scripts\codedna-memory-smoke.exe isolation-check --runtime in-process
-..\.venv\Scripts\codedna-memory-smoke.exe seed-and-recall --runtime in-process
-Set-Location ..
-.\.venv\Scripts\python.exe -m pytest backend\tests
-```
+### Start the evolved judge demo
 
-Every smoke command exits nonzero on service failure or failed acceptance criteria and emits sanitized JSON. The second command starts a fresh Hindsight process and performs no retain; the final seed command verifies stable-document reingestion remains unique.
-
-Run the verified G2 memory/no-memory review pair:
-
-```powershell
-Set-Location backend
-..\.venv\Scripts\codedna-review-smoke.exe
-```
-
-Run the verified G4 feedback/supersession proof:
-
-```powershell
-Set-Location backend
-..\.venv\Scripts\codedna-policy-smoke.exe
-```
-
-Reset only the synthetic demo state, then run the verified G5 controlled comparison:
-
-```powershell
-Set-Location backend
-..\.venv\Scripts\codedna-demo-reset.exe --confirm-demo-reset
-..\.venv\Scripts\codedna-evaluation-smoke.exe
-```
-
-The reset refuses non-designated databases and requires the explicit confirmation flag. The evaluation exits nonzero if the memory run lacks validated provenance or if the baseline contains a memory citation/team-policy finding. Gemini free-tier demand can still produce transient `429`/`503` responses; the review adapter makes only two bounded retries and never selects a paid fallback.
-
-Run the API for the evolved judge demo from `backend` so `sqlite:///./data/codedna.sqlite3` and the repo-root `.env` resolve as they do today:
+Run the API from `backend`:
 
 ```powershell
 Set-Location backend
@@ -57,26 +69,69 @@ $env:PYTHONIOENCODING='utf-8'
 ..\.venv\Scripts\python.exe -m uvicorn codedna_memory.api:app --host 127.0.0.1 --port 8000
 ```
 
-`CODEDNA_DEMO_SCENE=evolved` supersedes `DEC-0042` with active `DEC-0103` once, and a later boot does not create a second copy. Leave `CODEDNA_HINDSIGHT_AUTOSTART` unset or `1` so this process starts the shared in-process Hindsight server. The first boot loads local embedding and reranker models and can take several minutes; `GET /api/health` stays `hindsight: starting` until that finishes. On 2026-10-27, with those models already on disk, health first reported `hindsight: ready` 91 seconds after process start (the change fell in the 86–91 second window of a 5-second poll). Later review and Memory Lab clicks reuse that server. They do not boot Hindsight again.
+The API starts Hindsight once. Wait until `GET http://127.0.0.1:8000/api/health` reports `"hindsight":"ready"` before the demo. With models already on disk, the verified warm-up took 91 seconds. Later review clicks reuse that process instead of starting Hindsight again.
 
-In a second PowerShell window, run the frontend:
+In a second terminal:
 
 ```powershell
 Set-Location frontend
 npm install
-npm test
-npm run build
 npm run dev
 ```
 
-Judge URLs, with Vite proxying `/api` to `127.0.0.1:8000`:
+Open:
 
-- `http://127.0.0.1:5173/` — Acme Commerce overview
-- `http://127.0.0.1:5173/repos/repo-acme-commerce/prs/pr-acme-87` — PR #87 review
+- `http://127.0.0.1:5173/` — repository overview
+- `http://127.0.0.1:5173/repos/repo-acme-commerce/prs/pr-acme-87` — design-aware review
 - `http://127.0.0.1:5173/repos/repo-acme-commerce/dna` — Team DNA
 - `http://127.0.0.1:5173/repos/repo-acme-commerce/dna/DEC-0103` — decision evolution
 - `http://127.0.0.1:5173/repos/repo-acme-commerce/lab` — Memory Lab
 
-See `docs/DEMO.md` for the observed judge script and `docs/evaluation/g5-result.md` for the earlier recorded evaluation.
+See [docs/DEMO.md](docs/DEMO.md) for the verified presentation path.
 
-Review Workspace and Memory Lab both queue persisted background jobs and poll queued, Hindsight startup, recall/review, baseline, and completion. Stopping the API process interrupts active in-process work. The on-screen findings stay with the page that started the job; refreshing the pull request does not replay a finished job.
+## Verification
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest backend\tests -q
+Set-Location frontend
+npm test -- --run
+npm run build
+```
+
+Latest results:
+
+- Backend: **27 passed**
+- Frontend: **16 passed**
+- Production frontend build: **passed**
+- Live PR #87 memory review: active `DEC-0103` only
+- Memory Lab: **6/6 guardrails passed** on one synthetic held-out case
+
+These are controlled demo results, not a generalized accuracy benchmark.
+
+## Additional smoke checks
+
+From `backend`:
+
+```powershell
+..\.venv\Scripts\codedna-memory-smoke.exe seed-and-recall --runtime in-process
+..\.venv\Scripts\codedna-memory-smoke.exe recall-only --runtime in-process
+..\.venv\Scripts\codedna-memory-smoke.exe isolation-check --runtime in-process
+..\.venv\Scripts\codedna-review-smoke.exe
+..\.venv\Scripts\codedna-policy-smoke.exe
+..\.venv\Scripts\codedna-evaluation-smoke.exe
+```
+
+The guarded reset is available only for designated synthetic state:
+
+```powershell
+..\.venv\Scripts\codedna-demo-reset.exe --confirm-demo-reset
+```
+
+## Current limits
+
+- Fixtures are synthetic and the labeled evaluation set is small.
+- Gemini free-tier availability can produce transient `429` or `503` failures.
+- The first API boot must load local embedding and reranking models.
+- Demo authorization is not production authentication or RBAC.
+- In-process jobs do not survive an API-process termination.
+- GitHub import and comment posting are future integrations.

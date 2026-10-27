@@ -37,7 +37,7 @@
 
 ## In Progress
 
-- Post-MVP reliability work continues with interrupted-job reconciliation and broader uncontaminated evaluation fixtures. The review page still does not reload a finished job after refresh.
+- Post-MVP reliability work continues with interrupted-job reconciliation and broader uncontaminated evaluation fixtures.
 
 ## Blocked
 
@@ -51,7 +51,7 @@
 - Gemini free tier reported a zero cached-content storage-token limit. Hindsight logged the failure and completed via uncached fallback; this adds noise and may increase latency.
 - The standalone Gemini-backed Hindsight process did not bind its HTTP listener on this Windows host. G1 therefore uses the official in-process server, which was verified.
 - First execution downloads and loads local embedding/reranker assets and is materially slower than later runs.
-- Review and comparison jobs are asynchronous and observable. Refreshing the pull-request page does not replay the on-screen findings, and stopping the API interrupts an in-process job.
+- Review and comparison jobs are asynchronous and observable. The pull-request page restores its latest completed memory review after refresh, but stopping the API still interrupts an in-process job.
 - The baseline model reported a generic missing-`where` concern on the intentionally abbreviated synthetic Prisma fixture. It was persisted honestly and did not receive team-policy authority.
 - The authorization model is a narrow demo boundary (`demo-maintainer`), not production authentication or role-based access control.
 - The feedback UI exposes accept and dismiss. The evolution page shows the supersession timeline. A free-text correction flow is still limited.
@@ -63,6 +63,14 @@
 Reconcile queued/running jobs interrupted by an API restart, then expand the labeled evaluation set without contaminating baselines.
 
 ## Session Log
+
+### 2026-10-27 — Refresh-safe evidence and project handoff
+
+- Goal: Keep the judge-facing finding, evidence, and feedback controls available after a pull-request page refresh and make the repository entry point presentation-ready.
+- Implemented: `GET /api/prs/{pr_id}/reviews/latest?mode=memory|baseline`, frontend restoration of the latest completed memory review, a focused UI regression, and a product-level README with the architecture diagram and verified judge commands.
+- Checks: `.\.venv\Scripts\python.exe -m pytest backend\tests -q` → **27 passed**; `npm test -- --run` → **16 passed**; `npm run build` → **PASS**, 38 modules.
+- Remaining risk: in-process jobs still require reconciliation after an API-process interruption.
+- Next: add interrupted-job reconciliation, then broaden uncontaminated evaluation fixtures.
 
 ### 2026-10-27 — Judge demo verification
 

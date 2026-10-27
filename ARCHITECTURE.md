@@ -634,6 +634,7 @@ What if two confirmed rules appear to conflict without explicit precedence? Sign
 | POST | `/api/prs/{pr_id}/reviews` | Start review, baseline or memory mode |
 | POST | `/api/prs/{pr_id}/review-jobs` | Queue persisted review work; returns `202` with job/stage |
 | GET | `/api/review-jobs/{job_id}` | Poll sanitized progress, failure, and completed review |
+| GET | `/api/prs/{pr_id}/reviews/latest?mode=memory` | Restore the latest completed review for a refresh-safe workspace |
 | GET | `/api/reviews/{run_id}` | Status, findings and timings |
 | GET | `/api/reviews/{run_id}/evidence` | Retrieved/validated evidence and source links |
 | POST | `/api/findings/{finding_id}/feedback` | Persist review feedback |

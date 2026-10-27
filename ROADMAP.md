@@ -108,6 +108,7 @@
 - **Verified:** Memory Lab comparisons use the same persisted job boundary, expose separate memory/baseline stages, and return both stored runs plus deterministic evaluation results.
 - **Verified:** The judge workspace now provides routed repository overview, PR review, Team DNA, decision evolution, and Memory Lab views with keyboard navigation and explicit dependency health.
 - **Verified:** A second isolated `analytics-service` fixture broadens repository navigation without seeding the Acme evaluation answer into its bank.
+- **Verified:** The PR workspace restores the latest completed memory review after refresh so evidence and feedback remain available during the judge demo.
 - **Next:** Reconcile interrupted jobs after an API restart, then broaden the labeled evaluation set with additional uncontaminated policy cases.
 
 ## Documentation and version-control policy
