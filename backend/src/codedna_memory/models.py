@@ -147,3 +147,20 @@ class FindingEvidence(Base):
     finding: Mapped[Finding] = relationship(back_populates="evidence")
     decision: Mapped[Decision] = relationship()
 
+
+class FeedbackEvent(Base):
+    __tablename__ = "feedback_events"
+    __table_args__ = (
+        CheckConstraint("action IN ('accepted', 'rejected', 'not_applicable', 'corrected')"),
+    )
+
+    id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    finding_id: Mapped[str] = mapped_column(ForeignKey("findings.id"), nullable=False)
+    action: Mapped[str] = mapped_column(String(40), nullable=False)
+    actor_label: Mapped[str] = mapped_column(String(120), nullable=False)
+    reason: Mapped[str | None] = mapped_column(Text)
+    binding: Mapped[bool] = mapped_column(default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=utc_now, nullable=False)
+
+    finding: Mapped[Finding] = relationship()
+

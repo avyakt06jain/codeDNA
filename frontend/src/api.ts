@@ -58,5 +58,9 @@ export const api = {
     });
     return request<Review>(`/api/reviews/${created.run_id}`);
   },
-  evidence: (runId: string) => request<{ decisions: Decision[] }>(`/api/reviews/${runId}/evidence`)
+  evidence: (runId: string) => request<{ decisions: Decision[] }>(`/api/reviews/${runId}/evidence`),
+  feedback: (findingId: string, action: string, reason: string) => request<{ id: string; binding: boolean }>(`/api/findings/${findingId}/feedback`, {
+    method: "POST",
+    body: JSON.stringify({ action, reason, actor_label: "demo-reviewer", confirm_as_policy: false })
+  })
 };

@@ -2,7 +2,7 @@
 
 > **Engineering source of truth** for CodeDNA v0.1. Defines system topology, service contracts, data ownership, Hindsight lifecycle, review algorithm, security, tests, failure handling and technical execution order.
 >
-> **Design status:** Proposed and partially API-documentation-verified, **not yet implemented or locally smoke-tested**. Codex must validate details against installed versions and update this document after actual implementation.
+> **Design status:** G1–G4 are implemented and locally verified as recorded in `PROGRESS.md`; G5 evaluation/submission work is in progress. Proposed future sections remain explicitly aspirational.
 >
 > **Companion documents:** `AGENTS.md` governs development practice; `PROJECT.md` governs product scope. `ROADMAP.md` / `PROGRESS.md` will be created during engineering bootstrap.
 
@@ -42,6 +42,7 @@
 | ADR-013 | Official `hindsight-all` in-process server with embedded pg0 for G1 | Avoids a Windows standalone-listener stall while preserving the real localhost API and restart semantics | Accepted and verified with Hindsight 1.1.0 plus Gemini |
 | ADR-014 | `unidiff` parser plus deterministic post-model validation | Model output cannot invent changed lines, files, or evidence authority | Accepted and verified in G2 |
 | ADR-015 | Same Gemini adapter/schema for memory and baseline modes | Isolates historical-evidence access as the intended ablation variable | Accepted and verified in G2 |
+| ADR-016 | Feedback is nonbinding; only an explicit authorized supersession changes active policy | Prevents a reviewer click or model output from silently becoming organization guidance | Accepted and verified in G4 |
 
 If a decision changes, document the new decision, rationale, tradeoff, validation and affected contracts here; don't silently modify another doc only.
 
@@ -580,6 +581,10 @@ flowchart LR
 ```
 
 A normal feedback event is a piece of evidence and may improve future review suggestions, but it does not automatically represent team authority. Corrected advice may be scoped narrowly to a file/symbol rather than universally.
+
+**G4 implementation (2026-10-27):** `FeedbackEvent` persists accepted, rejected, corrected, and not-applicable actions with actor/reason while forcing `binding=false`. The service rejects `confirm_as_policy` on this endpoint. A separate supersession contract requires the controlled `demo-maintainer` authority boundary, an active predecessor, and a same-repository source PR. It transactionally marks the old decision superseded, creates the new active decision plus stable memory document, and retains the new event through Hindsight. This is demo authorization, not production identity or RBAC.
+
+The PR #103 → PR #120 live proof retrieved both `DEC-0042` and `DEC-0103`; the application authority layer rejected the old fact before generation. The resulting finding cited only active `DEC-0103` and source PR #103, demonstrating that retrieval relevance cannot override current SQLite policy state.
 
 ### 6.2 Supersession transaction
 

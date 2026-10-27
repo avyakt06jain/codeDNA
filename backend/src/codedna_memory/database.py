@@ -19,6 +19,8 @@ from .constants import (
     DECISION_ID,
     DOCUMENT_ID,
     SOURCE_PR_ID,
+    SUPERSESSION_CANDIDATE_PR_ID,
+    SUPERSESSION_SOURCE_PR_ID,
 )
 from .models import Base, Decision, MemoryDocument, PullRequest, Repository
 
@@ -104,6 +106,37 @@ def seed_synthetic_provenance(session: Session) -> None:
                     "+  data: { status: 'shipped' },\n+});\n"
                 ),
                 created_at=datetime(2026, 10, 20, tzinfo=timezone.utc),
+            )
+        )
+    if session.get(PullRequest, SUPERSESSION_SOURCE_PR_ID) is None:
+        session.add(
+            PullRequest(
+                id=SUPERSESSION_SOURCE_PR_ID,
+                repository_id=ACME_REPOSITORY_ID,
+                number=103,
+                title="Specialize shipped-order transitions",
+                description="Synthetic maintainer source for an explicit policy supersession.",
+                diff_text=(
+                    "--- a/src/orders/shipping.ts\n+++ b/src/orders/shipping.ts\n"
+                    "@@ -8,1 +8,1 @@\n-OrderService.transitionOrder(orderId, 'shipped')\n"
+                    "+OrderWorkflow.shipOrder(orderId)\n"
+                ),
+                created_at=datetime(2026, 10, 22, tzinfo=timezone.utc),
+            )
+        )
+    if session.get(PullRequest, SUPERSESSION_CANDIDATE_PR_ID) is None:
+        session.add(
+            PullRequest(
+                id=SUPERSESSION_CANDIDATE_PR_ID,
+                repository_id=ACME_REPOSITORY_ID,
+                number=120,
+                title="Ship replacement orders",
+                description="Synthetic held-out candidate for the supersession proof.",
+                diff_text=(
+                    "--- a/src/orders/replacements.ts\n+++ b/src/orders/replacements.ts\n"
+                    "@@ -30,0 +31,1 @@\n+await OrderService.transitionOrder(orderId, 'shipped');\n"
+                ),
+                created_at=datetime(2026, 10, 25, tzinfo=timezone.utc),
             )
         )
     session.flush()

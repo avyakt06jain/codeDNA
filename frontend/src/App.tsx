@@ -29,7 +29,7 @@ export function DiffView({ diff, findings = [] }: { diff: string; findings?: Fin
   );
 }
 
-function FindingCard({ finding, onEvidence }: { finding: Finding; onEvidence: () => void }) {
+function FindingCard({ finding, onEvidence, onFeedback }: { finding: Finding; onEvidence: () => void; onFeedback: (action: string) => void }) {
   return (
     <article className={`finding severity-${finding.severity}`}>
       <div className="finding-meta">
@@ -42,6 +42,7 @@ function FindingCard({ finding, onEvidence }: { finding: Finding; onEvidence: ()
       <div className="location">{finding.file_path}{finding.new_line ? `:${finding.new_line}` : ""}</div>
       {finding.suggested_change && <pre className="suggestion">{finding.suggested_change}</pre>}
       {finding.evidence_ids.length > 0 && <button className="text-button" onClick={onEvidence}>View evidence · {finding.evidence_ids.join(", ")}</button>}
+      <div className="feedback-actions"><span>Was this useful?</span><button onClick={() => onFeedback("accepted")}>Accept</button><button onClick={() => onFeedback("not_applicable")}>Not applicable</button></div>
     </article>
   );
 }
@@ -57,6 +58,7 @@ export default function App() {
   const [review, setReview] = useState<Review | null>(null);
   const [evidence, setEvidence] = useState<Decision[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [feedbackStatus, setFeedbackStatus] = useState("");
   const [loading, setLoading] = useState("Loading repositories…");
   const [error, setError] = useState("");
 
@@ -112,6 +114,15 @@ export default function App() {
     }
   }
 
+  async function submitFeedback(findingId: string, action: string) {
+    try {
+      const result = await api.feedback(findingId, action, action === "accepted" ? "Helpful for this review." : "Not applicable in this context.");
+      setFeedbackStatus(result.binding ? "Feedback recorded as policy." : "Feedback recorded as nonbinding review evidence.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Feedback failed");
+    }
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -150,7 +161,8 @@ export default function App() {
               {!review && !loading && <div className="empty-state"><span>◎</span><h3>No review run yet</h3><p>Memory mode recalls validated team decisions. Baseline sees only this diff.</p></div>}
               {review && <div className="run-summary"><span className={`mode-pill ${review.mode}`}>{review.mode === "memory" ? "Hindsight-assisted" : "Memory disabled"}</span><span>{review.model}</span><span>{review.findings.length} finding{review.findings.length === 1 ? "" : "s"}</span></div>}
               {review?.findings.length === 0 && <div className="empty-state"><h3>No validated findings</h3><p>This means the run returned no findings that passed deterministic validation—not that the code is guaranteed bug-free.</p></div>}
-              <div className="findings">{review?.findings.map((finding) => <FindingCard key={finding.id} finding={finding} onEvidence={openEvidence} />)}</div>
+              <div className="findings">{review?.findings.map((finding) => <FindingCard key={finding.id} finding={finding} onEvidence={openEvidence} onFeedback={(action) => submitFeedback(finding.id, action)} />)}</div>
+              {feedbackStatus && <div className="feedback-status" role="status">{feedbackStatus}</div>}
             </aside>
           </div>
         ) : (

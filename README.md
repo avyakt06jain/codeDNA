@@ -29,6 +29,13 @@ Set-Location backend
 ..\.venv\Scripts\codedna-review-smoke.exe
 ```
 
+Run the verified G4 feedback/supersession proof:
+
+```powershell
+Set-Location backend
+..\.venv\Scripts\codedna-policy-smoke.exe
+```
+
 Run the API for the product UI:
 
 ```powershell

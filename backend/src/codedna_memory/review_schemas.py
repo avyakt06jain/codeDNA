@@ -29,3 +29,19 @@ class ReviewCreated(BaseModel):
     run_id: str
     status: Literal["complete", "degraded", "failed"]
     mode: Literal["baseline", "memory"]
+
+
+class FeedbackRequest(BaseModel):
+    action: Literal["accepted", "rejected", "not_applicable", "corrected"]
+    reason: str | None = Field(default=None, max_length=2000)
+    actor_label: str = Field(min_length=2, max_length=120)
+    confirm_as_policy: bool = False
+
+
+class SupersedeRequest(BaseModel):
+    source_pr_id: str
+    title: str = Field(min_length=8, max_length=240)
+    rule_text: str = Field(min_length=12, max_length=2000)
+    rationale: str = Field(min_length=12, max_length=2000)
+    scope: dict[str, object]
+    actor_label: str = Field(min_length=2, max_length=120)

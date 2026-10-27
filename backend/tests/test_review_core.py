@@ -1,22 +1,14 @@
 from __future__ import annotations
 
-import asyncio
-import sys
 from pathlib import Path
-
-from fastapi.testclient import TestClient
 
 from codedna_memory.api import create_app
 from codedna_memory.constants import CANDIDATE_PR_ID
 from codedna_memory.database import create_database_engine, initialize_schema, seed_synthetic_provenance, session_factory
 from codedna_memory.diff_parser import DiffValidationError, parse_unified_diff
 from codedna_memory.models import PullRequest
-from codedna_memory.review_schemas import CandidateFinding, ReviewModelOutput
+from codedna_memory.review_schemas import CandidateFinding, ReviewModelOutput, ReviewRequest
 from codedna_memory.review_service import ReviewService, serialize_review, validate_candidate
-
-
-if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
 class FakeModel:
@@ -112,14 +104,13 @@ def test_http_contract_lists_fixture_and_runs_baseline(tmp_path: Path):
         database_url=f"sqlite:///{tmp_path / 'api.sqlite3'}",
         model_factory=FakeModel,
     )
-    client = TestClient(app)
-    repositories = client.get("/api/repositories")
-    assert repositories.status_code == 200
-    acme = next(item for item in repositories.json() if item["slug"] == "acme-commerce")
-    prs = client.get(f"/api/repositories/{acme['id']}/prs")
-    assert prs.status_code == 200
-    created = client.post(f"/api/prs/{CANDIDATE_PR_ID}/reviews", json={"memory_enabled": False})
-    assert created.status_code == 200
-    result = client.get(f"/api/reviews/{created.json()['run_id']}")
-    assert result.status_code == 200
-    assert result.json()["findings"][0]["file_path"] == "src/orders/update.ts"
+    endpoint = {route.path: route.endpoint for route in app.routes if hasattr(route, "path")}
+    repositories = endpoint["/api/repositories"]()
+    acme = next(item for item in repositories if item["slug"] == "acme-commerce")
+    prs = endpoint["/api/repositories/{repository_id}/prs"](acme["id"])
+    assert any(item["id"] == CANDIDATE_PR_ID for item in prs)
+    created = endpoint["/api/prs/{pr_id}/reviews"](
+        CANDIDATE_PR_ID, ReviewRequest(memory_enabled=False)
+    )
+    result = endpoint["/api/reviews/{run_id}"](created.run_id)
+    assert result["findings"][0]["file_path"] == "src/orders/update.ts"

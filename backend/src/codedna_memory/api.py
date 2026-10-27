@@ -16,9 +16,10 @@ from .database import (
     seed_synthetic_provenance,
     session_factory,
 )
-from .models import Decision, PullRequest, Repository, ReviewRun
+from .models import Decision, MemoryDocument, PullRequest, Repository, ReviewRun
+from .policy_service import record_feedback, supersede_decision
 from .review_model import GeminiReviewModel, ReviewModel
-from .review_schemas import ReviewCreated, ReviewRequest
+from .review_schemas import FeedbackRequest, ReviewCreated, ReviewRequest, SupersedeRequest
 from .review_service import ReviewService, serialize_review
 
 
@@ -118,6 +119,43 @@ def create_app(
         with sessions() as session:
             rows = session.scalars(select(Decision).where(Decision.repository_id == repository_id)).all()
             return [{"id": row.id, "title": row.title, "rule_text": row.rule_text, "rationale": row.rationale, "status": row.status, "authority": row.authority, "source_pr_id": row.source_pr_id} for row in rows]
+
+    @app.post("/api/findings/{finding_id}/feedback", status_code=201)
+    def feedback(finding_id: str, request: FeedbackRequest) -> dict[str, Any]:
+        try:
+            with sessions() as session:
+                event = record_feedback(
+                    session,
+                    finding_id=finding_id,
+                    action=request.action,
+                    actor_label=request.actor_label,
+                    reason=request.reason,
+                    confirm_as_policy=request.confirm_as_policy,
+                )
+                return {"id": event.id, "finding_id": event.finding_id, "action": event.action, "binding": event.binding, "created_at": event.created_at}
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.post("/api/decisions/{decision_id}/supersede", status_code=201)
+    def supersede(decision_id: str, request: SupersedeRequest) -> dict[str, Any]:
+        try:
+            factory = memory_client_factory or _default_memory_client
+            with factory() as client, sessions() as session:
+                replacement = supersede_decision(
+                    session,
+                    decision_id=decision_id,
+                    source_pr_id=request.source_pr_id,
+                    title=request.title,
+                    rule_text=request.rule_text,
+                    rationale=request.rationale,
+                    scope=request.scope,
+                    actor_label=request.actor_label,
+                    memory_client=client,
+                )
+                document = session.query(MemoryDocument).filter_by(decision_id=replacement.id).one()
+                return {"id": replacement.id, "status": replacement.status, "authority": replacement.authority, "source_pr_id": replacement.source_pr_id, "memory": {"document_id": document.document_id, "ingestion_status": document.ingestion_status}}
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
 
     @app.post("/api/prs/{pr_id}/reviews", response_model=ReviewCreated)
     def create_review(pr_id: str, request: ReviewRequest) -> ReviewCreated:

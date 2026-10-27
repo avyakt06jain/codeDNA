@@ -85,14 +85,16 @@
 
 ## G4 — Feedback and living conventions
 
-**Status:** In progress
+**Status:** Verified
 
-- Persisted feedback with nonbinding-by-default semantics.
-- Explicit supersession and PR #103 to PR #120 behavior proof.
+- Persisted feedback with nonbinding-by-default semantics. **Verified.** Attempts to promote ordinary feedback directly to policy fail closed.
+- Explicit maintainer-authorized supersession from `DEC-0042` to `DEC-0103`. **Verified.** Both historical records remain stored.
+- Stable Hindsight retain of `decision-DEC-0103` and PR #103 to PR #120 behavior proof. **Verified live.** Recall returned both decisions; SQLite rejected the superseded one, and the accepted line-31 finding cited only `DEC-0103`/PR #103.
+- Reviewer Accept/Not Applicable controls persist feedback from the Review Workspace. **Implemented and covered by frontend build/tests; live browser mutation remains part of G5 E2E.**
 
 ## G5 — Evaluation and submission
 
-**Status:** Not started
+**Status:** In progress
 
 - Controlled Memory Lab comparison, reproducible seed/reset, end-to-end checks, and submission artifacts.
 

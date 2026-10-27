@@ -75,9 +75,14 @@ class HindsightMemoryService:
         return sum(1 for item in response.items if item.id == document_id)
 
     def retain_demo_decision(self, repository_slug: str) -> Any:
+        return self.retain_decision(repository_slug, DECISION_ID)
+
+    def retain_decision(self, repository_slug: str, decision_id: str) -> Any:
         repository = self._repository(repository_slug)
-        decision = self._session.get(Decision, DECISION_ID)
-        document = self._session.get(MemoryDocument, DOCUMENT_ID)
+        decision = self._session.get(Decision, decision_id)
+        document = self._session.scalar(
+            select(MemoryDocument).where(MemoryDocument.decision_id == decision_id)
+        )
         if decision is None or document is None:
             raise ValueError("demo_provenance_not_seeded")
         if decision.repository_id != repository.id or document.repository_id != repository.id:
@@ -102,7 +107,11 @@ class HindsightMemoryService:
                     "authority": decision.authority,
                     "fixture_type": "synthetic",
                 },
-                content=DECISION_CONTENT,
+                content=(
+                    DECISION_CONTENT
+                    if decision.id == DECISION_ID
+                    else f"Confirmed engineering decision: {decision.rule_text} Rationale: {decision.rationale}"
+                ),
                 retain_async=False,
             )
         except Exception as exc:

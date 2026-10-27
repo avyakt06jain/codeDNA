@@ -5,8 +5,8 @@
 ## Current State
 
 - Date: 2026-10-27
-- Phase: G3 complete; G4 feedback and living conventions is in progress.
-- Implementation: G1 memory, G2 review engine/API, and G3 live React product UI are verified.
+- Phase: G4 complete; G5 evaluation and submission is in progress.
+- Implementation: G1 memory, G2 review engine/API, G3 product UI, and G4 living-policy behavior are verified.
 - Git: `main` is initialized, connected to GitHub, and the bootstrap commit is pushed.
 
 ## Working
@@ -27,10 +27,12 @@
 - A real paired PR #87 run produced a memory-backed line-18 finding citing validated `DEC-0042`; the independent baseline contained no team-policy category or evidence IDs.
 - React/Vite Review Workspace loads live repository/PR data, renders the changed lines, runs memory or baseline reviews, links findings to lines, and opens validated decision provenance.
 - Team DNA renders the backend's active decision, authority, rationale, and source PR.
+- Finding feedback is stored durably and remains nonbinding; an ordinary review action cannot promote itself to policy.
+- An explicit demo-maintainer supersession retained `DEC-0103`, preserved superseded `DEC-0042`, and a later PR #120 review cited only the new active rule.
 
 ## In Progress
 
-- Implementing G4 persisted feedback plus explicit decision confirmation/supersession behavior.
+- Implementing G5 controlled Memory Lab comparison, reproducible evaluation output, and final demo verification.
 
 ## Blocked
 
@@ -46,11 +48,13 @@
 - First execution downloads and loads local embedding/reranker assets and is materially slower than later runs.
 - Review creation is synchronous for the tiny fixture and may take over a minute during Hindsight startup; background jobs are deferred.
 - The baseline model reported a generic missing-`where` concern on the intentionally abbreviated synthetic Prisma fixture. It was persisted honestly and did not receive team-policy authority.
-- Feedback mutation, supersession flow, and the broader G5 evaluation/submission suite do not exist yet.
+- The authorization model is a narrow demo boundary (`demo-maintainer`), not production authentication or role-based access control.
+- The feedback UI currently exposes two common actions; correction reason entry and a visual supersession timeline remain future UX improvements.
+- The broader G5 evaluation/submission suite is not verified yet.
 
 ## Next Action
 
-Implement G4: persist finding feedback as nonbinding by default, add explicit authorized decision supersession, retain new authoritative events under stable IDs, and prove later reviews use only current policy.
+Implement and verify G5: a same-input Memory Lab comparison, reproducible evaluation artifact, full regression checks, and a documented runnable demo.
 
 ## Session Log
 
@@ -124,6 +128,18 @@ Implement G4: persist finding feedback as nonbinding by default, add explicit au
 - Live browser check: repository and PR #87 loaded from FastAPI; Team DNA showed active `DEC-0042`; memory review completed in 52.6 s; line 18 was flagged; evidence drawer showed the rule, rationale, active status, and source `pr-acme-42`.
 - Dependency check: pinned versions installed with `npm audit` reporting **0 vulnerabilities**. `jsdom` was revised from 30.1.3 to 29.0.1 to match Node 24.14.0's supported engine range.
 - Next: add G4 feedback and living-policy mutation without weakening authority boundaries.
+
+### 2026-10-27 — G4 feedback and living-policy proof
+
+- Goal: Store human review feedback without accidental policy promotion and prove an explicit new convention supersedes, rather than erases, old guidance.
+- Implemented: `FeedbackEvent`, feedback API/UI actions, fail-closed policy promotion, demo-maintainer supersession service/API, PR #103 source, PR #120 candidate, stable `decision-DEC-0103` retention, and `codedna-policy-smoke`.
+- Unit checks: `..\.venv\Scripts\python.exe -m pytest -q` from `backend` → **14 passed in 6.3s**. The API contract test now exercises route closures directly because repeated ASGI test transports stalled on this Windows host; live HTTP behavior remains covered by browser/API verification.
+- Frontend checks before the live proof: `npm test` → **1 passed**; `npm run build` → **PASS**, 17 modules, 229.37 kB JavaScript and 6.64 kB CSS before gzip.
+- First live proof: **FAILED honestly** because Gemini emitted a team-convention finding without `evidence_ids`; deterministic validation dropped it as `team_finding_missing_evidence`.
+- Correction: strengthened the structured-output instruction to require exact allowlisted IDs and made partially completed retention retry-safe without relaxing the validator.
+- Final live check: `..\.venv\Scripts\codedna-policy-smoke.exe` → **PASS**, exit 0. Recall returned `DEC-0103` and historical `DEC-0042`; SQLite rejected the old fact as `decision_not_authoritative`; the accepted line-31 finding cited only `DEC-0103` and source PR #103.
+- Feedback observation: the recorded demo review action remained `binding: false`; direct feedback-to-policy promotion is rejected by service tests.
+- Next: build and verify the controlled G5 Memory Lab and end-to-end demo path.
 
 ## Maintenance Checklist
 

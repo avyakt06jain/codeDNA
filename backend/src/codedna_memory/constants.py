@@ -10,6 +10,10 @@ SOURCE_PR_ID = "pr-acme-42"
 CANDIDATE_PR_ID = "pr-acme-87"
 DECISION_ID = "DEC-0042"
 DOCUMENT_ID = "decision-DEC-0042"
+SUPERSESSION_SOURCE_PR_ID = "pr-acme-103"
+SUPERSESSION_CANDIDATE_PR_ID = "pr-acme-120"
+SUPERSEDING_DECISION_ID = "DEC-0103"
+SUPERSEDING_DOCUMENT_ID = "decision-DEC-0103"
 
 RECALL_QUERY = (
     "The candidate changes an order's shipping state through an ORM write in "
