@@ -21,3 +21,17 @@ Set-Location ..
 ```
 
 Every smoke command exits nonzero on service failure or failed acceptance criteria and emits sanitized JSON. The second command starts a fresh Hindsight process and performs no retain; the final seed command verifies stable-document reingestion remains unique.
+
+Run the verified G2 memory/no-memory review pair:
+
+```powershell
+Set-Location backend
+..\.venv\Scripts\codedna-review-smoke.exe
+```
+
+Run the API for the product UI:
+
+```powershell
+Set-Location backend
+..\.venv\Scripts\python.exe -m uvicorn codedna_memory.api:app --host 127.0.0.1 --port 8000
+```

@@ -67,17 +67,18 @@
 
 ## G2 — Backend review core
 
-**Status:** Not started
+**Status:** Verified
 
-**Next milestone:** Parse a real synthetic diff and produce one structured finding whose team-policy claim can cite only the G1-validated evidence allowlist; also run an independent memory-disabled baseline.
+**Verified evidence:** The real paired PR #87 run used Gemini `gemini-3.1-flash-lite` in both modes. Memory mode produced a validated line-18 team-convention finding citing `DEC-0042`; baseline produced a distinct generic finding and contained no team-policy category or evidence IDs.
 
-- Diff parsing and new-side line validation.
-- Memory query building, policy filtering, structured review generation, and evidence validation.
-- Persisted review runs and controlled no-memory baseline.
+- Diff parsing and new-side line validation. **Verified.**
+- Memory query building, Hindsight recall, policy filtering, structured Gemini generation, and evidence validation. **Verified.**
+- Persisted review runs and controlled no-memory baseline. **Verified.**
+- FastAPI repository, PR, decision, review, and evidence read contracts. **Verified with contract tests.**
 
 ## G3 — Product UI
 
-**Status:** Not started
+**Status:** In progress
 
 - Review Workspace with real fixture diff, findings, evidence, and truthful errors.
 - Team DNA decision inspection and confirmation flow.

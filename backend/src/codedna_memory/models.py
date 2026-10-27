@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -81,5 +81,69 @@ class MemoryDocument(Base):
     updated_at: Mapped[datetime] = mapped_column(default=utc_now, onupdate=utc_now, nullable=False)
 
     repository: Mapped[Repository] = relationship()
+    decision: Mapped[Decision] = relationship()
+
+
+class ReviewRun(Base):
+    __tablename__ = "review_runs"
+    __table_args__ = (
+        CheckConstraint("mode IN ('baseline', 'memory')"),
+        CheckConstraint("status IN ('pending', 'running', 'complete', 'degraded', 'failed')"),
+    )
+
+    id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    pr_id: Mapped[str] = mapped_column(ForeignKey("pull_requests.id"), nullable=False)
+    mode: Mapped[str] = mapped_column(String(20), nullable=False)
+    provider: Mapped[str | None] = mapped_column(String(80))
+    model_name: Mapped[str | None] = mapped_column(String(160))
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    retrieval_trace_json: Mapped[str] = mapped_column(Text, default="{}", nullable=False)
+    validation_trace_json: Mapped[str] = mapped_column(Text, default="{}", nullable=False)
+    elapsed_ms: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(default=utc_now, nullable=False)
+
+    pull_request: Mapped[PullRequest] = relationship()
+    findings: Mapped[list[Finding]] = relationship(
+        back_populates="review_run", cascade="all, delete-orphan"
+    )
+
+
+class Finding(Base):
+    __tablename__ = "findings"
+    __table_args__ = (
+        CheckConstraint("severity IN ('info', 'warning', 'error')"),
+        CheckConstraint("category IN ('general', 'team_convention')"),
+        CheckConstraint("confidence IN ('low', 'medium', 'high')"),
+    )
+
+    id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    review_run_id: Mapped[str] = mapped_column(ForeignKey("review_runs.id"), nullable=False)
+    file_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    new_line: Mapped[int | None] = mapped_column(Integer)
+    severity: Mapped[str] = mapped_column(String(20), nullable=False)
+    category: Mapped[str] = mapped_column(String(40), nullable=False)
+    title: Mapped[str] = mapped_column(String(140), nullable=False)
+    explanation: Mapped[str] = mapped_column(Text, nullable=False)
+    suggested_change: Mapped[str | None] = mapped_column(Text)
+    confidence: Mapped[str] = mapped_column(String(20), nullable=False)
+
+    review_run: Mapped[ReviewRun] = relationship(back_populates="findings")
+    evidence: Mapped[list[FindingEvidence]] = relationship(
+        back_populates="finding", cascade="all, delete-orphan"
+    )
+
+
+class FindingEvidence(Base):
+    __tablename__ = "finding_evidence"
+
+    finding_id: Mapped[str] = mapped_column(
+        ForeignKey("findings.id"), primary_key=True
+    )
+    decision_id: Mapped[str] = mapped_column(
+        ForeignKey("decisions.id"), primary_key=True
+    )
+    memory_fact_id: Mapped[str | None] = mapped_column(String(160))
+
+    finding: Mapped[Finding] = relationship(back_populates="evidence")
     decision: Mapped[Decision] = relationship()
 

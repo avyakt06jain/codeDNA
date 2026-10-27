@@ -5,8 +5,8 @@
 ## Current State
 
 - Date: 2026-10-27
-- Phase: G1 complete; G2 backend review core is next.
-- Implementation: real Hindsight retain/recall, source validation, restart persistence, isolation, and stable-ID reingestion are verified.
+- Phase: G2 complete; G3 product UI is in progress.
+- Implementation: G1 memory proof and G2 parsed, evidence-validated, persisted review engine are verified against real Hindsight and Gemini.
 - Git: `main` is initialized, connected to GitHub, and the bootstrap commit is pushed.
 
 ## Working
@@ -22,10 +22,13 @@
 - Real retain and differently worded recall resolved one returned fact/chunk to `decision-DEC-0042`, active `DEC-0042`, and synthetic source PR #42.
 - A fresh process recalled the same fact and chunk without retaining again, proving pg0 persistence across server restart.
 - The `analytics-service` bank returned no results for the same query, and reingestion retained exactly one document with no duplicate results.
+- Unified diffs are bounded and parsed with `unidiff`; unsafe paths, binary/malformed input, and non-added line citations fail closed.
+- Review runs/findings/evidence are persisted in SQLite, and FastAPI exposes repository, PR, decision, review, and evidence read contracts.
+- A real paired PR #87 run produced a memory-backed line-18 finding citing validated `DEC-0042`; the independent baseline contained no team-policy category or evidence IDs.
 
 ## In Progress
 
-- G2 contract planning: diff parsing, structured finding validation, evidence allowlisting, and an uncontaminated no-memory baseline.
+- Building the G3 React Review Workspace and Team DNA read view against the verified API.
 
 ## Blocked
 
@@ -39,11 +42,13 @@
 - Gemini free tier reported a zero cached-content storage-token limit. Hindsight logged the failure and completed via uncached fallback; this adds noise and may increase latency.
 - The standalone Gemini-backed Hindsight process did not bind its HTTP listener on this Windows host. G1 therefore uses the official in-process server, which was verified.
 - First execution downloads and loads local embedding/reranker assets and is materially slower than later runs.
-- No review engine, HTTP API, frontend, feedback flow, or ablation implementation exists.
+- Review creation is synchronous for the tiny fixture and may take over a minute during Hindsight startup; background jobs are deferred.
+- The baseline model reported a generic missing-`where` concern on the intentionally abbreviated synthetic Prisma fixture. It was persisted honestly and did not receive team-policy authority.
+- No frontend, feedback mutation, supersession flow, or broader evaluation suite exists yet.
 
 ## Next Action
 
-Implement the first G2 thin slice: parse the PR #87 fixture diff, validate new-side line positions, and generate a structured finding from an explicit allowlist containing only the G1-validated `DEC-0042` evidence. Run the same input independently with memory disabled.
+Complete G3: wire a readable React workspace to the live repository/PR/review/evidence endpoints with loading, empty, success, and failure states; add a Team DNA decision view; verify a production build.
 
 ## Session Log
 
@@ -97,6 +102,17 @@ Implement the first G2 thin slice: parse the PR #87 fixture diff, validate new-s
 - Provider observations: Gemini startup probe intermittently returned `503 UNAVAILABLE` for high demand. Cached-content creation returned `429 RESOURCE_EXHAUSTED` because the tested free tier has a zero cache-storage token limit; Hindsight fell back to uncached calls and all acceptance operations passed. No paid fallback was enabled.
 - Security: the credential remained only in ignored `.env`; JSON evidence and tracked files contain no secret.
 - Next: begin G2 with a structured, line-valid finding and independent memory-disabled baseline.
+
+### 2026-10-27 — G2 review proof
+
+- Goal: Turn the G1 memory into a real, line-valid structured review and compare it with an uncontaminated baseline.
+- Implemented: bounded `unidiff` parser, deterministic memory query, Gemini structured-output adapter, evidence/line/category validator, persisted review tables, FastAPI contracts, and paired smoke CLI.
+- Unit/contract checks: `.\.venv\Scripts\python.exe -m pytest backend\tests` → **12 passed in 2.45s**. The FastAPI contract case requires loopback access because the managed sandbox blocks Windows event-loop socketpair creation.
+- Live check: `..\.venv\Scripts\codedna-review-smoke.exe` from `backend` → **PASS**.
+- Memory result: one `team_convention` error on `src/orders/update.ts:18`, evidence `DEC-0042`, Hindsight fact `4d148327-566e-4f11-bfd5-207ec208d04b`, source PR #42, elapsed 6198 ms after server startup.
+- Baseline result: one generic error on line 18 about the abbreviated Prisma call, no evidence IDs, no team-policy category, elapsed 2618 ms.
+- Validation: no generated findings were dropped in this run; all accepted lines and evidence passed deterministic checks.
+- Next: connect the G3 UI to these persisted live API results.
 
 ## Maintenance Checklist
 

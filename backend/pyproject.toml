@@ -8,10 +8,14 @@ version = "0.1.0.dev0"
 description = "CodeDNA provenance-backed Hindsight memory spike"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+  "fastapi==0.162.0",
+  "google-genai==2.33.0",
   "hindsight-client==1.1.0",
   "pydantic==2.14.1",
   "python-dotenv==1.2.4",
   "SQLAlchemy==2.0.55",
+  "unidiff==0.7.5",
+  "uvicorn==0.54.0",
 ]
 
 [project.optional-dependencies]
@@ -20,6 +24,7 @@ service = ["hindsight-all==1.1.0"]
 
 [project.scripts]
 codedna-memory-smoke = "codedna_memory.cli:main"
+codedna-review-smoke = "codedna_memory.review_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

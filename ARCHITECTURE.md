@@ -40,6 +40,8 @@
 | ADR-011 | Reflect selectively | Lower latency and limit ungrounded synthesis | Proposed |
 | ADR-012 | No extra agent framework/vector DB | Simpler integration and lower failure risk | Proposed |
 | ADR-013 | Official `hindsight-all` in-process server with embedded pg0 for G1 | Avoids a Windows standalone-listener stall while preserving the real localhost API and restart semantics | Accepted and verified with Hindsight 1.1.0 plus Gemini |
+| ADR-014 | `unidiff` parser plus deterministic post-model validation | Model output cannot invent changed lines, files, or evidence authority | Accepted and verified in G2 |
+| ADR-015 | Same Gemini adapter/schema for memory and baseline modes | Isolates historical-evidence access as the intended ablation variable | Accepted and verified in G2 |
 
 If a decision changes, document the new decision, rationale, tradeoff, validation and affected contracts here; don't silently modify another doc only.
 
@@ -548,6 +550,8 @@ Implement pure, unit-testable validation functions:
 Record reasons for dropped/downgraded findings in a private validation trace for debugging. Display actionable, sanitized errors to users.
 
 ### 5.6 LLM error resilience
+
+**G2 implementation (2026-10-27):** `GeminiReviewModel` uses `google-genai==2.33.0` structured output with the Pydantic `ReviewModelOutput` schema. `ReviewService` parses the diff before model use, obtains memory evidence only in memory mode, revalidates every candidate line and decision ID, persists only accepted findings, and records dropped reasons privately. The baseline calls the same adapter and system instruction but receives no historical evidence block. A real paired run verified this distinction.
 
 - Timeouts: bounded; return `failed` or `degraded` run status.
 - Rate limits/429: backoff with low retry cap; don't hammer free tier.
