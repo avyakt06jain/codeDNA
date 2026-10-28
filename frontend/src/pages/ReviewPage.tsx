@@ -5,7 +5,7 @@ import { DiffView } from "../components/DiffView";
 import { EvidencePanel } from "../components/EvidencePanel";
 import { FeedbackDialog } from "../components/FeedbackDialog";
 import { FindingArticle } from "../components/FindingArticle";
-import { EmptyNote, ErrorNote, LoadingNote } from "../components/Status";
+import { EmptyNote, ErrorNote, LiveStatus, LoadingNote } from "../components/Status";
 import { splitDiff } from "../diffFiles";
 import { bindingCopy, formatSeconds, stageLabel } from "../text";
 import { useWorkspace } from "../workspace";
@@ -76,6 +76,7 @@ export function ReviewPage() {
   const findings = review?.findings ?? [];
   const fileFindings = findings.filter((item) => item.file_path === selected?.path);
   const memoryBlocked = memoryEnabled && hindsight !== "ready";
+  const liveStatus = feedbackMessage || (stage ? stageLabel(stage) : loading ? "Loading pull request…" : "");
 
   async function runReview() {
     setRunning(true);
@@ -130,6 +131,7 @@ export function ReviewPage() {
 
   return (
     <div className="page">
+      <LiveStatus>{liveStatus}</LiveStatus>
       <header className="page-head review-head">
         <div>
           <h1>{pr ? `#${pr.number} ${pr.title}` : "Pull request"}</h1>
@@ -157,7 +159,7 @@ export function ReviewPage() {
         </div>
       </header>
       {error ? <ErrorNote>{error}</ErrorNote> : null}
-      {loading ? <LoadingNote>Loading pull request…</LoadingNote> : null}
+      {loading ? <LoadingNote announce={false}>Loading pull request…</LoadingNote> : null}
       {pr ? (
         <div className="review-grid">
           <section className="card file-card" aria-label="Files changed">
@@ -188,8 +190,8 @@ export function ReviewPage() {
             {selected ? <DiffView diff={selected.text} findings={fileFindings} /> : <EmptyNote title="This pull request has no diff text" />}
           </section>
           <aside className="review-side">
-            {stage ? <p className="stage" role="status">{stageLabel(stage)}</p> : null}
-            {feedbackMessage ? <p className="feedback-result" role="status">{feedbackMessage}</p> : null}
+            {stage ? <p className="stage" aria-hidden="true">{stageLabel(stage)}</p> : null}
+            {feedbackMessage ? <p className="feedback-result" aria-hidden="true">{feedbackMessage}</p> : null}
             {evidenceFinding ? (
               <EvidencePanel
                 repoId={repoId}
@@ -213,7 +215,7 @@ export function ReviewPage() {
                 </div>
               ) : null}
               {!review && !running ? <EmptyNote title="No review yet">Run CodeDNA Review to inspect this diff.</EmptyNote> : null}
-              {running && !review ? <LoadingNote>{stageLabel(stage)}</LoadingNote> : null}
+              {running && !review ? <LoadingNote announce={false}>{stageLabel(stage)}</LoadingNote> : null}
               {review && review.findings.length === 0 ? <EmptyNote title="No validated findings">This run returned no findings that passed validation.</EmptyNote> : null}
               <div className="finding-list">
                 {findings.map((finding) => (

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bindingCopy, feedbackPayload, formatSeconds, memoryLabel, preferredPullRequestId, traceSteps } from "./text";
+import { bindingCopy, comparisonStageLabel, feedbackPayload, formatSeconds, memoryLabel, preferredPullRequestId, traceSteps } from "./text";
 
 describe("feedback reasons", () => {
   it("maps each dismiss choice to a stored action and keeps the label", () => {
@@ -29,6 +29,13 @@ describe("memory and timings", () => {
     expect(steps.map((step) => step.key)).toEqual(["query", "generation"]);
     expect(formatSeconds(400)).toBe("0.4s");
     expect(steps.map((step) => formatSeconds(step.ms))).toEqual(["0.4s", "0.9s"]);
+  });
+
+  it("uses comparison-specific progress labels", () => {
+    expect(comparisonStageLabel("queued")).toBe("Comparison queued");
+    expect(comparisonStageLabel("reviewing_baseline")).toBe("Running the memory-disabled review");
+    expect(comparisonStageLabel("complete")).toBe("Comparison complete");
+    expect(comparisonStageLabel("comparison_restored")).toBe("Latest comparison restored");
   });
 });
 

@@ -1,8 +1,16 @@
 import type { ReactNode } from "react";
 
-export function LoadingNote({ children }: { children: ReactNode }) {
+export function LiveStatus({ children }: { children?: ReactNode }) {
   return (
-    <div className="note" role="status">
+    <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+      {children}
+    </div>
+  );
+}
+
+export function LoadingNote({ children, announce = true }: { children: ReactNode; announce?: boolean }) {
+  return (
+    <div className="note" role={announce ? "status" : undefined}>
       <span className="spinner" aria-hidden="true" />
       <span>{children}</span>
     </div>

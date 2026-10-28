@@ -113,7 +113,8 @@
 - **Verified:** A second held-out analytics case uses source PR #11, candidate PR #29, `DEC-0211`, and the isolated analytics bank. Its real Hindsight/Gemini comparison passed all six guardrails without placing the expected answer in the candidate or baseline context.
 - **Verified:** Memory Lab restores the latest complete, same-PR paired job after refresh through a read-only endpoint; restoration issues no Hindsight/Gemini request and validates both stored runs belong to the candidate.
 - **Verified:** Review evidence and feedback have deterministic keyboard focus entry/return; the feedback dialog traps Tab/Shift+Tab and closes on Escape.
-- **Next:** Continue accessibility hardening with consolidated live-status announcements for review and comparison progress.
+- **Verified:** Review and comparison progress use one persistent polite/atomic live region per page, avoid duplicate loading/stage announcements, and distinguish comparison stages from ordinary review stages.
+- **Next:** Link finding-location actions to programmatic diff-line focus so keyboard users land on the cited changed line.
 
 ## Documentation and version-control policy
 

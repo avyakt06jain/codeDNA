@@ -23,6 +23,17 @@ const STAGES: Record<string, string> = {
   failed: "The review failed",
 };
 
+const COMPARISON_STAGES: Record<string, string> = {
+  queued: "Comparison queued",
+  starting_hindsight: "Preparing memory for the comparison",
+  recalling_and_reviewing: "Running the memory-assisted review",
+  reviewing_baseline: "Running the memory-disabled review",
+  complete: "Comparison complete",
+  completed: "Comparison complete",
+  comparison_restored: "Latest comparison restored",
+  failed: "The comparison failed",
+};
+
 export const TRACE_STEPS: { key: keyof Timings; title: string; detail: string }[] = [
   { key: "query", title: "Query prepared", detail: "Diff and review context prepared" },
   { key: "recall", title: "Hindsight recall", detail: "Memory recall finished" },
@@ -46,6 +57,11 @@ export function bindingCopy(binding: boolean): string {
 export function stageLabel(stage?: string | null): string {
   if (!stage) return "Review in progress";
   return STAGES[stage] ?? stage.replaceAll("_", " ");
+}
+
+export function comparisonStageLabel(stage?: string | null): string {
+  if (!stage) return "Comparison in progress";
+  return COMPARISON_STAGES[stage] ?? stage.replaceAll("_", " ");
 }
 
 export function memoryState(hindsight?: string | null): "ready" | "unavailable" | "starting" {

@@ -201,6 +201,7 @@ async function reviewedPage() {
   fireEvent.click(screen.getByRole("button", { name: "Run CodeDNA Review" }));
   const team = await screen.findByRole("article", { name: "Direct status write skips the service" });
   const general = screen.getByRole("article", { name: "Missing update reason check" });
+  expect(screen.getAllByRole("status").filter((item) => item.textContent === "Review complete")).toHaveLength(1);
   return { fetchMock, team, general };
 }
 
@@ -269,7 +270,7 @@ it("states that dismiss feedback does not change the active design", async () =>
   fireEvent.click(screen.getByLabelText("Outdated team convention"));
   fireEvent.change(screen.getByLabelText("Additional context"), { target: { value: "Audit lives elsewhere" } });
   fireEvent.click(screen.getByRole("button", { name: "Save feedback" }));
-  expect(await screen.findByText(/non-binding/i)).toBeTruthy();
+  expect(await screen.findByText(/non-binding/i, { selector: '[role="status"]' })).toBeTruthy();
   const body = feedbackBody(fetchMock);
   expect(body.action).toBe("rejected");
   expect(body.reason).toContain("Outdated team convention");
@@ -281,7 +282,7 @@ it("states that dismiss feedback does not change the active design", async () =>
 it("posts accept as non-binding feedback", async () => {
   const { fetchMock, team } = await reviewedPage();
   fireEvent.click(within(team).getByRole("button", { name: "Accept" }));
-  expect(await screen.findByText(/non-binding/i)).toBeTruthy();
+  expect(await screen.findByText(/non-binding/i, { selector: '[role="status"]' })).toBeTruthy();
   const body = feedbackBody(fetchMock);
   expect(body.action).toBe("accepted");
   expect(body.actor_label).toBe("demo-reviewer");
@@ -370,6 +371,8 @@ it("shows a memory-lab trace only for recorded timings and lists guardrails", as
   await screen.findByText("Memory connected");
   fireEvent.click(screen.getByRole("button", { name: "Run comparison" }));
   expect(await screen.findByText("0.4s")).toBeTruthy();
+  expect(screen.getAllByRole("status").filter((item) => item.textContent === "Comparison complete")).toHaveLength(1);
+  expect(screen.getAllByRole("status").some((item) => item.textContent === "Review complete")).toBe(false);
   expect(screen.getByText("0.9s")).toBeTruthy();
   expect(screen.queryByText("Hindsight recall")).toBeNull();
   expect(screen.queryByText("2.3s")).toBeNull();
@@ -408,6 +411,7 @@ it("restores the latest completed comparison without starting a new job", async 
   const fetchMock = installFetch({ latestComparison: restored });
   renderAt("/repos/repo-acme-commerce/lab");
   expect(await screen.findByText("Guardrails passed")).toBeTruthy();
+  expect(screen.getByText("Latest comparison restored")).toBeTruthy();
   expect(screen.getByText("0.3s")).toBeTruthy();
   const posts = fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST");
   expect(posts).toHaveLength(0);

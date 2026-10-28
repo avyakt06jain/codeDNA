@@ -38,10 +38,11 @@
 - The labeled evaluation set now has two distinct repository cases: Acme shipping policy and Analytics timestamp policy. Analytics PR #29 omits the expected answer and retrieves only validated `DEC-0211` from source PR #11 in its own bank.
 - Memory Lab restores the latest completed comparison for the selected PR after refresh from persisted SQLite runs, without posting a job or calling Hindsight/Gemini again.
 - Review evidence and feedback now preserve keyboard position: focus enters each surface, returns to its trigger on close, and the feedback dialog contains Tab navigation plus Escape dismissal.
+- Review and Memory Lab progress now use one persistent polite/atomic live region per page; duplicate visible status text is hidden from accessibility APIs, and comparison stages use comparison-specific wording.
 
 ## In Progress
 
-- Post-MVP work continues with live-status accessibility hardening.
+- Post-MVP work continues with finding-to-diff keyboard navigation.
 
 ## Blocked
 
@@ -65,9 +66,18 @@
 
 ## Next Action
 
-Consolidate live-status announcements across review and comparison progress so screen readers receive meaningful stage changes without duplicate messages.
+Move keyboard focus to the cited changed line when a finding location is activated, with a safe fallback when the line is unavailable.
 
 ## Session Log
+
+### 2026-10-28 — Consolidated review and comparison announcements
+
+- Goal: Make long-running background stages understandable to screen readers without repeating the same status through multiple live regions.
+- Implemented: reusable polite/atomic `LiveStatus`; opt-out semantics for duplicate visual loading notes; one announcement stream each for Review Workspace and Memory Lab; comparison-specific queued, memory, baseline, complete, and restored labels.
+- Focused check: `npm test -- --run src/ui.test.tsx src/text.test.ts --pool=vmThreads --maxWorkers=1 --isolate=false` → **18 passed across 2 files** after correcting two existing feedback assertions to target the live status rather than duplicate visible text.
+- Regression: `npm test -- --run --pool=vmThreads --maxWorkers=1 --isolate=false` → **21 passed across 4 files**; `npm run build` → **PASS**, 38 modules, 306.17 kB JavaScript and 13.38 kB CSS before gzip; `CODEDNA_HINDSIGHT_AUTOSTART=0 ..\.venv\Scripts\python.exe -m pytest -q` → **29 passed**.
+- Live proof: the running PR #87 workspace exposed one accessible `Review complete` message, and Memory Lab exposed `Latest comparison restored` alongside the persisted paired result while Hindsight remained truthfully unavailable.
+- Next: connect finding location activation to focus on its cited diff line.
 
 ### 2026-10-28 — Keyboard focus lifecycle for evidence and feedback
 

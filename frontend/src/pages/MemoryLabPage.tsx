@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api, type Comparison, type PullRequestSummary, type Review } from "../api";
 import { FindingArticle } from "../components/FindingArticle";
-import { EmptyNote, ErrorNote, LoadingNote } from "../components/Status";
-import { formatSeconds, humanize, preferredPullRequestId, stageLabel, traceSteps } from "../text";
+import { EmptyNote, ErrorNote, LiveStatus, LoadingNote } from "../components/Status";
+import { comparisonStageLabel, formatSeconds, humanize, preferredPullRequestId, traceSteps } from "../text";
 import { useWorkspace } from "../workspace";
 
 function RunColumn({ title, note, review }: { title: string; note: string; review: Review }) {
@@ -81,7 +81,10 @@ export function MemoryLabPage() {
     setError("");
     api.latestComparison(prId)
       .then((result) => {
-        if (!cancelled) setComparison(result);
+        if (!cancelled) {
+          setComparison(result);
+          setStage(result ? "comparison_restored" : "");
+        }
       })
       .catch((reason: Error) => {
         if (!cancelled) setError(reason.message);
@@ -97,6 +100,13 @@ export function MemoryLabPage() {
   const selected = prs.some((item) => item.id === prId) ? prId : "";
   const blocked = hindsight !== "ready";
   const steps = traceSteps(comparison?.memory.retrieval?.timings_ms);
+  const liveStatus = stage
+    ? comparisonStageLabel(stage)
+    : restoring
+      ? "Restoring the latest completed comparison…"
+      : loading
+        ? "Loading pull requests…"
+        : "";
 
   async function runComparison() {
     if (!selected) return;
@@ -122,6 +132,7 @@ export function MemoryLabPage() {
 
   return (
     <div className="page">
+      <LiveStatus>{liveStatus}</LiveStatus>
       <header className="page-head review-head">
         <div>
           <h1>Memory Lab</h1>
@@ -141,10 +152,10 @@ export function MemoryLabPage() {
         </button>
       </div>
       {blocked ? <p className="hint">Comparison waits until memory is connected. A baseline review can still run from the pull request.</p> : null}
-      {loading ? <LoadingNote>Loading pull requests…</LoadingNote> : null}
-      {restoring ? <LoadingNote>Restoring the latest completed comparison…</LoadingNote> : null}
+      {loading ? <LoadingNote announce={false}>Loading pull requests…</LoadingNote> : null}
+      {restoring ? <LoadingNote announce={false}>Restoring the latest completed comparison…</LoadingNote> : null}
       {error ? <ErrorNote>{error}</ErrorNote> : null}
-      {running ? <p className="stage" role="status">{stageLabel(stage)}</p> : null}
+      {running ? <p className="stage" aria-hidden="true">{comparisonStageLabel(stage)}</p> : null}
       {!comparison && !running && !loading && !restoring ? <EmptyNote title="No comparison yet">Run both modes to compare validated findings and guardrails.</EmptyNote> : null}
       {comparison ? (
         <>
