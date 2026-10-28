@@ -39,10 +39,11 @@
 - Memory Lab restores the latest completed comparison for the selected PR after refresh from persisted SQLite runs, without posting a job or calling Hindsight/Gemini again.
 - Review evidence and feedback now preserve keyboard position: focus enters each surface, returns to its trigger on close, and the feedback dialog contains Tab navigation plus Escape dismissal.
 - Review and Memory Lab progress now use one persistent polite/atomic live region per page; duplicate visible status text is hidden from accessibility APIs, and comparison stages use comparison-specific wording.
+- Finding location controls now select the cited file and move focus to the validated changed line; line-less findings fall back to the diff region, and manual file selection/new runs clear stale targets.
 
 ## In Progress
 
-- Post-MVP work continues with finding-to-diff keyboard navigation.
+- Post-MVP work continues with refresh reattachment for active jobs.
 
 ## Blocked
 
@@ -66,9 +67,19 @@
 
 ## Next Action
 
-Move keyboard focus to the cited changed line when a finding location is activated, with a safe fallback when the line is unavailable.
+Reattach a refreshed Review Workspace or Memory Lab page to its still-running job without replaying provider work.
 
 ## Session Log
+
+### 2026-10-28 — Finding-to-diff keyboard navigation
+
+- Goal: Make a finding's location control land keyboard users on the cited code rather than only changing the selected file.
+- Implemented: monotonic focus requests from finding locations, programmatic focus and visible outline on matching new-side lines, diff-region fallback for line-less findings, and stale-target clearing on manual file selection/new review.
+- First focused check: **FAILED 1/15** because JavaScript `null === null` incorrectly marked non-code diff rows as fallback targets. The target predicate now requires a non-null line.
+- Final focused check: `npm test -- --run src/ui.test.tsx src/diffFiles.test.ts --pool=vmThreads --maxWorkers=1 --isolate=false` → **15 passed across 2 files**.
+- Regression: `npm test -- --run --pool=vmThreads --maxWorkers=1 --isolate=false` → **22 passed across 4 files**; `npm run build` → **PASS**, 38 modules, 306.69 kB JavaScript and 13.46 kB CSS before gzip; `CODEDNA_HINDSIGHT_AUTOSTART=0 ..\.venv\Scripts\python.exe -m pytest -q` → **29 passed**.
+- Live proof: restarted the API without provider autostart and Vite, opened the restored PR #87 result, activated `src/orders/update.ts:14`, and verified browser accessibility focus moved to `Changed line 14` containing the cited `prisma.order.update` line. The app remains runnable with saved evidence while memory health is unavailable.
+- Next: preserve active job identity across a browser refresh and resume polling without creating another provider request.
 
 ### 2026-10-28 — Consolidated review and comparison announcements
 

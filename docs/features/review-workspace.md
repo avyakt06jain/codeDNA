@@ -10,4 +10,6 @@ Evidence and feedback are keyboard-safe. Opening either surface moves focus into
 
 Background review progress is announced through one persistent polite/atomic live region. The visible progress and loading treatments are hidden from the accessibility tree when that region already carries the same message, preventing duplicate stage announcements. Feedback confirmation uses the same region; errors remain assertive alerts.
 
+Finding locations are navigation controls rather than decorative labels. Activating a line-specific location selects its file and moves programmatic focus to the validated changed line, which receives a visible focus outline and an accessible line label. Findings without a line fall back to the diff region. Manual file selection and a new review clear the previous target.
+
 Verification includes focused accessibility regressions, the full frontend suite, a strict TypeScript production build, and a live browser run that displayed the real line-18 `DEC-0042` finding and PR #42 provenance.

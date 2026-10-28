@@ -219,6 +219,17 @@ it("labels a team finding as a design mismatch and a general finding as general"
   expect(screen.queryByText(/view on github/i)).toBeNull();
 });
 
+it("moves finding location focus to the cited diff line with a region fallback", async () => {
+  const { team, general } = await reviewedPage();
+  fireEvent.click(within(team).getByRole("button", { name: "src/orders/update.ts:17" }));
+  const changedLine = screen.getByLabelText("Changed line 17");
+  expect(document.activeElement).toBe(changedLine);
+  expect(changedLine.textContent).toContain("order.status = next;");
+
+  fireEvent.click(within(general).getByRole("button", { name: "src/orders/update.ts" }));
+  expect(document.activeElement).toBe(screen.getByRole("region", { name: "Pull request diff" }));
+});
+
 it("restores the latest memory review after the pull-request page reloads", async () => {
   installFetch({ latestReview: true });
   renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");

@@ -114,7 +114,8 @@
 - **Verified:** Memory Lab restores the latest complete, same-PR paired job after refresh through a read-only endpoint; restoration issues no Hindsight/Gemini request and validates both stored runs belong to the candidate.
 - **Verified:** Review evidence and feedback have deterministic keyboard focus entry/return; the feedback dialog traps Tab/Shift+Tab and closes on Escape.
 - **Verified:** Review and comparison progress use one persistent polite/atomic live region per page, avoid duplicate loading/stage announcements, and distinguish comparison stages from ordinary review stages.
-- **Next:** Link finding-location actions to programmatic diff-line focus so keyboard users land on the cited changed line.
+- **Verified:** Finding-location actions select the correct file and move focus to the cited changed line, with a diff-region fallback when a finding has no line.
+- **Next:** Reattach a refreshed browser to its still-running review/comparison job without replaying provider work.
 
 ## Documentation and version-control policy
 

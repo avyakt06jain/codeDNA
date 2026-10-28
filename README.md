@@ -33,6 +33,7 @@ CodeDNA separates memory from authority:
 - Latest completed Memory Lab comparison restored after refresh without rerunning providers
 - Keyboard focus enters evidence and feedback surfaces, feedback traps focus, Escape closes it, and both surfaces return focus to their trigger
 - Review and Memory Lab background stages use one polite, atomic announcement region per page with task-specific completion language
+- Finding location controls move keyboard focus to the cited changed line, or to the diff region when no line is available
 
 The synthetic Acme Commerce scenario evolves from `DEC-0042` to active `DEC-0103`. Analytics Service has an isolated UTC-timestamp decision, `DEC-0211`.
 

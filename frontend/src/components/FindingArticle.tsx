@@ -12,7 +12,7 @@ export function FindingArticle({
   onAccept?: () => void;
   onDismiss?: () => void;
   onEvidence?: () => void;
-  onOpenFile?: (path: string) => void;
+  onOpenFile?: (path: string, line?: number | null) => void;
 }) {
   const team = isTeamFinding(finding.category);
   const evidenceIds = finding.evidence_ids ?? [];
@@ -34,7 +34,7 @@ export function FindingArticle({
       <p>{finding.explanation}</p>
       {finding.file_path ? (
         onOpenFile ? (
-          <button type="button" className="location" onClick={() => onOpenFile(finding.file_path)}>
+          <button type="button" className="location" onClick={() => onOpenFile(finding.file_path, finding.new_line)}>
             {finding.file_path}{finding.new_line ? `:${finding.new_line}` : ""}
           </button>
         ) : (

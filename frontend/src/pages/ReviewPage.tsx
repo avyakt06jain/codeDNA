@@ -28,6 +28,7 @@ export function ReviewPage() {
   const [evidenceError, setEvidenceError] = useState("");
   const [dismissFinding, setDismissFinding] = useState<Finding | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [diffFocus, setDiffFocus] = useState<{ line: number | null; request: number }>({ line: null, request: 0 });
 
   useEffect(() => {
     alive.current = true;
@@ -45,6 +46,7 @@ export function ReviewPage() {
     setEvidenceFinding(null);
     setEvidence([]);
     setFeedbackMessage("");
+    setDiffFocus({ line: null, request: 0 });
     Promise.allSettled([api.pr(prId), api.latestReview(prId, "memory")])
       .then(([pullRequestResult, reviewResult]) => {
         if (cancelled) return;
@@ -85,6 +87,7 @@ export function ReviewPage() {
     setEvidenceFinding(null);
     setEvidence([]);
     setFeedbackMessage("");
+    setDiffFocus({ line: null, request: 0 });
     setStage("queued");
     try {
       const result = await api.review(prId, memoryEnabled, (next) => {
@@ -129,6 +132,11 @@ export function ReviewPage() {
     }
   }
 
+  function openFindingLocation(path: string, line?: number | null) {
+    setFilePath(path);
+    setDiffFocus((current) => ({ line: line ?? null, request: current.request + 1 }));
+  }
+
   return (
     <div className="page">
       <LiveStatus>{liveStatus}</LiveStatus>
@@ -169,7 +177,15 @@ export function ReviewPage() {
                 {files.map((file) => {
                   const flagged = findings.some((item) => item.file_path === file.path && item.new_line);
                   return (
-                    <button type="button" key={file.path} className={file.path === selected?.path ? "file active" : "file"} onClick={() => setFilePath(file.path)}>
+                    <button
+                      type="button"
+                      key={file.path}
+                      className={file.path === selected?.path ? "file active" : "file"}
+                      onClick={() => {
+                        setFilePath(file.path);
+                        setDiffFocus({ line: null, request: 0 });
+                      }}
+                    >
                       <span>{file.path}</span>
                       <span className="file-counts">
                         {flagged ? <span className="line-flag" aria-label="Finding in this file">●</span> : null}
@@ -187,7 +203,9 @@ export function ReviewPage() {
               <h2>{selected?.path ?? "Diff"}</h2>
               {selected ? <span className="file-counts"><span className="add">+{selected.added}</span><span className="del">-{selected.removed}</span></span> : null}
             </div>
-            {selected ? <DiffView diff={selected.text} findings={fileFindings} /> : <EmptyNote title="This pull request has no diff text" />}
+            {selected ? (
+              <DiffView diff={selected.text} findings={fileFindings} focusLine={diffFocus.line} focusRequest={diffFocus.request} />
+            ) : <EmptyNote title="This pull request has no diff text" />}
           </section>
           <aside className="review-side">
             {stage ? <p className="stage" aria-hidden="true">{stageLabel(stage)}</p> : null}
@@ -222,7 +240,7 @@ export function ReviewPage() {
                   <FindingArticle
                     key={finding.id}
                     finding={finding}
-                    onOpenFile={setFilePath}
+                    onOpenFile={openFindingLocation}
                     onEvidence={() => void openEvidence(finding)}
                     onAccept={() => void accept(finding)}
                     onDismiss={() => setDismissFinding(finding)}

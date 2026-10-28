@@ -23,6 +23,8 @@ a { color: var(--green); }
 :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 .sidebar :focus-visible { outline-color: #b7efd8; }
 
+.diff-line.focus-target { outline: 2px solid var(--green); outline-offset: -2px; }
+
 .skip {
   position: absolute;
   left: 12px;
