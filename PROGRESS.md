@@ -43,10 +43,11 @@
 - Review Workspace and Memory Lab now preserve the current opaque job ID for the browser tab and resume polling that same backend job after refresh without posting another review/comparison.
 - Review and comparison polling now survives up to three consecutive transient network/server failures with bounded 1/2/4-second backoff and an accessible reconnecting status; successful polling resumes the existing job without another POST.
 - A confirmed missing active job now clears its stale per-tab locator and restores the latest persisted same-PR review/comparison when available, without creating or replaying work.
+- After bounded polling is exhausted, both pages preserve the active locator and offer a same-job `Check again` action that performs status GETs only.
 
 ## In Progress
 
-- Post-MVP work continues with an explicit same-job status retry after bounded polling is exhausted.
+- Post-MVP work continues with compact, sanitized job details for diagnosing long-running work.
 
 ## Blocked
 
@@ -66,14 +67,23 @@
 - The feedback UI exposes accept and dismiss. The evolution page shows the supersession timeline. A free-text correction flow is still limited.
 - The evaluation has two synthetic held-out policy cases, so results are reported as case counts, not generalized accuracy claims.
 - Browser refresh reattachment is scoped to the same tab's session storage. Closing the tab discards the active-job locator; completed results still restore from SQLite.
-- Exhausting the bounded polling retries leaves the active locator available for a later refresh; there is not yet an in-page manual retry control.
 - A polished recorded video and hackathon portal submission are external presentation actions and are not created or submitted automatically.
 
 ## Next Action
 
-Add an in-page `Check again` action after bounded polling retries are exhausted so the user can resume the same job without refreshing or creating work.
+Add a compact job-details disclosure with the opaque job ID and current stage so a demo operator can diagnose long-running work without exposing provider payloads.
 
 ## Session Log
+
+### 2026-10-28 — Same-job manual status retry
+
+- Goal: Let a user resume observation after all bounded transient polling retries fail, without refreshing the page or creating duplicate provider work.
+- Implemented: typed polling-exhaustion state; preserved active locators; accessible `Check review again` and `Check comparison again` actions; GET-only status rechecks; terminal cleanup; and the existing stale-job persisted-result fallback on a manual recheck.
+- Focused check: `npm test -- --run src/ui.test.tsx` → **19 passed**. The two new cases each exhaust four `503` responses, preserve the original locator, activate the retry action, finish on the fifth status GET, assert zero POSTs, and verify terminal locator cleanup.
+- Regression: `npm test -- --run` → **28 passed across 4 files**; `npm run build` → **PASS**, 39 modules, 311.35 kB JavaScript and 13.46 kB CSS before gzip; `CODEDNA_HINDSIGHT_AUTOSTART=0 ..\.venv\Scripts\python.exe -m pytest -q` → **29 passed**.
+- Provider scope: **NOT RUN** — this recovery path only observes an already accepted job; deterministic component tests prove that no Hindsight/Gemini request is created.
+- Live app check: the running PR #87 workspace still rendered its persisted `DEC-0103` finding and truthfully reported memory unavailable; no provider restart was required.
+- Next: add compact, sanitized job details for diagnosing long-running work.
 
 ### 2026-10-28 — Stale active-job fallback
 

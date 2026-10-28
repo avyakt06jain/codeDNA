@@ -30,6 +30,8 @@ Memory Lab uses one persistent polite/atomic live region for loading, restoratio
 
 Transient status-poll failures display and announce that CodeDNA is reconnecting to the existing comparison. The bounded retry reuses its job ID and does not rerun either model branch.
 
+If all bounded attempts fail, Memory Lab preserves the active comparison locator and shows `Check comparison again`. Activating it polls that same job through GET only, so neither comparison branch is recreated.
+
 If that active job returns `404`, Memory Lab clears the stale locator and performs its existing latest-comparison lookup for the selected PR. A stored paired result restores normally; no comparison POST or model branch is started by recovery.
 
 ## Reset boundary

@@ -272,6 +272,19 @@ it("reattaches to an active review after refresh without starting another job", 
   expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
 });
 
+it("checks an existing review again after bounded polling is exhausted", async () => {
+  saveActiveJob("review", "pr-acme-87", "job-review");
+  const fetchMock = installFetch({ reviewPollFailures: 4 });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const retry = await screen.findByRole("button", { name: "Check review again" });
+  expect(loadActiveJob("review", "pr-acme-87")).toBe("job-review");
+  fireEvent.click(retry);
+  expect(await screen.findByRole("article", { name: "Direct status write skips the service" })).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(5);
+  expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
+});
+
 it("clears a missing active review and restores the latest completed result", async () => {
   saveActiveJob("review", "pr-acme-87", "job-review");
   const fetchMock = installFetch({ missingReviewJob: true, latestReview: true });
@@ -501,6 +514,24 @@ it("reattaches to an active comparison after refresh without starting another jo
   expect(await screen.findByText("Guardrails passed", {}, { timeout: 3000 })).toBeTruthy();
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(2);
+  expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
+});
+
+it("checks an existing comparison again after bounded polling is exhausted", async () => {
+  const resumed = {
+    evaluation: { passed: true, checks: { same_candidate: true }, counts: { memory_findings: 1 } },
+    memory: { run_id: "run-retry-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
+    baseline: { run_id: "run-retry-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
+  };
+  saveActiveJob("comparison", "pr-acme-87", "job-cmp");
+  const fetchMock = installFetch({ comparison: resumed, comparisonPollFailures: 4 });
+  renderAt("/repos/repo-acme-commerce/lab");
+  const retry = await screen.findByRole("button", { name: "Check comparison again" });
+  expect(loadActiveJob("comparison", "pr-acme-87")).toBe("job-cmp");
+  fireEvent.click(retry);
+  expect(await screen.findByText("Guardrails passed")).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(5);
   expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
 });
 

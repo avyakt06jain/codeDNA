@@ -144,7 +144,7 @@ export type FeedbackResult = {
 const API_ROOT = import.meta.env.VITE_API_URL ?? "";
 const POLL_ATTEMPTS = 360;
 const POLL_DELAY_MS = 1000;
-const POLL_RETRY_DELAYS_MS = [1000, 2000, 4000] as const;
+const POLL_RETRY_DELAYS_MS = import.meta.env.MODE === "test" ? [1, 2, 4] as const : [1000, 2000, 4000] as const;
 
 class ApiRequestError extends Error {
   constructor(message: string, readonly status: number) {
@@ -351,7 +351,12 @@ async function pollReviewJob(
     } catch (reason) {
       const transient = reason instanceof TypeError
         || (reason instanceof ApiRequestError && [408, 425, 429, 500, 502, 503, 504].includes(reason.status));
-      if (!transient || consecutiveFailures >= POLL_RETRY_DELAYS_MS.length) throw reason;
+      if (!transient) throw reason;
+      if (consecutiveFailures >= POLL_RETRY_DELAYS_MS.length) {
+        throw new PollingUnavailableError(
+          reason instanceof Error ? reason.message : "The job status is temporarily unavailable.",
+        );
+      }
       onStage?.("reconnecting");
       const retryDelay = POLL_RETRY_DELAYS_MS[consecutiveFailures];
       consecutiveFailures += 1;
@@ -368,6 +373,7 @@ async function pollReviewJob(
 
 export class TerminalJobError extends Error {}
 export class MissingJobError extends TerminalJobError {}
+export class PollingUnavailableError extends Error {}
 
 function jobFailure(job: ReviewJob, fallback: string): TerminalJobError {
   const code = job.error_code?.trim();

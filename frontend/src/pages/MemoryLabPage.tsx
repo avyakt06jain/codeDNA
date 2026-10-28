@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { api, MissingJobError, TerminalJobError, type Comparison, type PullRequestSummary, type Review } from "../api";
+import { api, MissingJobError, PollingUnavailableError, TerminalJobError, type Comparison, type PullRequestSummary, type Review } from "../api";
 import { clearActiveJob, loadActiveJob, saveActiveJob } from "../activeJobs";
 import { FindingArticle } from "../components/FindingArticle";
 import { EmptyNote, ErrorNote, LiveStatus, LoadingNote } from "../components/Status";
@@ -36,6 +36,7 @@ export function MemoryLabPage() {
   const [loading, setLoading] = useState(true);
   const [restoring, setRestoring] = useState(false);
   const [running, setRunning] = useState(false);
+  const [retryJobId, setRetryJobId] = useState("");
   const [stage, setStage] = useState("");
   const [error, setError] = useState("");
   const [comparison, setComparison] = useState<Comparison | null>(null);
@@ -72,6 +73,7 @@ export function MemoryLabPage() {
     let cancelled = false;
     const activeJobId = prId ? loadActiveJob("comparison", prId) : null;
     setComparison(null);
+    setRetryJobId("");
     setStage("");
     if (!prId) {
       setRestoring(false);
@@ -94,6 +96,7 @@ export function MemoryLabPage() {
       ).then((result) => {
         if (!result || cancelled) return;
         terminal = true;
+        setRetryJobId("");
         setComparison(result);
         setStage("complete");
       }).catch(async (reason) => {
@@ -118,6 +121,7 @@ export function MemoryLabPage() {
           setStage("");
           return;
         }
+        if (reason instanceof PollingUnavailableError) setRetryJobId(activeJobId);
         setError(reason instanceof Error ? reason.message : "Comparison failed");
         setStage("");
       }).finally(() => {
@@ -164,6 +168,7 @@ export function MemoryLabPage() {
     setRunning(true);
     setError("");
     setComparison(null);
+    setRetryJobId("");
     setStage("queued");
     let jobId = "";
     let terminal = false;
@@ -175,15 +180,61 @@ export function MemoryLabPage() {
       }, () => alive.current);
       if (!result || !alive.current) return;
       terminal = true;
+      setRetryJobId("");
       setComparison(result);
       setStage("complete");
     } catch (reason) {
       if (!alive.current) return;
       terminal = reason instanceof TerminalJobError;
+      if (reason instanceof PollingUnavailableError && jobId) setRetryJobId(jobId);
       setError(reason instanceof Error ? reason.message : "Comparison failed");
       setStage("");
     } finally {
       if (terminal && jobId) clearActiveJob("comparison", selected, jobId);
+      if (alive.current) setRunning(false);
+    }
+  }
+
+  async function checkComparisonAgain() {
+    if (!retryJobId || !selected) return;
+    const jobId = retryJobId;
+    setRunning(true);
+    setRetryJobId("");
+    setError("");
+    setStage("queued");
+    let terminal = false;
+    try {
+      const result = await api.comparisonJob(jobId, (next) => {
+        if (alive.current) setStage(next);
+      }, () => alive.current);
+      if (!result || !alive.current) return;
+      terminal = true;
+      setComparison(result);
+      setStage("complete");
+    } catch (reason) {
+      if (!alive.current) return;
+      terminal = reason instanceof TerminalJobError;
+      if (reason instanceof MissingJobError) {
+        try {
+          const restored = await api.latestComparison(selected);
+          if (!alive.current) return;
+          if (restored) {
+            setComparison(restored);
+            setStage("comparison_restored");
+            return;
+          }
+        } catch (fallbackReason) {
+          if (!alive.current) return;
+          setError(fallbackReason instanceof Error ? fallbackReason.message : "Saved comparison unavailable");
+          setStage("");
+          return;
+        }
+      }
+      if (reason instanceof PollingUnavailableError) setRetryJobId(jobId);
+      setError(reason instanceof Error ? reason.message : "Comparison failed");
+      setStage("");
+    } finally {
+      if (terminal) clearActiveJob("comparison", selected, jobId);
       if (alive.current) setRunning(false);
     }
   }
@@ -213,6 +264,11 @@ export function MemoryLabPage() {
       {loading ? <LoadingNote announce={false}>Loading pull requests…</LoadingNote> : null}
       {restoring ? <LoadingNote announce={false}>Restoring the latest completed comparison…</LoadingNote> : null}
       {error ? <ErrorNote>{error}</ErrorNote> : null}
+      {retryJobId ? (
+        <button type="button" className="secondary" disabled={running} onClick={() => void checkComparisonAgain()}>
+          Check comparison again
+        </button>
+      ) : null}
       {running ? <p className="stage" aria-hidden="true">{comparisonStageLabel(stage)}</p> : null}
       {!comparison && !running && !loading && !restoring ? <EmptyNote title="No comparison yet">Run both modes to compare validated findings and guardrails.</EmptyNote> : null}
       {comparison ? (

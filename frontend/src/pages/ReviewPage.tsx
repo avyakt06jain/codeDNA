@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { api, MissingJobError, TerminalJobError, type Decision, type Finding, type PullRequest, type Review } from "../api";
+import { api, MissingJobError, PollingUnavailableError, TerminalJobError, type Decision, type Finding, type PullRequest, type Review } from "../api";
 import { clearActiveJob, loadActiveJob, saveActiveJob } from "../activeJobs";
 import { DiffView } from "../components/DiffView";
 import { EvidencePanel } from "../components/EvidencePanel";
@@ -20,6 +20,7 @@ export function ReviewPage() {
   const [error, setError] = useState("");
   const [memoryEnabled, setMemoryEnabled] = useState(true);
   const [running, setRunning] = useState(false);
+  const [retryJobId, setRetryJobId] = useState("");
   const [stage, setStage] = useState("");
   const [review, setReview] = useState<Review | null>(null);
   const [filePath, setFilePath] = useState("");
@@ -44,6 +45,7 @@ export function ReviewPage() {
     setLoading(true);
     setError("");
     setReview(null);
+    setRetryJobId("");
     setStage("");
     setEvidenceFinding(null);
     setEvidence([]);
@@ -79,6 +81,7 @@ export function ReviewPage() {
       ).then((result) => {
         if (!result || cancelled) return;
         terminal = true;
+        setRetryJobId("");
         setReview(result);
         setStage("complete");
       }).catch(async (reason) => {
@@ -103,6 +106,7 @@ export function ReviewPage() {
           setStage("");
           return;
         }
+        if (reason instanceof PollingUnavailableError) setRetryJobId(activeJobId);
         setError(reason instanceof Error ? reason.message : "Review failed");
         setStage("");
       }).finally(() => {
@@ -130,6 +134,7 @@ export function ReviewPage() {
     setRunning(true);
     setError("");
     setReview(null);
+    setRetryJobId("");
     setEvidenceFinding(null);
     setEvidence([]);
     setFeedbackMessage("");
@@ -145,15 +150,61 @@ export function ReviewPage() {
       }, () => alive.current);
       if (!result || !alive.current) return;
       terminal = true;
+      setRetryJobId("");
       setReview(result);
       setStage("complete");
     } catch (reason) {
       if (!alive.current) return;
       terminal = reason instanceof TerminalJobError;
+      if (reason instanceof PollingUnavailableError && jobId) setRetryJobId(jobId);
       setError(reason instanceof Error ? reason.message : "Review failed");
       setStage("");
     } finally {
       if (terminal && jobId) clearActiveJob("review", prId, jobId);
+      if (alive.current) setRunning(false);
+    }
+  }
+
+  async function checkReviewAgain() {
+    if (!retryJobId) return;
+    const jobId = retryJobId;
+    setRunning(true);
+    setRetryJobId("");
+    setError("");
+    setStage("queued");
+    let terminal = false;
+    try {
+      const result = await api.reviewJob(jobId, (next) => {
+        if (alive.current) setStage(next);
+      }, () => alive.current);
+      if (!result || !alive.current) return;
+      terminal = true;
+      setReview(result);
+      setStage("complete");
+    } catch (reason) {
+      if (!alive.current) return;
+      terminal = reason instanceof TerminalJobError;
+      if (reason instanceof MissingJobError) {
+        try {
+          const restored = await api.latestReview(prId, "memory");
+          if (!alive.current) return;
+          if (restored) {
+            setReview(restored);
+            setStage("complete");
+            return;
+          }
+        } catch (fallbackReason) {
+          if (!alive.current) return;
+          setError(fallbackReason instanceof Error ? fallbackReason.message : "Saved review unavailable");
+          setStage("");
+          return;
+        }
+      }
+      if (reason instanceof PollingUnavailableError) setRetryJobId(jobId);
+      setError(reason instanceof Error ? reason.message : "Review failed");
+      setStage("");
+    } finally {
+      if (terminal) clearActiveJob("review", prId, jobId);
       if (alive.current) setRunning(false);
     }
   }
@@ -220,6 +271,11 @@ export function ReviewPage() {
         </div>
       </header>
       {error ? <ErrorNote>{error}</ErrorNote> : null}
+      {retryJobId ? (
+        <button type="button" className="secondary" disabled={running} onClick={() => void checkReviewAgain()}>
+          Check review again
+        </button>
+      ) : null}
       {loading ? <LoadingNote announce={false}>Loading pull request…</LoadingNote> : null}
       {pr ? (
         <div className="review-grid">
