@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { api, TerminalJobError, type Comparison, type PullRequestSummary, type Review } from "../api";
+import { api, MissingJobError, TerminalJobError, type Comparison, type PullRequestSummary, type Review } from "../api";
 import { clearActiveJob, loadActiveJob, saveActiveJob } from "../activeJobs";
 import { FindingArticle } from "../components/FindingArticle";
 import { EmptyNote, ErrorNote, LiveStatus, LoadingNote } from "../components/Status";
@@ -96,9 +96,28 @@ export function MemoryLabPage() {
         terminal = true;
         setComparison(result);
         setStage("complete");
-      }).catch((reason) => {
+      }).catch(async (reason) => {
         if (cancelled) return;
         terminal = reason instanceof TerminalJobError;
+        if (reason instanceof MissingJobError) {
+          try {
+            const restored = await api.latestComparison(prId);
+            if (cancelled) return;
+            if (restored) {
+              setComparison(restored);
+              setStage("comparison_restored");
+              return;
+            }
+          } catch (fallbackReason) {
+            if (cancelled) return;
+            setError(fallbackReason instanceof Error ? fallbackReason.message : "Saved comparison unavailable");
+            setStage("");
+            return;
+          }
+          setError("The active comparison is no longer available. Start a new comparison.");
+          setStage("");
+          return;
+        }
         setError(reason instanceof Error ? reason.message : "Comparison failed");
         setStage("");
       }).finally(() => {

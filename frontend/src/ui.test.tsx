@@ -101,6 +101,8 @@ function installFetch(options?: {
   latestReview?: boolean;
   reviewPollFailures?: number;
   comparisonPollFailures?: number;
+  missingReviewJob?: boolean;
+  missingComparisonJob?: boolean;
 }) {
   const hindsight = options?.hindsight ?? "ready";
   let reviewPollFailures = options?.reviewPollFailures ?? 0;
@@ -158,6 +160,7 @@ function installFetch(options?: {
     if (path.includes("/decisions")) return json(options?.decisionsWrapped ? { items: decisions } : decisions);
     if (path.endsWith("/review-jobs") && method === "POST") return json({ job_id: "job-review", status: "queued", stage: "queued" }, 202);
     if (path === "/api/review-jobs/job-review") {
+      if (options?.missingReviewJob) return json({ detail: "job not found" }, 404);
       if (reviewPollFailures > 0) {
         reviewPollFailures -= 1;
         return json({ detail: "temporary outage" }, 503);
@@ -166,6 +169,7 @@ function installFetch(options?: {
     }
     if (path.endsWith("/comparison") && method === "POST") return json({ job_id: "job-cmp", status: "queued", stage: "queued" }, 202);
     if (path === "/api/review-jobs/job-cmp") {
+      if (options?.missingComparisonJob) return json({ detail: "job not found" }, 404);
       if (comparisonPollFailures > 0) {
         comparisonPollFailures -= 1;
         return json({ detail: "temporary outage" }, 503);
@@ -265,6 +269,17 @@ it("reattaches to an active review after refresh without starting another job", 
   expect(await screen.findByRole("article", { name: "Direct status write skips the service" }, { timeout: 3000 })).toBeTruthy();
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(2);
+  expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
+});
+
+it("clears a missing active review and restores the latest completed result", async () => {
+  saveActiveJob("review", "pr-acme-87", "job-review");
+  const fetchMock = installFetch({ missingReviewJob: true, latestReview: true });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  expect(await screen.findByRole("article", { name: "Direct status write skips the service" })).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(1);
   expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
 });
 
@@ -486,5 +501,38 @@ it("reattaches to an active comparison after refresh without starting another jo
   expect(await screen.findByText("Guardrails passed", {}, { timeout: 3000 })).toBeTruthy();
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(2);
+  expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
+});
+
+it("clears a missing active comparison and restores the latest completed result", async () => {
+  const restored = {
+    evaluation: {
+      passed: true,
+      checks: { same_candidate: true, baseline_has_no_memory_citations: true },
+      counts: { memory_findings: 1 },
+    },
+    memory: {
+      run_id: "run-fallback-memory",
+      status: "complete",
+      mode: "memory",
+      findings: [teamFinding],
+      retrieval: { timings_ms: { recall: 250 } },
+    },
+    baseline: {
+      run_id: "run-fallback-baseline",
+      status: "complete",
+      mode: "baseline",
+      findings: [generalFinding],
+      retrieval: {},
+    },
+  };
+  saveActiveJob("comparison", "pr-acme-87", "job-cmp");
+  const fetchMock = installFetch({ missingComparisonJob: true, latestComparison: restored });
+  renderAt("/repos/repo-acme-commerce/lab");
+  expect(await screen.findByText("Guardrails passed")).toBeTruthy();
+  expect(screen.getByText("Latest comparison restored")).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(1);
   expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
 });

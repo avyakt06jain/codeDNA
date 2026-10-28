@@ -367,6 +367,7 @@ async function pollReviewJob(
 }
 
 export class TerminalJobError extends Error {}
+export class MissingJobError extends TerminalJobError {}
 
 function jobFailure(job: ReviewJob, fallback: string): TerminalJobError {
   const code = job.error_code?.trim();
@@ -402,7 +403,15 @@ export const api = {
     return jobId;
   },
   async reviewJob(jobId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
-    const job = await pollReviewJob(jobId, onStage, shouldContinue);
+    let job: (ReviewJob & Record<string, unknown>) | null;
+    try {
+      job = await pollReviewJob(jobId, onStage, shouldContinue);
+    } catch (reason) {
+      if (reason instanceof ApiRequestError && reason.status === 404) {
+        throw new MissingJobError("The active review is no longer available.");
+      }
+      throw reason;
+    }
     if (!job) return null;
     if (job.status === "failed") throw jobFailure(job, "The review failed");
     if (!isRecord(job.review)) throw new TerminalJobError("The review finished without a result.");
@@ -437,7 +446,15 @@ export const api = {
     return jobId;
   },
   async comparisonJob(jobId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
-    const job = await pollReviewJob(jobId, onStage, shouldContinue);
+    let job: (ReviewJob & Record<string, unknown>) | null;
+    try {
+      job = await pollReviewJob(jobId, onStage, shouldContinue);
+    } catch (reason) {
+      if (reason instanceof ApiRequestError && reason.status === 404) {
+        throw new MissingJobError("The active comparison is no longer available.");
+      }
+      throw reason;
+    }
     if (!job) return null;
     if (job.status === "failed") throw jobFailure(job, "The comparison failed");
     const comparison = comparisonFromJob(job);

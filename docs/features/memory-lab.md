@@ -30,6 +30,8 @@ Memory Lab uses one persistent polite/atomic live region for loading, restoratio
 
 Transient status-poll failures display and announce that CodeDNA is reconnecting to the existing comparison. The bounded retry reuses its job ID and does not rerun either model branch.
 
+If that active job returns `404`, Memory Lab clears the stale locator and performs its existing latest-comparison lookup for the selected PR. A stored paired result restores normally; no comparison POST or model branch is started by recovery.
+
 ## Reset boundary
 
 `codedna-demo-reset --confirm-demo-reset` deletes only `codedna-repo-acme-commerce`, `codedna-repo-analytics-service`, and a SQLite URL ending in `codedna.sqlite3`. It then recreates the application schema and deterministic synthetic fixtures. Missing banks are treated as already reset; other failures stop the operation.

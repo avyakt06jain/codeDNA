@@ -42,10 +42,11 @@
 - Finding location controls now select the cited file and move focus to the validated changed line; line-less findings fall back to the diff region, and manual file selection/new runs clear stale targets.
 - Review Workspace and Memory Lab now preserve the current opaque job ID for the browser tab and resume polling that same backend job after refresh without posting another review/comparison.
 - Review and comparison polling now survives up to three consecutive transient network/server failures with bounded 1/2/4-second backoff and an accessible reconnecting status; successful polling resumes the existing job without another POST.
+- A confirmed missing active job now clears its stale per-tab locator and restores the latest persisted same-PR review/comparison when available, without creating or replaying work.
 
 ## In Progress
 
-- Post-MVP work continues with safe recovery from stale or missing active-job locators.
+- Post-MVP work continues with an explicit same-job status retry after bounded polling is exhausted.
 
 ## Blocked
 
@@ -70,9 +71,19 @@
 
 ## Next Action
 
-Detect a stale or missing active-job locator, clear it safely, and fall back to the latest completed persisted result instead of repeating a refresh error.
+Add an in-page `Check again` action after bounded polling retries are exhausted so the user can resume the same job without refreshing or creating work.
 
 ## Session Log
+
+### 2026-10-28 — Stale active-job fallback
+
+- Goal: Prevent a removed or unknown saved job ID from trapping every refresh in the same `404` error.
+- Implemented: typed missing-job terminal errors; active-locator cleanup; read-only fallback to the latest completed same-PR memory review or paired comparison; explicit new-run guidance only when no saved result exists.
+- Focused check: `npm test -- --run src/ui.test.tsx --pool=vmThreads --maxWorkers=1 --isolate=false` → **17 passed**. New review and comparison cases each prove one missing-job GET, one latest-result GET, zero POSTs, successful persisted-result rendering, and locator cleanup.
+- Regression: `npm test -- --run --pool=vmThreads --maxWorkers=1 --isolate=false` → **26 passed across 4 files**; `npm run build` → **PASS**, 39 modules, 309.58 kB JavaScript and 13.46 kB CSS before gzip; `CODEDNA_HINDSIGHT_AUTOSTART=0 ..\.venv\Scripts\python.exe -m pytest -q` → **29 passed**.
+- Provider scope: **NOT RUN** — recovery uses only persisted application state and no Hindsight/Gemini call.
+- Live app check: the running Memory Lab restored PR #87's persisted paired comparison, displayed the `DEC-0103` memory finding, baseline without citations, and all six passing guardrails while memory remained truthfully unavailable.
+- Next: expose a same-job `Check again` action after transient retries are exhausted.
 
 ### 2026-10-28 — Bounded background-job reconnect
 

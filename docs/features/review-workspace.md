@@ -14,6 +14,8 @@ After the backend accepts a review, the page keeps its validated opaque job ID i
 
 During a transient polling failure, the persistent live region and visible stage explain that CodeDNA is reconnecting to the existing review. The bounded retry does not enable the run action or create another job.
 
+If the backend confirms that the saved active job is missing, the workspace clears the stale locator and reads the latest completed memory review for that PR. It restores that review when available; otherwise it shows explicit guidance to start a new review. This fallback is read-only.
+
 Finding locations are navigation controls rather than decorative labels. Activating a line-specific location selects its file and moves programmatic focus to the validated changed line, which receives a visible focus outline and an accessible line label. Findings without a line fall back to the diff region. Manual file selection and a new review clear the previous target.
 
 Verification includes focused accessibility regressions, the full frontend suite, a strict TypeScript production build, and a live browser run that displayed the real line-18 `DEC-0042` finding and PR #42 provenance.

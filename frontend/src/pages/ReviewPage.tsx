@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { api, TerminalJobError, type Decision, type Finding, type PullRequest, type Review } from "../api";
+import { api, MissingJobError, TerminalJobError, type Decision, type Finding, type PullRequest, type Review } from "../api";
 import { clearActiveJob, loadActiveJob, saveActiveJob } from "../activeJobs";
 import { DiffView } from "../components/DiffView";
 import { EvidencePanel } from "../components/EvidencePanel";
@@ -81,9 +81,28 @@ export function ReviewPage() {
         terminal = true;
         setReview(result);
         setStage("complete");
-      }).catch((reason) => {
+      }).catch(async (reason) => {
         if (cancelled) return;
         terminal = reason instanceof TerminalJobError;
+        if (reason instanceof MissingJobError) {
+          try {
+            const restored = await api.latestReview(prId, "memory");
+            if (cancelled) return;
+            if (restored) {
+              setReview(restored);
+              setStage("complete");
+              return;
+            }
+          } catch (fallbackReason) {
+            if (cancelled) return;
+            setError(fallbackReason instanceof Error ? fallbackReason.message : "Saved review unavailable");
+            setStage("");
+            return;
+          }
+          setError("The active review is no longer available. Start a new review.");
+          setStage("");
+          return;
+        }
         setError(reason instanceof Error ? reason.message : "Review failed");
         setStage("");
       }).finally(() => {

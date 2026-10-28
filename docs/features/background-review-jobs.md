@@ -12,6 +12,8 @@ The browser maps stages to readable loading text and stops after six minutes. Af
 
 Each status GET independently classifies retryable failures. Network errors and HTTP `408`, `425`, `429`, `500`, `502`, `503`, and `504` receive at most three consecutive retries after 1, 2, and 4 seconds. The page announces a review- or comparison-specific reconnecting state during backoff. A successful GET resets the counter; non-retryable responses and the fourth consecutive transient failure surface without another request. Retries reuse the same opaque job ID and never create or replay provider work.
 
+An HTTP `404` has separate terminal meaning: the saved active-job locator no longer resolves. The page clears that locator, queries the existing latest-completed endpoint for the same PR, and restores the persisted result if present. When no completed result exists, it asks for a new explicit run. Neither branch sends a job-creation POST.
+
 ## Trust and reliability boundaries
 
 - Repository and PR identity still come from application storage.
@@ -30,5 +32,6 @@ Each status GET independently classifies retryable failures. Network errors and 
 - Recovery tests cover queued/running reconciliation, idempotency, and preservation of completed/already-failed jobs.
 - Component tests preload active review and comparison locators, restore each result through GET-only polling, assert zero POST requests, and assert terminal cleanup.
 - Component tests inject a transient `503` into each active-job polling flow, observe the reconnecting state, then verify the original job completes after exactly two GETs and zero POSTs.
+- Component tests inject a missing active review and comparison, then verify one status GET, one latest-result GET, zero POSTs, persisted-result rendering, and stale-locator cleanup for each flow.
 - A live paired job returned queued state immediately and later resolved to two persisted runs with all six provenance/contamination guardrails passing.
 - An isolated live API restart converted a persisted queued job to `job_interrupted_by_restart` and reported `interrupted_jobs: 1` without touching the running demo.
