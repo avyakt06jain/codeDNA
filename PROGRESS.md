@@ -4,7 +4,7 @@
 
 ## Current State
 
-- Date: 2026-10-27
+- Date: 2026-10-28
 - Phase: G0–G5 MVP gates complete; the evolved judge demo was exercised against a restarted local API.
 - Implementation: The retain → recall → validate → review → feedback → supersede → ablate loop is verified locally against real Hindsight and Gemini. `CODEDNA_DEMO_SCENE=evolved` leaves `DEC-0103` active and `DEC-0042` superseded.
 - Git: `main` is initialized, connected to GitHub, and verified checkpoints are pushed without rewriting published history.
@@ -37,10 +37,11 @@
 - API startup reconciles stale queued/running jobs to explicit failed state, health reports the count, and the UI explains that a new review is required for a safe retry.
 - The labeled evaluation set now has two distinct repository cases: Acme shipping policy and Analytics timestamp policy. Analytics PR #29 omits the expected answer and retrieves only validated `DEC-0211` from source PR #11 in its own bank.
 - Memory Lab restores the latest completed comparison for the selected PR after refresh from persisted SQLite runs, without posting a job or calling Hindsight/Gemini again.
+- Review evidence and feedback now preserve keyboard position: focus enters each surface, returns to its trigger on close, and the feedback dialog contains Tab navigation plus Escape dismissal.
 
 ## In Progress
 
-- Post-MVP work continues with keyboard-focus and live-status accessibility hardening.
+- Post-MVP work continues with live-status accessibility hardening.
 
 ## Blocked
 
@@ -64,9 +65,18 @@
 
 ## Next Action
 
-Audit and improve keyboard focus plus live-status announcements across the review, evidence, and comparison flows.
+Consolidate live-status announcements across review and comparison progress so screen readers receive meaningful stage changes without duplicate messages.
 
 ## Session Log
+
+### 2026-10-28 — Keyboard focus lifecycle for evidence and feedback
+
+- Goal: Keep keyboard users anchored when opening and closing finding evidence or feedback.
+- Implemented: evidence-panel entry and trigger-return focus; feedback-dialog entry/return focus, forward/reverse Tab containment, and Escape dismissal.
+- Focused check: `npm test -- --run src/ui.test.tsx --pool=vmThreads --maxWorkers=1 --isolate=false` → **12 passed**. The first threads-pool attempt **FAILED before test collection** because the Windows worker did not respond within 60 seconds; rerunning with the VM threads pool completed normally.
+- Regression: `npm test -- --run --pool=vmThreads --maxWorkers=1 --isolate=false` → **20 passed across 4 files**; `npm run build` → **PASS**, 38 modules, 305.28 kB JavaScript and 13.38 kB CSS before gzip; `CODEDNA_HINDSIGHT_AUTOSTART=0 ..\.venv\Scripts\python.exe -m pytest -q` → **29 passed**.
+- Live proof: restarted the API without provider autostart and Vite, opened the restored PR #87 review, and verified focus moved to the evidence region then returned to `View evidence`; the feedback dialog received focus and Escape returned it to `Dismiss`. Saved evidence remained usable while memory health truthfully showed unavailable.
+- Next: consolidate live-status announcements for review and Memory Lab background stages.
 
 ### 2026-10-27 — Refresh-safe Memory Lab comparison
 

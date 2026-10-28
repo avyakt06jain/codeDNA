@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import type { Decision, Finding } from "../api";
 import { designStatus, sourceLabel } from "../text";
@@ -19,8 +20,16 @@ export function EvidencePanel({
   error: string;
   onClose: () => void;
 }) {
+  const panelRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const returnTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    panelRef.current?.focus();
+    return () => returnTarget?.focus();
+  }, []);
+
   return (
-    <section className="card evidence" aria-label="Finding evidence">
+    <section className="card evidence" aria-label="Finding evidence" ref={panelRef} tabIndex={-1}>
       <div className="panel-head">
         <div>
           <p className="kicker">Why this finding</p>

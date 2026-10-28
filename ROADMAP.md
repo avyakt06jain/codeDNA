@@ -112,7 +112,8 @@
 - **Verified:** API startup atomically marks stale queued/running jobs as failed with `job_interrupted_by_restart`, reports the count through health, and gives the UI a safe-retry notice without replaying external model calls.
 - **Verified:** A second held-out analytics case uses source PR #11, candidate PR #29, `DEC-0211`, and the isolated analytics bank. Its real Hindsight/Gemini comparison passed all six guardrails without placing the expected answer in the candidate or baseline context.
 - **Verified:** Memory Lab restores the latest complete, same-PR paired job after refresh through a read-only endpoint; restoration issues no Hindsight/Gemini request and validates both stored runs belong to the candidate.
-- **Next:** Continue accessibility hardening, prioritizing keyboard focus and live-status behavior across review and evidence flows.
+- **Verified:** Review evidence and feedback have deterministic keyboard focus entry/return; the feedback dialog traps Tab/Shift+Tab and closes on Escape.
+- **Next:** Continue accessibility hardening with consolidated live-status announcements for review and comparison progress.
 
 ## Documentation and version-control policy
 

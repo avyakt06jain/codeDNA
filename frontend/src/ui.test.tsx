@@ -229,8 +229,11 @@ it("restores the latest memory review after the pull-request page reloads", asyn
 
 it("shows active and superseded evidence for a design-mismatch finding", async () => {
   const { team } = await reviewedPage();
-  fireEvent.click(within(team).getByRole("button", { name: "View evidence" }));
+  const evidenceButton = within(team).getByRole("button", { name: "View evidence" });
+  evidenceButton.focus();
+  fireEvent.click(evidenceButton);
   const panel = await screen.findByRole("region", { name: "Finding evidence" });
+  expect(document.activeElement).toBe(panel);
   expect(panel.textContent).toContain("active");
   expect(panel.textContent).toContain("superseded");
   expect(panel.textContent).toContain("Use the service for status changes.");
@@ -238,6 +241,24 @@ it("shows active and superseded evidence for a design-mismatch finding", async (
   expect(panel.textContent).toContain("This change writes order status directly.");
   expect(panel.textContent).toContain("PR #103");
   expect(panel.textContent).toContain("PR #42");
+  fireEvent.click(within(panel).getByRole("button", { name: "Close evidence" }));
+  expect(document.activeElement).toBe(evidenceButton);
+});
+
+it("contains keyboard focus in feedback and restores the dismiss trigger on Escape", async () => {
+  const { team } = await reviewedPage();
+  const dismiss = within(team).getByRole("button", { name: "Dismiss" });
+  dismiss.focus();
+  fireEvent.click(dismiss);
+  const dialog = screen.getByRole("dialog");
+  expect(document.activeElement).toBe(dialog);
+  fireEvent.keyDown(window, { key: "Tab" });
+  expect(document.activeElement).toBe(within(dialog).getByRole("button", { name: "Close feedback" }));
+  fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
+  expect(document.activeElement).toBe(within(dialog).getByRole("button", { name: "Cancel" }));
+  fireEvent.keyDown(window, { key: "Escape" });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(dismiss);
 });
 
 it("states that dismiss feedback does not change the active design", async () => {
