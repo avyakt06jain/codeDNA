@@ -12,6 +12,8 @@ Background review progress is announced through one persistent polite/atomic liv
 
 After the backend accepts a review, the page keeps its validated opaque job ID in per-tab session storage. Refreshing the same tab resumes GET-only polling of that job instead of issuing another review POST. Completion and known terminal failure clear the locator; cancellation, timeout, and transient polling errors keep it available for recovery. If no active locator exists, the page restores the latest completed memory review from SQLite.
 
+During a transient polling failure, the persistent live region and visible stage explain that CodeDNA is reconnecting to the existing review. The bounded retry does not enable the run action or create another job.
+
 Finding locations are navigation controls rather than decorative labels. Activating a line-specific location selects its file and moves programmatic focus to the validated changed line, which receives a visible focus outline and an accessible line label. Findings without a line fall back to the diff region. Manual file selection and a new review clear the previous target.
 
 Verification includes focused accessibility regressions, the full frontend suite, a strict TypeScript production build, and a live browser run that displayed the real line-18 `DEC-0042` finding and PR #42 provenance.

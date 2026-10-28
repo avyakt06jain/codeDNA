@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bindingCopy, comparisonStageLabel, feedbackPayload, formatSeconds, memoryLabel, preferredPullRequestId, traceSteps } from "./text";
+import { bindingCopy, comparisonStageLabel, feedbackPayload, formatSeconds, memoryLabel, preferredPullRequestId, stageLabel, traceSteps } from "./text";
 
 describe("feedback reasons", () => {
   it("maps each dismiss choice to a stored action and keeps the label", () => {
@@ -36,6 +36,8 @@ describe("memory and timings", () => {
     expect(comparisonStageLabel("reviewing_baseline")).toBe("Running the memory-disabled review");
     expect(comparisonStageLabel("complete")).toBe("Comparison complete");
     expect(comparisonStageLabel("comparison_restored")).toBe("Latest comparison restored");
+    expect(comparisonStageLabel("reconnecting")).toBe("Connection interrupted. Reconnecting to the existing comparison…");
+    expect(stageLabel("reconnecting")).toBe("Connection interrupted. Reconnecting to the existing review…");
   });
 });
 

@@ -116,7 +116,8 @@
 - **Verified:** Review and comparison progress use one persistent polite/atomic live region per page, avoid duplicate loading/stage announcements, and distinguish comparison stages from ordinary review stages.
 - **Verified:** Finding-location actions select the correct file and move focus to the cited changed line, with a diff-region fallback when a finding has no line.
 - **Verified:** Review Workspace and Memory Lab preserve an active opaque job ID in session storage, reattach through the existing read-only job endpoint after a browser refresh, and do not post duplicate provider work.
-- **Next:** Retry bounded transient job-poll failures with visible reconnecting state while continuing to avoid duplicate provider work.
+- **Verified:** Existing-job polling retries three consecutive transient network/HTTP failures with 1/2/4-second backoff, exposes a task-specific reconnecting status, and never posts duplicate provider work.
+- **Next:** Detect a stale or missing active-job locator, clear it safely, and fall back to the latest completed persisted result instead of repeating a refresh error.
 
 ## Documentation and version-control policy
 

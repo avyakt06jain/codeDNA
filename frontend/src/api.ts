@@ -144,6 +144,13 @@ export type FeedbackResult = {
 const API_ROOT = import.meta.env.VITE_API_URL ?? "";
 const POLL_ATTEMPTS = 360;
 const POLL_DELAY_MS = 1000;
+const POLL_RETRY_DELAYS_MS = [1000, 2000, 4000] as const;
+
+class ApiRequestError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -174,7 +181,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       detail = message;
     }
-    throw new Error(detail || `Request failed (${response.status})`);
+    throw new ApiRequestError(detail || `Request failed (${response.status})`, response.status);
   }
   return response.json() as Promise<T>;
 }
@@ -334,9 +341,23 @@ async function pollReviewJob(
   onStage?: (stage: string) => void,
   shouldContinue: () => boolean = () => true,
 ): Promise<(ReviewJob & Record<string, unknown>) | null> {
+  let consecutiveFailures = 0;
   for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {
     if (!shouldContinue()) return null;
-    const job = await request<ReviewJob & Record<string, unknown>>(`/api/review-jobs/${jobId}`);
+    let job: ReviewJob & Record<string, unknown>;
+    try {
+      job = await request<ReviewJob & Record<string, unknown>>(`/api/review-jobs/${jobId}`);
+      consecutiveFailures = 0;
+    } catch (reason) {
+      const transient = reason instanceof TypeError
+        || (reason instanceof ApiRequestError && [408, 425, 429, 500, 502, 503, 504].includes(reason.status));
+      if (!transient || consecutiveFailures >= POLL_RETRY_DELAYS_MS.length) throw reason;
+      onStage?.("reconnecting");
+      const retryDelay = POLL_RETRY_DELAYS_MS[consecutiveFailures];
+      consecutiveFailures += 1;
+      await delay(retryDelay);
+      continue;
+    }
     if (!shouldContinue()) return null;
     if (job.stage) onStage?.(job.stage);
     if (job.status === "complete" || job.status === "completed" || job.status === "failed") return job;

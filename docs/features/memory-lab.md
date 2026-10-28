@@ -28,6 +28,8 @@ On selection or browser refresh, the UI first checks for a validated active comp
 
 Memory Lab uses one persistent polite/atomic live region for loading, restoration, and background comparison stages. Comparison-specific labels distinguish memory-assisted work, baseline work, completion, and persisted-result restoration instead of announcing these as a generic review.
 
+Transient status-poll failures display and announce that CodeDNA is reconnecting to the existing comparison. The bounded retry reuses its job ID and does not rerun either model branch.
+
 ## Reset boundary
 
 `codedna-demo-reset --confirm-demo-reset` deletes only `codedna-repo-acme-commerce`, `codedna-repo-analytics-service`, and a SQLite URL ending in `codedna.sqlite3`. It then recreates the application schema and deterministic synthetic fixtures. Missing banks are treated as already reset; other failures stop the operation.

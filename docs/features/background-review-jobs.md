@@ -10,6 +10,8 @@ Stages are `queued`, `starting_hindsight`, `recalling_and_reviewing`, `reviewing
 
 The browser maps stages to readable loading text and stops after six minutes. After a creation response, it stores the validated opaque job ID in per-tab session storage under the job kind and PR ID. A refresh resumes polling that same job through `GET`; it does not repeat the creation `POST`. Success and known terminal failure clear the locator, while unmount, timeout, and transient request errors preserve it for later recovery. The original synchronous review route remains for smoke/compatibility use, while Review Workspace uses jobs.
 
+Each status GET independently classifies retryable failures. Network errors and HTTP `408`, `425`, `429`, `500`, `502`, `503`, and `504` receive at most three consecutive retries after 1, 2, and 4 seconds. The page announces a review- or comparison-specific reconnecting state during backoff. A successful GET resets the counter; non-retryable responses and the fourth consecutive transient failure surface without another request. Retries reuse the same opaque job ID and never create or replay provider work.
+
 ## Trust and reliability boundaries
 
 - Repository and PR identity still come from application storage.
@@ -27,5 +29,6 @@ The browser maps stages to readable loading text and stops after six minutes. Af
 - Unit tests cover review/comparison queued-to-complete persistence and sanitized unexpected failure.
 - Recovery tests cover queued/running reconciliation, idempotency, and preservation of completed/already-failed jobs.
 - Component tests preload active review and comparison locators, restore each result through GET-only polling, assert zero POST requests, and assert terminal cleanup.
+- Component tests inject a transient `503` into each active-job polling flow, observe the reconnecting state, then verify the original job completes after exactly two GETs and zero POSTs.
 - A live paired job returned queued state immediately and later resolved to two persisted runs with all six provenance/contamination guardrails passing.
 - An isolated live API restart converted a persisted queued job to `job_interrupted_by_restart` and reported `interrupted_jobs: 1` without touching the running demo.

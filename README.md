@@ -32,6 +32,7 @@ CodeDNA separates memory from authority:
 - Latest memory review restored after refreshing the pull-request page
 - Latest completed Memory Lab comparison restored after refresh without rerunning providers
 - Active Review Workspace and Memory Lab jobs reattached after a same-tab refresh without posting duplicate provider work
+- Bounded reconnect for transient job-status failures, with visible review/comparison-specific status and no replacement POST
 - Keyboard focus enters evidence and feedback surfaces, feedback traps focus, Escape closes it, and both surfaces return focus to their trigger
 - Review and Memory Lab background stages use one polite, atomic announcement region per page with task-specific completion language
 - Finding location controls move keyboard focus to the cited changed line, or to the diff region when no line is available
