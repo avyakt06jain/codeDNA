@@ -31,6 +31,7 @@ CodeDNA separates memory from authority:
 - One warm Hindsight runtime reused by all review clicks
 - Latest memory review restored after refreshing the pull-request page
 - Latest completed Memory Lab comparison restored after refresh without rerunning providers
+- Active Review Workspace and Memory Lab jobs reattached after a same-tab refresh without posting duplicate provider work
 - Keyboard focus enters evidence and feedback surfaces, feedback traps focus, Escape closes it, and both surfaces return focus to their trigger
 - Review and Memory Lab background stages use one polite, atomic announcement region per page with task-specific completion language
 - Finding location controls move keyboard focus to the cited changed line, or to the diff region when no line is available
@@ -138,4 +139,5 @@ The guarded reset is available only for designated synthetic state:
 - The first API boot must load local embedding and reranking models.
 - Demo authorization is not production authentication or RBAC.
 - In-process jobs do not survive an API-process termination.
+- Active-job refresh recovery uses per-tab session storage; closing the tab discards its in-progress locator, while completed results remain in SQLite.
 - GitHub import and comment posting are future integrations.

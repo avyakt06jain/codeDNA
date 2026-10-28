@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { afterEach, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import App from "./App";
+import { loadActiveJob, saveActiveJob } from "./activeJobs";
 
 const repositories = [
   { id: "repo-acme-commerce", slug: "acme-commerce", display_name: "Acme Commerce" },
@@ -185,6 +186,7 @@ function feedbackBody(fetchMock: ReturnType<typeof installFetch>) {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  window.sessionStorage.clear();
 });
 
 it("announces jobs reconciled after an API restart", async () => {
@@ -237,6 +239,15 @@ it("restores the latest memory review after the pull-request page reloads", asyn
   expect(team.textContent).toContain("Design mismatch");
   expect(within(team).getByRole("button", { name: "View evidence" })).toBeTruthy();
   expect(within(team).getByRole("button", { name: "Dismiss" })).toBeTruthy();
+});
+
+it("reattaches to an active review after refresh without starting another job", async () => {
+  saveActiveJob("review", "pr-acme-87", "job-review");
+  const fetchMock = installFetch();
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  expect(await screen.findByRole("article", { name: "Direct status write skips the service" })).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+  expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
 });
 
 it("shows active and superseded evidence for a design-mismatch finding", async () => {
@@ -426,4 +437,34 @@ it("restores the latest completed comparison without starting a new job", async 
   expect(screen.getByText("0.3s")).toBeTruthy();
   const posts = fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST");
   expect(posts).toHaveLength(0);
+});
+
+it("reattaches to an active comparison after refresh without starting another job", async () => {
+  const resumed = {
+    evaluation: {
+      passed: true,
+      checks: { same_candidate: true, baseline_has_no_memory_citations: true },
+      counts: { memory_findings: 1 },
+    },
+    memory: {
+      run_id: "run-resumed-memory",
+      status: "complete",
+      mode: "memory",
+      findings: [teamFinding],
+      retrieval: { timings_ms: { recall: 250 } },
+    },
+    baseline: {
+      run_id: "run-resumed-baseline",
+      status: "complete",
+      mode: "baseline",
+      findings: [generalFinding],
+      retrieval: {},
+    },
+  };
+  saveActiveJob("comparison", "pr-acme-87", "job-cmp");
+  const fetchMock = installFetch({ comparison: resumed });
+  renderAt("/repos/repo-acme-commerce/lab");
+  expect(await screen.findByText("Guardrails passed")).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+  expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
 });

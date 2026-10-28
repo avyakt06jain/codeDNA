@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { api, type Comparison, type PullRequestSummary, type Review } from "../api";
+import { api, TerminalJobError, type Comparison, type PullRequestSummary, type Review } from "../api";
+import { clearActiveJob, loadActiveJob, saveActiveJob } from "../activeJobs";
 import { FindingArticle } from "../components/FindingArticle";
 import { EmptyNote, ErrorNote, LiveStatus, LoadingNote } from "../components/Status";
 import { comparisonStageLabel, formatSeconds, humanize, preferredPullRequestId, traceSteps } from "../text";
@@ -69,10 +70,41 @@ export function MemoryLabPage() {
 
   useEffect(() => {
     let cancelled = false;
+    const activeJobId = prId ? loadActiveJob("comparison", prId) : null;
     setComparison(null);
     setStage("");
     if (!prId) {
       setRestoring(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (activeJobId) {
+      setRestoring(false);
+      setRunning(true);
+      setStage("queued");
+      setError("");
+      let terminal = false;
+      void api.comparisonJob(
+        activeJobId,
+        (next) => {
+          if (!cancelled) setStage(next);
+        },
+        () => !cancelled && alive.current,
+      ).then((result) => {
+        if (!result || cancelled) return;
+        terminal = true;
+        setComparison(result);
+        setStage("complete");
+      }).catch((reason) => {
+        if (cancelled) return;
+        terminal = reason instanceof TerminalJobError;
+        setError(reason instanceof Error ? reason.message : "Comparison failed");
+        setStage("");
+      }).finally(() => {
+        if (terminal) clearActiveJob("comparison", prId, activeJobId);
+        if (!cancelled) setRunning(false);
+      });
       return () => {
         cancelled = true;
       };
@@ -114,18 +146,25 @@ export function MemoryLabPage() {
     setError("");
     setComparison(null);
     setStage("queued");
+    let jobId = "";
+    let terminal = false;
     try {
-      const result = await api.comparison(selected, (next) => {
+      jobId = await api.startComparison(selected);
+      saveActiveJob("comparison", selected, jobId);
+      const result = await api.comparisonJob(jobId, (next) => {
         if (alive.current) setStage(next);
       }, () => alive.current);
       if (!result || !alive.current) return;
+      terminal = true;
       setComparison(result);
       setStage("complete");
     } catch (reason) {
       if (!alive.current) return;
+      terminal = reason instanceof TerminalJobError;
       setError(reason instanceof Error ? reason.message : "Comparison failed");
       setStage("");
     } finally {
+      if (terminal && jobId) clearActiveJob("comparison", selected, jobId);
       if (alive.current) setRunning(false);
     }
   }

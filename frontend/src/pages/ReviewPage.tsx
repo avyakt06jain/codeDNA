@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { api, type Decision, type Finding, type PullRequest, type Review } from "../api";
+import { api, TerminalJobError, type Decision, type Finding, type PullRequest, type Review } from "../api";
+import { clearActiveJob, loadActiveJob, saveActiveJob } from "../activeJobs";
 import { DiffView } from "../components/DiffView";
 import { EvidencePanel } from "../components/EvidencePanel";
 import { FeedbackDialog } from "../components/FeedbackDialog";
@@ -39,6 +40,7 @@ export function ReviewPage() {
 
   useEffect(() => {
     let cancelled = false;
+    const activeJobId = loadActiveJob("review", prId);
     setLoading(true);
     setError("");
     setReview(null);
@@ -47,7 +49,7 @@ export function ReviewPage() {
     setEvidence([]);
     setFeedbackMessage("");
     setDiffFocus({ line: null, request: 0 });
-    Promise.allSettled([api.pr(prId), api.latestReview(prId, "memory")])
+    Promise.allSettled([api.pr(prId), activeJobId ? Promise.resolve(null) : api.latestReview(prId, "memory")])
       .then(([pullRequestResult, reviewResult]) => {
         if (cancelled) return;
         if (pullRequestResult.status === "fulfilled") {
@@ -64,6 +66,31 @@ export function ReviewPage() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+    if (activeJobId) {
+      setRunning(true);
+      setStage("queued");
+      let terminal = false;
+      void api.reviewJob(
+        activeJobId,
+        (next) => {
+          if (!cancelled) setStage(next);
+        },
+        () => !cancelled && alive.current,
+      ).then((result) => {
+        if (!result || cancelled) return;
+        terminal = true;
+        setReview(result);
+        setStage("complete");
+      }).catch((reason) => {
+        if (cancelled) return;
+        terminal = reason instanceof TerminalJobError;
+        setError(reason instanceof Error ? reason.message : "Review failed");
+        setStage("");
+      }).finally(() => {
+        if (terminal) clearActiveJob("review", prId, activeJobId);
+        if (!cancelled) setRunning(false);
+      });
+    }
     return () => {
       cancelled = true;
     };
@@ -89,18 +116,25 @@ export function ReviewPage() {
     setFeedbackMessage("");
     setDiffFocus({ line: null, request: 0 });
     setStage("queued");
+    let jobId = "";
+    let terminal = false;
     try {
-      const result = await api.review(prId, memoryEnabled, (next) => {
+      jobId = await api.startReview(prId, memoryEnabled);
+      saveActiveJob("review", prId, jobId);
+      const result = await api.reviewJob(jobId, (next) => {
         if (alive.current) setStage(next);
       }, () => alive.current);
       if (!result || !alive.current) return;
+      terminal = true;
       setReview(result);
       setStage("complete");
     } catch (reason) {
       if (!alive.current) return;
+      terminal = reason instanceof TerminalJobError;
       setError(reason instanceof Error ? reason.message : "Review failed");
       setStage("");
     } finally {
+      if (terminal && jobId) clearActiveJob("review", prId, jobId);
       if (alive.current) setRunning(false);
     }
   }

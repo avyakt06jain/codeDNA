@@ -345,9 +345,11 @@ async function pollReviewJob(
   throw new Error("The review timed out before it finished.");
 }
 
-function jobFailure(job: ReviewJob, fallback: string): Error {
+export class TerminalJobError extends Error {}
+
+function jobFailure(job: ReviewJob, fallback: string): TerminalJobError {
   const code = job.error_code?.trim();
-  return new Error(code ? `${fallback} (${code}).` : fallback);
+  return new TerminalJobError(code ? `${fallback} (${code}).` : fallback);
 }
 
 export const api = {
@@ -369,18 +371,25 @@ export const api = {
     const row = isRecord(payload) ? payload : {};
     return normalizeComparison(row.comparison);
   },
-  async review(prId: string, memoryEnabled: boolean, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
+  async startReview(prId: string, memoryEnabled: boolean) {
     const created = await request<ReviewJob>(`/api/prs/${prId}/review-jobs`, {
       method: "POST",
       body: JSON.stringify({ memory_enabled: memoryEnabled }),
     });
     const jobId = created.job_id || created.id;
     if (!jobId) throw new Error("The review did not return a job.");
+    return jobId;
+  },
+  async reviewJob(jobId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
     const job = await pollReviewJob(jobId, onStage, shouldContinue);
     if (!job) return null;
     if (job.status === "failed") throw jobFailure(job, "The review failed");
-    if (!isRecord(job.review)) throw new Error("The review finished without a result.");
+    if (!isRecord(job.review)) throw new TerminalJobError("The review finished without a result.");
     return normalizeReview(job.review);
+  },
+  async review(prId: string, memoryEnabled: boolean, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
+    const jobId = await api.startReview(prId, memoryEnabled);
+    return api.reviewJob(jobId, onStage, shouldContinue);
   },
   evidence: async (runId: string) => {
     const payload = await request<unknown>(`/api/reviews/${runId}/evidence`);
@@ -400,20 +409,23 @@ export const api = {
     const row = isRecord(payload) ? payload : {};
     return { id: String(row.id ?? ""), binding: row.binding === true };
   },
-  async comparison(prId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
+  async startComparison(prId: string) {
     const created = await request<ReviewJob & Record<string, unknown>>(`/api/prs/${prId}/comparison`, { method: "POST" });
     const jobId = asString(created.job_id) || asString(created.id);
-    if (jobId) {
-      const job = await pollReviewJob(jobId, onStage, shouldContinue);
-      if (!job) return null;
-      if (job.status === "failed") throw jobFailure(job, "The comparison failed");
-      const comparison = comparisonFromJob(job);
-      if (!comparison) throw new Error("The comparison finished without a result.");
-      return comparison;
-    }
-    const immediate = comparisonFromJob(created);
-    if (immediate) return immediate;
-    throw new Error("The comparison did not start.");
+    if (!jobId) throw new Error("The comparison did not return a job.");
+    return jobId;
+  },
+  async comparisonJob(jobId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
+    const job = await pollReviewJob(jobId, onStage, shouldContinue);
+    if (!job) return null;
+    if (job.status === "failed") throw jobFailure(job, "The comparison failed");
+    const comparison = comparisonFromJob(job);
+    if (!comparison) throw new TerminalJobError("The comparison finished without a result.");
+    return comparison;
+  },
+  async comparison(prId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
+    const jobId = await api.startComparison(prId);
+    return api.comparisonJob(jobId, onStage, shouldContinue);
   },
 };
 

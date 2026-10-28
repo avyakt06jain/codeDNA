@@ -40,10 +40,11 @@
 - Review evidence and feedback now preserve keyboard position: focus enters each surface, returns to its trigger on close, and the feedback dialog contains Tab navigation plus Escape dismissal.
 - Review and Memory Lab progress now use one persistent polite/atomic live region per page; duplicate visible status text is hidden from accessibility APIs, and comparison stages use comparison-specific wording.
 - Finding location controls now select the cited file and move focus to the validated changed line; line-less findings fall back to the diff region, and manual file selection/new runs clear stale targets.
+- Review Workspace and Memory Lab now preserve the current opaque job ID for the browser tab and resume polling that same backend job after refresh without posting another review/comparison.
 
 ## In Progress
 
-- Post-MVP work continues with refresh reattachment for active jobs.
+- Post-MVP work continues with bounded recovery from transient job-poll failures.
 
 ## Blocked
 
@@ -62,14 +63,24 @@
 - The authorization model is a narrow demo boundary (`demo-maintainer`), not production authentication or role-based access control.
 - The feedback UI exposes accept and dismiss. The evolution page shows the supersession timeline. A free-text correction flow is still limited.
 - The evaluation has two synthetic held-out policy cases, so results are reported as case counts, not generalized accuracy claims.
-- Memory Lab restores completed comparisons, but it does not reconnect to a still-running in-process job after a browser refresh.
+- Browser refresh reattachment is scoped to the same tab's session storage. Closing the tab discards the active-job locator; completed results still restore from SQLite.
 - A polished recorded video and hackathon portal submission are external presentation actions and are not created or submitted automatically.
 
 ## Next Action
 
-Reattach a refreshed Review Workspace or Memory Lab page to its still-running job without replaying provider work.
+Retry bounded transient job-poll failures with a visible reconnecting state while continuing to avoid duplicate provider work.
 
 ## Session Log
+
+### 2026-10-28 — Active-job refresh reattachment
+
+- Goal: Let a refreshed Review Workspace or Memory Lab continue observing work already accepted by the API without another provider request.
+- Implemented: validated per-tab job locators keyed by task kind and PR; split start/poll API methods; refresh-time GET-only reattachment; success/terminal-failure cleanup; preservation across cancellation, timeout, and transient polling errors.
+- Focused check: `npm test -- --run src/ui.test.tsx --pool=vmThreads --maxWorkers=1 --isolate=false` → **15 passed**. The first run **FAILED 3/15** because the active comparison locator was declared in the repository-loading effect rather than the comparison effect; moving it into the correct scope resolved the error.
+- Regression: `npm test -- --run --pool=vmThreads --maxWorkers=1 --isolate=false` → **24 passed across 4 files**; `npm run build` → **PASS**, 39 modules, 308.27 kB JavaScript and 13.46 kB CSS before gzip; `CODEDNA_HINDSIGHT_AUTOSTART=0 ..\.venv\Scripts\python.exe -m pytest -q` → **29 passed**.
+- Provider scope: **NOT RUN** — the change resumes an existing backend job and component tests prove zero replacement POSTs; no paid traffic or new Hindsight/Gemini result was required.
+- Live app check: the running PR #87 workspace rendered its persisted one-finding memory review, cited `DEC-0103`, and reported Hindsight truthfully unavailable; the local app remained runnable without restarting providers.
+- Next: add bounded transient polling retry and an explicit reconnecting status without creating another job.
 
 ### 2026-10-28 — Finding-to-diff keyboard navigation
 

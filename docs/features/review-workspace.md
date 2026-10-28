@@ -1,6 +1,6 @@
 # Review Workspace
 
-**Status:** Verified live on 2026-10-27; keyboard focus behavior verified by component tests on 2026-10-28.
+**Status:** Verified live on 2026-10-27; refresh recovery and keyboard behavior verified by component tests on 2026-10-28.
 
 The G3 React client reads repositories, pull requests, decisions, review results, and evidence from FastAPI. It never receives credentials or arbitrary Hindsight bank IDs. The primary view shows a bounded stored diff, actual added-line numbers, review mode, model, elapsed time, validated findings, and an evidence drawer. Team DNA shows authoritative decision state and source references.
 
@@ -9,6 +9,8 @@ Memory and baseline actions call the same backend review contract with only `mem
 Evidence and feedback are keyboard-safe. Opening either surface moves focus into it. Closing the evidence panel restores focus to its `View evidence` trigger. The feedback dialog traps Tab and Shift+Tab, closes on Escape, and restores focus to its `Dismiss` trigger. This behavior does not change review or policy contracts.
 
 Background review progress is announced through one persistent polite/atomic live region. The visible progress and loading treatments are hidden from the accessibility tree when that region already carries the same message, preventing duplicate stage announcements. Feedback confirmation uses the same region; errors remain assertive alerts.
+
+After the backend accepts a review, the page keeps its validated opaque job ID in per-tab session storage. Refreshing the same tab resumes GET-only polling of that job instead of issuing another review POST. Completion and known terminal failure clear the locator; cancellation, timeout, and transient polling errors keep it available for recovery. If no active locator exists, the page restores the latest completed memory review from SQLite.
 
 Finding locations are navigation controls rather than decorative labels. Activating a line-specific location selects its file and moves programmatic focus to the validated changed line, which receives a visible focus outline and an accessible line label. Findings without a line fall back to the diff region. Manual file selection and a new review clear the previous target.
 

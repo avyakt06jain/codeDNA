@@ -18,6 +18,6 @@ For a clean replay, stop the API, execute the guarded reset and evaluation comma
 - Fixtures are synthetic and the recorded evaluation contains two held-out policy cases; report them as counts, not an accuracy percentage.
 - Gemini is an externally rate-limited free-tier dependency; no paid fallback is enabled. During the first boot in this session Hindsight logged `429 RESOURCE_EXHAUSTED` because the free-tier cached-content storage limit was 0, then continued with an uncached call. The successful review and comparison above did not return 429 or 503.
 - The first API boot loads local retrieval models once. Later clicks reuse the running server, but a memory review still calls Gemini and can be slow. The comparison's memory generation was 75,887 ms.
-- The review page does not restore a completed job after refresh.
+- A same-tab refresh reattaches to an active job and completed results restore from SQLite. Closing the tab loses only the active per-tab locator, not completed data.
 - Demo authority labels are not production authentication or RBAC.
 - CodeDNA never executes or modifies the candidate repository.
