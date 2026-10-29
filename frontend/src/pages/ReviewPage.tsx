@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { api, MissingJobError, PollingUnavailableError, TerminalJobError, type Decision, type Finding, type PullRequest, type Review } from "../api";
 import { clearActiveJob, loadActiveJob, saveActiveJob } from "../activeJobs";
 import { DiffView } from "../components/DiffView";
+import { ActiveJobDetails } from "../components/ActiveJobDetails";
 import { EvidencePanel } from "../components/EvidencePanel";
 import { FeedbackDialog } from "../components/FeedbackDialog";
 import { FindingArticle } from "../components/FindingArticle";
@@ -20,6 +21,7 @@ export function ReviewPage() {
   const [error, setError] = useState("");
   const [memoryEnabled, setMemoryEnabled] = useState(true);
   const [running, setRunning] = useState(false);
+  const [activeJobId, setActiveJobId] = useState("");
   const [retryJobId, setRetryJobId] = useState("");
   const [stage, setStage] = useState("");
   const [review, setReview] = useState<Review | null>(null);
@@ -41,17 +43,18 @@ export function ReviewPage() {
 
   useEffect(() => {
     let cancelled = false;
-    const activeJobId = loadActiveJob("review", prId);
+    const savedJobId = loadActiveJob("review", prId);
     setLoading(true);
     setError("");
     setReview(null);
+    setActiveJobId(savedJobId ?? "");
     setRetryJobId("");
     setStage("");
     setEvidenceFinding(null);
     setEvidence([]);
     setFeedbackMessage("");
     setDiffFocus({ line: null, request: 0 });
-    Promise.allSettled([api.pr(prId), activeJobId ? Promise.resolve(null) : api.latestReview(prId, "memory")])
+    Promise.allSettled([api.pr(prId), savedJobId ? Promise.resolve(null) : api.latestReview(prId, "memory")])
       .then(([pullRequestResult, reviewResult]) => {
         if (cancelled) return;
         if (pullRequestResult.status === "fulfilled") {
@@ -68,12 +71,12 @@ export function ReviewPage() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-    if (activeJobId) {
+    if (savedJobId) {
       setRunning(true);
       setStage("queued");
       let terminal = false;
       void api.reviewJob(
-        activeJobId,
+        savedJobId,
         (next) => {
           if (!cancelled) setStage(next);
         },
@@ -106,12 +109,15 @@ export function ReviewPage() {
           setStage("");
           return;
         }
-        if (reason instanceof PollingUnavailableError) setRetryJobId(activeJobId);
+        if (reason instanceof PollingUnavailableError) setRetryJobId(savedJobId);
         setError(reason instanceof Error ? reason.message : "Review failed");
-        setStage("");
+        setStage(reason instanceof TerminalJobError ? "" : "status_unavailable");
       }).finally(() => {
-        if (terminal) clearActiveJob("review", prId, activeJobId);
-        if (!cancelled) setRunning(false);
+        if (terminal) clearActiveJob("review", prId, savedJobId);
+        if (!cancelled) {
+          if (terminal) setActiveJobId("");
+          setRunning(false);
+        }
       });
     }
     return () => {
@@ -134,6 +140,7 @@ export function ReviewPage() {
     setRunning(true);
     setError("");
     setReview(null);
+    setActiveJobId("");
     setRetryJobId("");
     setEvidenceFinding(null);
     setEvidence([]);
@@ -144,6 +151,7 @@ export function ReviewPage() {
     let terminal = false;
     try {
       jobId = await api.startReview(prId, memoryEnabled);
+      setActiveJobId(jobId);
       saveActiveJob("review", prId, jobId);
       const result = await api.reviewJob(jobId, (next) => {
         if (alive.current) setStage(next);
@@ -158,10 +166,13 @@ export function ReviewPage() {
       terminal = reason instanceof TerminalJobError;
       if (reason instanceof PollingUnavailableError && jobId) setRetryJobId(jobId);
       setError(reason instanceof Error ? reason.message : "Review failed");
-      setStage("");
+      setStage(reason instanceof TerminalJobError || !jobId ? "" : "status_unavailable");
     } finally {
       if (terminal && jobId) clearActiveJob("review", prId, jobId);
-      if (alive.current) setRunning(false);
+      if (alive.current) {
+        if (terminal) setActiveJobId("");
+        setRunning(false);
+      }
     }
   }
 
@@ -202,10 +213,13 @@ export function ReviewPage() {
       }
       if (reason instanceof PollingUnavailableError) setRetryJobId(jobId);
       setError(reason instanceof Error ? reason.message : "Review failed");
-      setStage("");
+      setStage(reason instanceof TerminalJobError ? "" : "status_unavailable");
     } finally {
       if (terminal) clearActiveJob("review", prId, jobId);
-      if (alive.current) setRunning(false);
+      if (alive.current) {
+        if (terminal) setActiveJobId("");
+        setRunning(false);
+      }
     }
   }
 
@@ -271,6 +285,7 @@ export function ReviewPage() {
         </div>
       </header>
       {error ? <ErrorNote>{error}</ErrorNote> : null}
+      <ActiveJobDetails jobId={activeJobId} status={stageLabel(stage)} />
       {retryJobId ? (
         <button type="button" className="secondary" disabled={running} onClick={() => void checkReviewAgain()}>
           Check review again

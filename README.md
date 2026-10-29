@@ -29,6 +29,7 @@ CodeDNA separates memory from authority:
 - Memory Lab comparison using the same pull request and model
 - Persisted background review and comparison jobs
 - Same-job recovery controls after temporary status polling outages, without duplicate provider requests
+- Collapsed active-job diagnostics limited to the opaque job ID and human-readable status
 - One warm Hindsight runtime reused by all review clicks
 - Latest memory review restored after refreshing the pull-request page
 - Latest completed Memory Lab comparison restored after refresh without rerunning providers

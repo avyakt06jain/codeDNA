@@ -10,6 +10,8 @@ Stages are `queued`, `starting_hindsight`, `recalling_and_reviewing`, `reviewing
 
 The browser maps stages to readable loading text and stops after six minutes. After a creation response, it stores the validated opaque job ID in per-tab session storage under the job kind and PR ID. A refresh resumes polling that same job through `GET`; it does not repeat the creation `POST`. Success and known terminal failure clear the locator, while unmount, timeout, and transient request errors preserve it for later recovery. The original synchronous review route remains for smoke/compatibility use, while Review Workspace uses jobs.
 
+While a job is active or recoverable, both pages render a collapsed `Active job details` disclosure. It contains only the already validated opaque job ID and a controlled human-readable status label. Completion or known terminal failure removes it. Provider request/response bodies, prompts, credentials, recalled text, and raw errors are never placed in this disclosure.
+
 Each status GET independently classifies retryable failures. Network errors and HTTP `408`, `425`, `429`, `500`, `502`, `503`, and `504` receive at most three consecutive retries after 1, 2, and 4 seconds. The page announces a review- or comparison-specific reconnecting state during backoff. A successful GET resets the counter; non-retryable responses and the fourth consecutive transient failure surface without another automatic request. After exhaustion, an explicit `Check review again` or `Check comparison again` action starts another status loop for the preserved opaque job ID. Automatic and manual retries are GET-only and never create or replay provider work.
 
 An HTTP `404` has separate terminal meaning: the saved active-job locator no longer resolves. The page clears that locator, queries the existing latest-completed endpoint for the same PR, and restores the persisted result if present. When no completed result exists, it asks for a new explicit run. Neither branch sends a job-creation POST.
@@ -33,6 +35,7 @@ An HTTP `404` has separate terminal meaning: the saved active-job locator no lon
 - Component tests preload active review and comparison locators, restore each result through GET-only polling, assert zero POST requests, and assert terminal cleanup.
 - Component tests inject a transient `503` into each active-job polling flow, observe the reconnecting state, then verify the original job completes after exactly two GETs and zero POSTs.
 - Component tests exhaust four consecutive `503` responses for each page, verify the active locator remains, activate `Check again`, and confirm the original job completes after one additional GET and zero POSTs.
+- Those exhaustion cases also verify the collapsed disclosure shows the expected sanitized job ID/status and disappears after terminal completion.
 - Component tests inject a missing active review and comparison, then verify one status GET, one latest-result GET, zero POSTs, persisted-result rendering, and stale-locator cleanup for each flow.
 - A live paired job returned queued state immediately and later resolved to two persisted runs with all six provenance/contamination guardrails passing.
 - An isolated live API restart converted a persisted queued job to `job_interrupted_by_restart` and reported `interrupted_jobs: 1` without touching the running demo.

@@ -38,6 +38,7 @@ describe("memory and timings", () => {
     expect(comparisonStageLabel("comparison_restored")).toBe("Latest comparison restored");
     expect(comparisonStageLabel("reconnecting")).toBe("Connection interrupted. Reconnecting to the existing comparison…");
     expect(stageLabel("reconnecting")).toBe("Connection interrupted. Reconnecting to the existing review…");
+    expect(stageLabel("status_unavailable")).toBe("Status temporarily unavailable");
   });
 });
 

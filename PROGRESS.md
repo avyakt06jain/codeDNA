@@ -44,10 +44,11 @@
 - Review and comparison polling now survives up to three consecutive transient network/server failures with bounded 1/2/4-second backoff and an accessible reconnecting status; successful polling resumes the existing job without another POST.
 - A confirmed missing active job now clears its stale per-tab locator and restores the latest persisted same-PR review/comparison when available, without creating or replaying work.
 - After bounded polling is exhausted, both pages preserve the active locator and offer a same-job `Check again` action that performs status GETs only.
+- Review Workspace and Memory Lab expose a collapsed active-job disclosure with only the validated job ID and human-readable status, and remove it at terminal completion.
 
 ## In Progress
 
-- Post-MVP work continues with compact, sanitized job details for diagnosing long-running work.
+- Post-MVP work continues with read-only active-job discovery beyond one tab's session storage.
 
 ## Blocked
 
@@ -71,9 +72,20 @@
 
 ## Next Action
 
-Add a compact job-details disclosure with the opaque job ID and current stage so a demo operator can diagnose long-running work without exposing provider payloads.
+Add read-only same-PR active-job discovery so closing a tab does not lose observability or tempt a duplicate run.
 
 ## Session Log
+
+### 2026-10-29 — Sanitized active-job details
+
+- Goal: Make long-running and temporarily unreachable work diagnosable without exposing provider requests, credentials, or private review content.
+- Implemented: a reusable collapsed `Active job details` disclosure on Review Workspace and Memory Lab; validated opaque locator tracking across start/reattach/retry; human-readable stage display; and terminal cleanup.
+- Focused check: `npm test -- --run src/ui.test.tsx src/text.test.ts` → **25 passed across 2 files**. Review and comparison cases verify the disclosure contains only the expected job ID/status after four transient failures and disappears after the same job completes.
+- First full frontend run: **FAILED before collecting tests** with four `vitest-pool` worker startup timeouts because it overlapped orphaned workers from an interrupted earlier command. No assertion failed; the processes exited before the controlled rerun.
+- Regression: `npm test -- --run --pool=vmThreads --maxWorkers=1 --isolate=false` → **28 passed across 4 files**; `npm run build` → **PASS**, 40 modules, 312.32 kB JavaScript and 13.83 kB CSS before gzip; `CODEDNA_HINDSIGHT_AUTOSTART=0 ..\.venv\Scripts\python.exe -m pytest -q` → **29 passed**.
+- Provider scope: **NOT RUN** — this UI observes existing sanitized job state and does not create Hindsight/Gemini traffic.
+- Live app check: Vite and the API had stopped after the interrupted worker run; both verified README commands were restarted in hidden processes. The PR #87 workspace again rendered its saved `DEC-0103` finding while Hindsight warmed, without starting a new review.
+- Next: add read-only active-job discovery across tab loss.
 
 ### 2026-10-28 — Same-job manual status retry
 

@@ -118,8 +118,9 @@
 - **Verified:** Review Workspace and Memory Lab preserve an active opaque job ID in session storage, reattach through the existing read-only job endpoint after a browser refresh, and do not post duplicate provider work.
 - **Verified:** Existing-job polling retries three consecutive transient network/HTTP failures with 1/2/4-second backoff, exposes a task-specific reconnecting status, and never posts duplicate provider work.
 - **Verified:** When bounded polling is exhausted, Review Workspace and Memory Lab preserve the active locator and expose an in-page `Check again` action that polls the same job ID without a POST.
+- **Verified:** Active and recoverable jobs expose a collapsed, sanitized details disclosure containing only the validated opaque job ID and human-readable stage; it clears at terminal completion.
 - **Verified:** A `404` for a saved active-job locator clears only that locator and falls back to the latest completed same-PR review/comparison through read-only endpoints, with no creation POST.
-- **Next:** Add a compact job-details disclosure with the opaque job ID and current stage so a demo operator can diagnose long-running work without exposing provider payloads.
+- **Next:** Add read-only same-PR active-job discovery so closing a tab does not lose observability or tempt a duplicate run.
 
 ## Documentation and version-control policy
 
