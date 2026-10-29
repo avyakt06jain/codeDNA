@@ -4,7 +4,7 @@
 
 ## Current State
 
-- Date: 2026-10-29
+- Date: 2026-10-30
 - Phase: G0–G5 MVP gates complete; the evolved judge demo was exercised against a restarted local API.
 - Implementation: The retain → recall → validate → review → feedback → supersede → ablate loop is verified locally against real Hindsight and Gemini. `CODEDNA_DEMO_SCENE=evolved` leaves `DEC-0103` active and `DEC-0042` superseded.
 - Git: `main` is initialized, connected to GitHub, and verified checkpoints are pushed without rewriting published history.
@@ -46,10 +46,11 @@
 - After bounded polling is exhausted, both pages preserve the active locator and offer a same-job `Check again` action that performs status GETs only.
 - Review Workspace and Memory Lab expose a collapsed active-job disclosure with only the validated job ID and human-readable status, and remove it at terminal completion.
 - With no per-tab locator, both pages now discover the newest backend-owned queued/running job for the same PR and kind, save its validated ID, and resume polling without a POST.
+- Review and comparison creation now serialize the same-PR claim, reuse queued/running work, and schedule a background task only for the caller that created the job.
 
 ## In Progress
 
-- Post-MVP work continues with atomic server-side reuse of already active same-PR jobs.
+- Post-MVP work continues with a user-visible explanation when a creation request reuses active work.
 
 ## Blocked
 
@@ -69,14 +70,23 @@
 - The feedback UI exposes accept and dismiss. The evolution page shows the supersession timeline. A free-text correction flow is still limited.
 - The evaluation has two synthetic held-out policy cases, so results are reported as case counts, not generalized accuracy claims.
 - A same-tab refresh prioritizes its session-stored locator. Closing the tab discards that local copy, but the next tab can rediscover the newest same-PR active job from SQLite; completed results still restore normally.
-- Active discovery narrows duplicate risk after tab loss, but simultaneous tabs can still both observe no active job and race into separate creation POSTs because creation is not yet atomically deduplicated.
+- The API reports whether a creation request reused active work, but the frontend does not yet distinguish that outcome in its live status.
 - A polished recorded video and hackathon portal submission are external presentation actions and are not created or submitted automatically.
 
 ## Next Action
 
-Make job creation atomically reuse an existing same-PR/same-kind active job so simultaneous tabs cannot race into duplicate provider work.
+Surface the API's `reused` result in the live status so a user knows their click reattached to existing work rather than starting another provider call.
 
 ## Session Log
+
+### 2026-10-30 — Atomic active-job reuse
+
+- Goal: Prevent simultaneous tabs from scheduling duplicate provider work after both observe no active locator.
+- Implemented: a transactional job claim that uses SQLite `BEGIN IMMEDIATE` (or a stored-PR row lock on other SQL dialects), returns the active same-PR/same-kind job when present, and exposes `reused`; queue endpoints add a background task only for the creating claim.
+- Focused check: `..\.venv\Scripts\python.exe -m pytest -q tests/test_review_jobs.py tests/test_judge_demo.py` → **15 passed**. Two concurrent SQLite claims produced one row/job ID and one creator; repeated review and comparison route calls returned `reused: true` and left the second `BackgroundTasks` collection empty.
+- Regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 ..\.venv\Scripts\python.exe -m pytest -q` → **32 passed**; `npm test -- --run --pool=vmThreads --maxWorkers=1 --isolate=false` → **30 passed across 4 files**; `npm run build` → **PASS**, 40 modules, 312.94 kB JavaScript and 13.83 kB CSS before gzip.
+- Provider scope: **NOT RUN** — tests inspect persisted claims and scheduled task counts without executing Hindsight/Gemini work.
+- Next: surface reuse explicitly in Review Workspace and Memory Lab status text.
 
 ### 2026-10-29 — Same-PR active-job discovery
 

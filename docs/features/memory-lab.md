@@ -26,6 +26,8 @@ The browser polls explicit `starting_hindsight`, `recalling_and_reviewing`, and 
 
 On selection or browser refresh, the UI first checks for a validated active comparison job ID in the current tab's session storage. If present, it resumes the existing `GET /api/review-jobs/{job_id}` polling loop and does not post a replacement job. Without a local locator, it discovers the newest queued/running comparison for the same stored PR and resumes that job when present. Only then does it read `/api/prs/{pr_id}/comparisons/latest`; the backend returns a completed comparison with two persisted runs that both belong to the requested PR, then recomputes the same deterministic guardrails. An empty response renders the normal no-comparison state. None of these recovery paths calls Hindsight/Gemini by itself.
 
+Comparison creation uses the same atomic claim. Concurrent requests for the same PR receive one comparison job ID, and only its creator schedules the memory/baseline branches.
+
 Memory Lab uses one persistent polite/atomic live region for loading, restoration, and background comparison stages. Comparison-specific labels distinguish memory-assisted work, baseline work, completion, and persisted-result restoration instead of announcing these as a generic review.
 
 Transient status-poll failures display and announce that CodeDNA is reconnecting to the existing comparison. The bounded retry reuses its job ID and does not rerun either model branch.

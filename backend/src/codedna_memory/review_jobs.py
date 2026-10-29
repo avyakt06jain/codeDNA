@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from contextlib import nullcontext
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable
 
@@ -11,6 +12,12 @@ from sqlalchemy.orm import Session, sessionmaker
 from .models import PullRequest, ReviewJob
 from .review_model import ReviewModel
 from .review_service import ReviewService
+
+
+@dataclass(frozen=True)
+class ReviewJobClaim:
+    job: ReviewJob
+    created: bool
 
 
 def utc_now() -> datetime:
@@ -61,6 +68,56 @@ def find_active_review_job(
         )
         .order_by(ReviewJob.updated_at.desc(), ReviewJob.created_at.desc(), ReviewJob.id.desc())
     )
+
+
+def claim_review_job(
+    session: Session,
+    *,
+    pr_id: str,
+    memory_enabled: bool,
+    kind: str = "review",
+) -> ReviewJobClaim:
+    """Atomically create work or reuse the active same-PR/same-kind job."""
+    if kind not in {"review", "comparison"}:
+        raise ValueError("invalid_review_job_kind")
+
+    if session.bind is not None and session.bind.dialect.name == "sqlite":
+        session.connection().exec_driver_sql("BEGIN IMMEDIATE")
+        pull_request = session.get(PullRequest, pr_id)
+    else:
+        pull_request = session.scalar(
+            select(PullRequest)
+            .where(PullRequest.id == pr_id)
+            .with_for_update()
+        )
+    if pull_request is None:
+        session.rollback()
+        raise ValueError("pull_request_not_found")
+
+    active = session.scalar(
+        select(ReviewJob)
+        .where(
+            ReviewJob.pr_id == pr_id,
+            ReviewJob.kind == kind,
+            ReviewJob.status.in_(("queued", "running")),
+        )
+        .order_by(ReviewJob.updated_at.desc(), ReviewJob.created_at.desc(), ReviewJob.id.desc())
+    )
+    if active is not None:
+        session.commit()
+        return ReviewJobClaim(job=active, created=False)
+
+    job = ReviewJob(
+        id=f"job-{uuid.uuid4().hex[:16]}",
+        pr_id=pr_id,
+        memory_enabled=memory_enabled,
+        kind=kind,
+        status="queued",
+        stage="queued",
+    )
+    session.add(job)
+    session.commit()
+    return ReviewJobClaim(job=job, created=True)
 
 
 def reconcile_interrupted_jobs(sessions: sessionmaker[Session]) -> int:

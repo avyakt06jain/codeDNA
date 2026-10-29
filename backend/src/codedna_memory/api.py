@@ -23,7 +23,7 @@ from .hindsight_runtime import get_runtime, shared_memory_client
 from .models import Decision, MemoryDocument, PullRequest, Repository, ReviewJob, ReviewRun
 from .policy_service import prepare_evolved_demo, record_feedback, supersede_decision
 from .review_model import GeminiReviewModel, ReviewModel
-from .review_jobs import create_review_job, execute_review_job, find_active_review_job, reconcile_interrupted_jobs
+from .review_jobs import claim_review_job, execute_review_job, find_active_review_job, reconcile_interrupted_jobs
 from .review_schemas import FeedbackRequest, ReviewCreated, ReviewRequest, SupersedeRequest
 from .review_service import ReviewService, serialize_review
 
@@ -350,19 +350,25 @@ def create_app(
     ) -> dict[str, Any]:
         try:
             with sessions() as session:
-                job = create_review_job(
+                claim = claim_review_job(
                     session, pr_id=pr_id, memory_enabled=request.memory_enabled
                 )
-            background_tasks.add_task(
-                execute_review_job,
-                sessions,
-                job_id=job.id,
-                model_factory=model_factory or _default_model,
-                memory_client_factory=(memory_client_factory or shared_memory_client)
-                if request.memory_enabled
-                else None,
-            )
-            return {"job_id": job.id, "status": job.status, "stage": job.stage}
+            if claim.created:
+                background_tasks.add_task(
+                    execute_review_job,
+                    sessions,
+                    job_id=claim.job.id,
+                    model_factory=model_factory or _default_model,
+                    memory_client_factory=(memory_client_factory or shared_memory_client)
+                    if request.memory_enabled
+                    else None,
+                )
+            return {
+                "job_id": claim.job.id,
+                "status": claim.job.status,
+                "stage": claim.job.stage,
+                "reused": not claim.created,
+            }
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
 
@@ -410,17 +416,23 @@ def create_app(
     def queue_comparison(pr_id: str, background_tasks: BackgroundTasks) -> dict[str, Any]:
         try:
             with sessions() as session:
-                job = create_review_job(
+                claim = claim_review_job(
                     session, pr_id=pr_id, memory_enabled=True, kind="comparison"
                 )
-            background_tasks.add_task(
-                execute_review_job,
-                sessions,
-                job_id=job.id,
-                model_factory=model_factory or _default_model,
-                memory_client_factory=memory_client_factory or shared_memory_client,
-            )
-            return {"job_id": job.id, "status": job.status, "stage": job.stage}
+            if claim.created:
+                background_tasks.add_task(
+                    execute_review_job,
+                    sessions,
+                    job_id=claim.job.id,
+                    model_factory=model_factory or _default_model,
+                    memory_client_factory=memory_client_factory or shared_memory_client,
+                )
+            return {
+                "job_id": claim.job.id,
+                "status": claim.job.status,
+                "stage": claim.job.stage,
+                "reused": not claim.created,
+            }
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
 

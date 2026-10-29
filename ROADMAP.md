@@ -120,8 +120,9 @@
 - **Verified:** When bounded polling is exhausted, Review Workspace and Memory Lab preserve the active locator and expose an in-page `Check again` action that polls the same job ID without a POST.
 - **Verified:** Active and recoverable jobs expose a collapsed, sanitized details disclosure containing only the validated opaque job ID and human-readable stage; it clears at terminal completion.
 - **Verified:** When per-tab storage is absent, Review Workspace and Memory Lab discover the newest queued/running job for the same stored PR and kind, then resume GET-only polling before completed-result fallback.
+- **Verified:** Review and comparison creation atomically reuse same-PR/same-kind active work; concurrent SQLite claims return one job ID and only the creator schedules a background task.
 - **Verified:** A `404` for a saved active-job locator clears only that locator and falls back to the latest completed same-PR review/comparison through read-only endpoints, with no creation POST.
-- **Next:** Make job creation atomically reuse an existing same-PR/same-kind active job so simultaneous tabs cannot race into duplicate provider work.
+- **Next:** Surface the API's `reused` result in the live status so a user knows their click reattached to existing work rather than starting another provider call.
 
 ## Documentation and version-control policy
 

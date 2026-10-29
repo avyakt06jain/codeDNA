@@ -4,7 +4,7 @@
 
 ## Contract
 
-`POST /api/prs/{pr_id}/review-jobs` validates the stored PR, persists a queued `review` job, returns `202 Accepted`, and schedules review execution after the response. `POST /api/prs/{pr_id}/comparison` does the same for a paired `comparison` job. Clients poll `GET /api/review-jobs/{job_id}`.
+`POST /api/prs/{pr_id}/review-jobs` and `POST /api/prs/{pr_id}/comparison` validate the stored PR and atomically claim work. SQLite uses `BEGIN IMMEDIATE` before the active-job check; other SQL dialects lock the stored PR row. If a queued/running job already exists for that PR and kind, the response returns its ID and `reused: true` without scheduling another task. Otherwise the API persists one queued job, returns `reused: false`, and schedules execution after the response. Clients poll `GET /api/review-jobs/{job_id}`.
 
 Stages are `queued`, `starting_hindsight`, `recalling_and_reviewing`, `reviewing_diff`, `reviewing_baseline`, `complete`, and `failed`. Single-review completion embeds one persisted serialized `ReviewRun`; comparison completion embeds persisted memory/baseline runs and deterministic evaluation. Unexpected exceptions expose only `review_service_unavailable`; known application validation errors use bounded error codes.
 
@@ -24,7 +24,7 @@ An HTTP `404` has separate terminal meaning: the saved active-job locator no lon
 - Workers open an independent SQLAlchemy session; request sessions are never reused across threads.
 - Job state and completed results survive browser reloads.
 - The session-stored job ID is a recovery locator, not an authorization decision; repository/PR ownership and work execution remain backend controlled.
-- Closing a tab discards its local locator, but a new tab discovers same-PR active work from SQLite. Creation is not yet atomically deduplicated, so two tabs that submit at the same instant can still race.
+- Closing a tab discards its local locator, but a new tab discovers same-PR active work from SQLite. Simultaneous creation requests serialize and reuse the same active job instead of duplicating provider work.
 - Active work does not resume after API-process termination because the local MVP uses in-process FastAPI background tasks, not an external worker queue.
 - The shared Hindsight server is API-owned, while each worker creates its own SDK client to avoid sharing event-loop-bound client state across threads.
 - The next API startup atomically marks every leftover `queued`/`running` job `failed` with `job_interrupted_by_restart`. It does not replay work that may already have called an external provider or partially persisted a run.
@@ -39,6 +39,7 @@ An HTTP `404` has separate terminal meaning: the saved active-job locator no lon
 - Component tests exhaust four consecutive `503` responses for each page, verify the active locator remains, activate `Check again`, and confirm the original job completes after one additional GET and zero POSTs.
 - Those exhaustion cases also verify the collapsed disclosure shows the expected sanitized job ID/status and disappears after terminal completion.
 - Component tests start with empty session storage, discover active review/comparison jobs, verify one status GET and zero POST/latest-result calls, then confirm terminal locator cleanup.
+- Concurrency and route tests prove two simultaneous SQLite claims create one active row, repeated queue calls return one job ID, and only the creator receives a scheduled background task.
 - Component tests inject a missing active review and comparison, then verify one status GET, one latest-result GET, zero POSTs, persisted-result rendering, and stale-locator cleanup for each flow.
 - A live paired job returned queued state immediately and later resolved to two persisted runs with all six provenance/contamination guardrails passing.
 - An isolated live API restart converted a persisted queued job to `job_interrupted_by_restart` and reported `interrupted_jobs: 1` without touching the running demo.

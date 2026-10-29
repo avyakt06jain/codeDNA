@@ -37,6 +37,7 @@ CodeDNA separates memory from authority:
 - Bounded reconnect for transient job-status failures, with visible review/comparison-specific status and no replacement POST
 - Safe stale-job recovery that clears a missing locator and restores the latest persisted same-PR result without rerunning providers
 - Read-only same-PR active-job discovery after tab/session loss, before any completed-result fallback
+- Atomic same-PR active-job reuse so simultaneous tabs schedule only one provider task
 - Keyboard focus enters evidence and feedback surfaces, feedback traps focus, Escape closes it, and both surfaces return focus to their trigger
 - Review and Memory Lab background stages use one polite, atomic announcement region per page with task-specific completion language
 - Finding location controls move keyboard focus to the cited changed line, or to the diff region when no line is available

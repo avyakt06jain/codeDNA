@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException
+from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy import text
 
 from codedna_memory.api import create_app
@@ -313,6 +313,50 @@ def test_comparison_job_completes_with_injected_clients(tmp_path, monkeypatch):
     assert endpoints(app)["/api/prs/{pr_id}/review-jobs/active"](
         CANDIDATE_PR_ID, "comparison"
     )["job_id"] is None
+
+
+def test_queue_endpoints_reuse_active_jobs_and_schedule_once(tmp_path):
+    url = f"sqlite:///{tmp_path / 'reuse-active.sqlite3'}"
+    app = create_app(
+        database_url=url,
+        model_factory=DemoModel,
+        memory_client_factory=fake_memory_client,
+    )
+    route = endpoints(app)
+
+    first_review_tasks = BackgroundTasks()
+    first_review = route["/api/prs/{pr_id}/review-jobs"](
+        CANDIDATE_PR_ID,
+        ReviewRequest(memory_enabled=True),
+        first_review_tasks,
+    )
+    repeated_review_tasks = BackgroundTasks()
+    repeated_review = route["/api/prs/{pr_id}/review-jobs"](
+        CANDIDATE_PR_ID,
+        ReviewRequest(memory_enabled=False),
+        repeated_review_tasks,
+    )
+    assert first_review["job_id"] == repeated_review["job_id"]
+    assert first_review["reused"] is False
+    assert repeated_review["reused"] is True
+    assert len(first_review_tasks.tasks) == 1
+    assert repeated_review_tasks.tasks == []
+
+    first_comparison_tasks = BackgroundTasks()
+    first_comparison = route["/api/prs/{pr_id}/comparison"](
+        CANDIDATE_PR_ID,
+        first_comparison_tasks,
+    )
+    repeated_comparison_tasks = BackgroundTasks()
+    repeated_comparison = route["/api/prs/{pr_id}/comparison"](
+        CANDIDATE_PR_ID,
+        repeated_comparison_tasks,
+    )
+    assert first_comparison["job_id"] == repeated_comparison["job_id"]
+    assert first_comparison["reused"] is False
+    assert repeated_comparison["reused"] is True
+    assert len(first_comparison_tasks.tasks) == 1
+    assert repeated_comparison_tasks.tasks == []
 
 
 def test_supersession_column_and_prepare_idempotency(tmp_path):

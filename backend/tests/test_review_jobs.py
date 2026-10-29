@@ -1,9 +1,12 @@
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+
+from sqlalchemy import select
 
 from codedna_memory.constants import CANDIDATE_PR_ID
 from codedna_memory.database import create_database_engine, initialize_schema, seed_synthetic_provenance, session_factory
 from codedna_memory.models import ReviewJob
-from codedna_memory.review_jobs import create_review_job, execute_review_job, find_active_review_job, reconcile_interrupted_jobs
+from codedna_memory.review_jobs import claim_review_job, create_review_job, execute_review_job, find_active_review_job, reconcile_interrupted_jobs
 from codedna_memory.review_schemas import CandidateFinding, ReviewModelOutput
 
 
@@ -39,6 +42,37 @@ def test_active_job_discovery_is_scoped_to_pr_and_kind(tmp_path: Path):
         assert find_active_review_job(
             session, pr_id=CANDIDATE_PR_ID, kind="review"
         ) is None
+
+
+def test_concurrent_claims_reuse_one_active_job(tmp_path: Path):
+    engine = create_database_engine(f"sqlite:///{tmp_path / 'claimed-jobs.sqlite3'}")
+    initialize_schema(engine)
+    sessions = session_factory(engine)
+    with sessions() as session:
+        seed_synthetic_provenance(session)
+
+    def claim():
+        with sessions() as session:
+            return claim_review_job(
+                session,
+                pr_id=CANDIDATE_PR_ID,
+                memory_enabled=True,
+            )
+
+    with ThreadPoolExecutor(max_workers=2) as workers:
+        claims = list(workers.map(lambda _index: claim(), range(2)))
+
+    assert len({item.job.id for item in claims}) == 1
+    assert sum(item.created for item in claims) == 1
+    with sessions() as session:
+        jobs = session.scalars(
+            select(ReviewJob).where(
+                ReviewJob.pr_id == CANDIDATE_PR_ID,
+                ReviewJob.kind == "review",
+                ReviewJob.status.in_(("queued", "running")),
+            )
+        ).all()
+        assert len(jobs) == 1
 
 
 def test_background_job_persists_progress_and_result(tmp_path: Path):
