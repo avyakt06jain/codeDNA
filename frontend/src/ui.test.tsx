@@ -103,13 +103,16 @@ function installFetch(options?: {
   comparisonPollFailures?: number;
   missingReviewJob?: boolean;
   missingComparisonJob?: boolean;
+  activeReviewJob?: boolean;
+  activeComparisonJob?: boolean;
 }) {
   const hindsight = options?.hindsight ?? "ready";
   let reviewPollFailures = options?.reviewPollFailures ?? 0;
   let comparisonPollFailures = options?.comparisonPollFailures ?? 0;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    const path = new URL(raw, "http://localhost").pathname;
+    const url = new URL(raw, "http://localhost");
+    const path = url.pathname;
     const method = (init?.method ?? "GET").toUpperCase();
     if (path === "/api/health") return json({ status: "ok", memory: "configured", hindsight, interrupted_jobs: options?.interruptedJobs ?? 0 });
     if (path === "/api/repositories") return json(repositories);
@@ -136,6 +139,13 @@ function installFetch(options?: {
     }
     if (path === "/api/prs/pr-acme-87/comparisons/latest" && method === "GET") {
       return json({ pr_id: "pr-acme-87", job_id: options?.latestComparison ? "job-restored" : null, comparison: options?.latestComparison ?? null });
+    }
+    if (path === "/api/prs/pr-acme-87/review-jobs/active" && method === "GET") {
+      const kind = url.searchParams.get("kind");
+      const jobId = kind === "comparison"
+        ? options?.activeComparisonJob ? "job-cmp" : null
+        : options?.activeReviewJob ? "job-review" : null;
+      return json({ pr_id: "pr-acme-87", kind, job_id: jobId, status: jobId ? "running" : null, stage: jobId ? "reviewing_diff" : null });
     }
     if (path.endsWith("/lineage")) {
       return json({
@@ -269,6 +279,17 @@ it("reattaches to an active review after refresh without starting another job", 
   expect(await screen.findByRole("article", { name: "Direct status write skips the service" }, { timeout: 3000 })).toBeTruthy();
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(2);
+  expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
+});
+
+it("discovers an active review after tab storage is lost without starting another job", async () => {
+  const fetchMock = installFetch({ activeReviewJob: true });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  expect(await screen.findByRole("article", { name: "Direct status write skips the service" })).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=review"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
 });
 
@@ -520,6 +541,22 @@ it("reattaches to an active comparison after refresh without starting another jo
   expect(await screen.findByText("Guardrails passed", {}, { timeout: 3000 })).toBeTruthy();
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(2);
+  expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
+});
+
+it("discovers an active comparison after tab storage is lost without starting another job", async () => {
+  const resumed = {
+    evaluation: { passed: true, checks: { same_candidate: true }, counts: { memory_findings: 1 } },
+    memory: { run_id: "run-discovered-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
+    baseline: { run_id: "run-discovered-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
+  };
+  const fetchMock = installFetch({ comparison: resumed, activeComparisonJob: true });
+  renderAt("/repos/repo-acme-commerce/lab");
+  expect(await screen.findByText("Guardrails passed")).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=comparison"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
 });
 

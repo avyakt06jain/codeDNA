@@ -41,6 +41,28 @@ def create_review_job(
     return job
 
 
+def find_active_review_job(
+    session: Session,
+    *,
+    pr_id: str,
+    kind: str,
+) -> ReviewJob | None:
+    """Return the newest observable job for one stored PR and job kind."""
+    if kind not in {"review", "comparison"}:
+        raise ValueError("invalid_review_job_kind")
+    if session.get(PullRequest, pr_id) is None:
+        raise ValueError("pull_request_not_found")
+    return session.scalar(
+        select(ReviewJob)
+        .where(
+            ReviewJob.pr_id == pr_id,
+            ReviewJob.kind == kind,
+            ReviewJob.status.in_(("queued", "running")),
+        )
+        .order_by(ReviewJob.updated_at.desc(), ReviewJob.created_at.desc(), ReviewJob.id.desc())
+    )
+
+
 def reconcile_interrupted_jobs(sessions: sessionmaker[Session]) -> int:
     """Fail nonterminal jobs left behind by a previous API process.
 

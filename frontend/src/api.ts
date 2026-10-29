@@ -145,6 +145,7 @@ const API_ROOT = import.meta.env.VITE_API_URL ?? "";
 const POLL_ATTEMPTS = 360;
 const POLL_DELAY_MS = 1000;
 const POLL_RETRY_DELAYS_MS = import.meta.env.MODE === "test" ? [1, 2, 4] as const : [1000, 2000, 4000] as const;
+const SAFE_JOB_ID = /^job-[A-Za-z0-9_-]{1,80}$/;
 
 class ApiRequestError extends Error {
   constructor(message: string, readonly status: number) {
@@ -336,6 +337,11 @@ function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function jobIdFrom(value: unknown): string {
+  const jobId = asString(value) ?? "";
+  return SAFE_JOB_ID.test(jobId) ? jobId : "";
+}
+
 async function pollReviewJob(
   jobId: string,
   onStage?: (stage: string) => void,
@@ -399,12 +405,17 @@ export const api = {
     const row = isRecord(payload) ? payload : {};
     return normalizeComparison(row.comparison);
   },
+  activeJob: async (prId: string, kind: "review" | "comparison") => {
+    const payload = await request<unknown>(`/api/prs/${prId}/review-jobs/active?kind=${kind}`);
+    const row = isRecord(payload) ? payload : {};
+    return jobIdFrom(row.job_id);
+  },
   async startReview(prId: string, memoryEnabled: boolean) {
     const created = await request<ReviewJob>(`/api/prs/${prId}/review-jobs`, {
       method: "POST",
       body: JSON.stringify({ memory_enabled: memoryEnabled }),
     });
-    const jobId = created.job_id || created.id;
+    const jobId = jobIdFrom(created.job_id || created.id);
     if (!jobId) throw new Error("The review did not return a job.");
     return jobId;
   },
@@ -447,7 +458,7 @@ export const api = {
   },
   async startComparison(prId: string) {
     const created = await request<ReviewJob & Record<string, unknown>>(`/api/prs/${prId}/comparison`, { method: "POST" });
-    const jobId = asString(created.job_id) || asString(created.id);
+    const jobId = jobIdFrom(created.job_id || created.id);
     if (!jobId) throw new Error("The comparison did not return a job.");
     return jobId;
   },

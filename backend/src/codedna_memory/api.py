@@ -23,7 +23,7 @@ from .hindsight_runtime import get_runtime, shared_memory_client
 from .models import Decision, MemoryDocument, PullRequest, Repository, ReviewJob, ReviewRun
 from .policy_service import prepare_evolved_demo, record_feedback, supersede_decision
 from .review_model import GeminiReviewModel, ReviewModel
-from .review_jobs import create_review_job, execute_review_job, reconcile_interrupted_jobs
+from .review_jobs import create_review_job, execute_review_job, find_active_review_job, reconcile_interrupted_jobs
 from .review_schemas import FeedbackRequest, ReviewCreated, ReviewRequest, SupersedeRequest
 from .review_service import ReviewService, serialize_review
 
@@ -389,6 +389,22 @@ def create_app(
                 if run is not None:
                     payload["review"] = serialize_review(session, run)
             return payload
+
+    @app.get("/api/prs/{pr_id}/review-jobs/active")
+    def active_review_job(pr_id: str, kind: str = "review") -> dict[str, Any]:
+        if kind not in {"review", "comparison"}:
+            raise HTTPException(422, "Review job kind must be review or comparison")
+        with sessions() as session:
+            if session.get(PullRequest, pr_id) is None:
+                raise HTTPException(404, "Pull request not found")
+            job = find_active_review_job(session, pr_id=pr_id, kind=kind)
+            return {
+                "pr_id": pr_id,
+                "kind": kind,
+                "job_id": None if job is None else job.id,
+                "status": None if job is None else job.status,
+                "stage": None if job is None else job.stage,
+            }
 
     @app.post("/api/prs/{pr_id}/comparison", status_code=202)
     def queue_comparison(pr_id: str, background_tasks: BackgroundTasks) -> dict[str, Any]:

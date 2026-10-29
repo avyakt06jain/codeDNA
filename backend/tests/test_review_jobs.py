@@ -3,7 +3,7 @@ from pathlib import Path
 from codedna_memory.constants import CANDIDATE_PR_ID
 from codedna_memory.database import create_database_engine, initialize_schema, seed_synthetic_provenance, session_factory
 from codedna_memory.models import ReviewJob
-from codedna_memory.review_jobs import create_review_job, execute_review_job, reconcile_interrupted_jobs
+from codedna_memory.review_jobs import create_review_job, execute_review_job, find_active_review_job, reconcile_interrupted_jobs
 from codedna_memory.review_schemas import CandidateFinding, ReviewModelOutput
 
 
@@ -15,6 +15,30 @@ class JobModel:
         return ReviewModelOutput(
             findings=[CandidateFinding(file_path="src/orders/update.ts", new_line=16, severity="warning", category="general", title="Review direct persistence update", explanation="The direct persistence update deserves explicit review before merge.", confidence="medium")]
         )
+
+
+def test_active_job_discovery_is_scoped_to_pr_and_kind(tmp_path: Path):
+    engine = create_database_engine(f"sqlite:///{tmp_path / 'active-jobs.sqlite3'}")
+    initialize_schema(engine)
+    sessions = session_factory(engine)
+    with sessions() as session:
+        seed_synthetic_provenance(session)
+        review = create_review_job(session, pr_id=CANDIDATE_PR_ID, memory_enabled=True)
+        comparison = create_review_job(
+            session, pr_id=CANDIDATE_PR_ID, memory_enabled=True, kind="comparison"
+        )
+        assert find_active_review_job(
+            session, pr_id=CANDIDATE_PR_ID, kind="review"
+        ).id == review.id
+        assert find_active_review_job(
+            session, pr_id=CANDIDATE_PR_ID, kind="comparison"
+        ).id == comparison.id
+        review.status = "complete"
+        review.stage = "complete"
+        session.commit()
+        assert find_active_review_job(
+            session, pr_id=CANDIDATE_PR_ID, kind="review"
+        ) is None
 
 
 def test_background_job_persists_progress_and_result(tmp_path: Path):

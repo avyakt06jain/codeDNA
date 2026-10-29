@@ -119,8 +119,9 @@
 - **Verified:** Existing-job polling retries three consecutive transient network/HTTP failures with 1/2/4-second backoff, exposes a task-specific reconnecting status, and never posts duplicate provider work.
 - **Verified:** When bounded polling is exhausted, Review Workspace and Memory Lab preserve the active locator and expose an in-page `Check again` action that polls the same job ID without a POST.
 - **Verified:** Active and recoverable jobs expose a collapsed, sanitized details disclosure containing only the validated opaque job ID and human-readable stage; it clears at terminal completion.
+- **Verified:** When per-tab storage is absent, Review Workspace and Memory Lab discover the newest queued/running job for the same stored PR and kind, then resume GET-only polling before completed-result fallback.
 - **Verified:** A `404` for a saved active-job locator clears only that locator and falls back to the latest completed same-PR review/comparison through read-only endpoints, with no creation POST.
-- **Next:** Add read-only same-PR active-job discovery so closing a tab does not lose observability or tempt a duplicate run.
+- **Next:** Make job creation atomically reuse an existing same-PR/same-kind active job so simultaneous tabs cannot race into duplicate provider work.
 
 ## Documentation and version-control policy
 

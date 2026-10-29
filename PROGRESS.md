@@ -4,7 +4,7 @@
 
 ## Current State
 
-- Date: 2026-10-28
+- Date: 2026-10-29
 - Phase: G0–G5 MVP gates complete; the evolved judge demo was exercised against a restarted local API.
 - Implementation: The retain → recall → validate → review → feedback → supersede → ablate loop is verified locally against real Hindsight and Gemini. `CODEDNA_DEMO_SCENE=evolved` leaves `DEC-0103` active and `DEC-0042` superseded.
 - Git: `main` is initialized, connected to GitHub, and verified checkpoints are pushed without rewriting published history.
@@ -45,10 +45,11 @@
 - A confirmed missing active job now clears its stale per-tab locator and restores the latest persisted same-PR review/comparison when available, without creating or replaying work.
 - After bounded polling is exhausted, both pages preserve the active locator and offer a same-job `Check again` action that performs status GETs only.
 - Review Workspace and Memory Lab expose a collapsed active-job disclosure with only the validated job ID and human-readable status, and remove it at terminal completion.
+- With no per-tab locator, both pages now discover the newest backend-owned queued/running job for the same PR and kind, save its validated ID, and resume polling without a POST.
 
 ## In Progress
 
-- Post-MVP work continues with read-only active-job discovery beyond one tab's session storage.
+- Post-MVP work continues with atomic server-side reuse of already active same-PR jobs.
 
 ## Blocked
 
@@ -67,14 +68,26 @@
 - The authorization model is a narrow demo boundary (`demo-maintainer`), not production authentication or role-based access control.
 - The feedback UI exposes accept and dismiss. The evolution page shows the supersession timeline. A free-text correction flow is still limited.
 - The evaluation has two synthetic held-out policy cases, so results are reported as case counts, not generalized accuracy claims.
-- Browser refresh reattachment is scoped to the same tab's session storage. Closing the tab discards the active-job locator; completed results still restore from SQLite.
+- A same-tab refresh prioritizes its session-stored locator. Closing the tab discards that local copy, but the next tab can rediscover the newest same-PR active job from SQLite; completed results still restore normally.
+- Active discovery narrows duplicate risk after tab loss, but simultaneous tabs can still both observe no active job and race into separate creation POSTs because creation is not yet atomically deduplicated.
 - A polished recorded video and hackathon portal submission are external presentation actions and are not created or submitted automatically.
 
 ## Next Action
 
-Add read-only same-PR active-job discovery so closing a tab does not lose observability or tempt a duplicate run.
+Make job creation atomically reuse an existing same-PR/same-kind active job so simultaneous tabs cannot race into duplicate provider work.
 
 ## Session Log
+
+### 2026-10-29 — Same-PR active-job discovery
+
+- Goal: Recover observability after a tab closes or loses session storage without tempting a duplicate review/comparison submission.
+- Implemented: backend-owned newest-active lookup scoped to stored PR and job kind; a sanitized read-only endpoint; frontend job-ID validation; discovery before latest-result fallback; and session-locator restoration for both pages.
+- Focused checks: `..\.venv\Scripts\python.exe -m pytest -q tests/test_review_jobs.py tests/test_judge_demo.py` → **13 passed**; `npm test -- --run src/ui.test.tsx --pool=vmThreads --maxWorkers=1 --isolate=false` → **21 passed**. New UI cases prove discovery, one status GET, zero creation POSTs, no latest-result read, and terminal locator cleanup for review and comparison.
+- Build correction: the first `npm run build` **FAILED** because strict TypeScript correctly identified `asString` could return `undefined` inside the new validator. Normalizing that value to an empty string before the regex fixed the error.
+- Regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 ..\.venv\Scripts\python.exe -m pytest -q` → **30 passed**; `npm test -- --run --pool=vmThreads --maxWorkers=1 --isolate=false` → **30 passed across 4 files**; `npm run build` → **PASS**, 40 modules, 312.94 kB JavaScript and 13.83 kB CSS before gzip.
+- Provider scope: **NOT RUN** — active discovery and polling are read-only; tests assert zero POSTs and no Hindsight/Gemini result is claimed.
+- Live app check: the first hot-reloaded page truthfully showed `Not Found` against the old API process. After restarting only that API on the updated source, PR #87 restored its saved `DEC-0103` finding with no new review; Vite remained running.
+- Next: atomically reuse an existing active job at creation time to close the remaining simultaneous-tab race.
 
 ### 2026-10-29 — Sanitized active-job details
 

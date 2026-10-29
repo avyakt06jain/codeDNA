@@ -45,38 +45,26 @@ export function ReviewPage() {
     let cancelled = false;
     const savedJobId = loadActiveJob("review", prId);
     setLoading(true);
+    setRunning(false);
     setError("");
+    setPr(null);
     setReview(null);
-    setActiveJobId(savedJobId ?? "");
+    setActiveJobId("");
     setRetryJobId("");
     setStage("");
     setEvidenceFinding(null);
     setEvidence([]);
     setFeedbackMessage("");
     setDiffFocus({ line: null, request: 0 });
-    Promise.allSettled([api.pr(prId), savedJobId ? Promise.resolve(null) : api.latestReview(prId, "memory")])
-      .then(([pullRequestResult, reviewResult]) => {
-        if (cancelled) return;
-        if (pullRequestResult.status === "fulfilled") {
-          setPr(pullRequestResult.value);
-        } else {
-          setPr(null);
-          setError(pullRequestResult.reason instanceof Error ? pullRequestResult.reason.message : "Pull request unavailable.");
-        }
-        if (reviewResult.status === "fulfilled" && reviewResult.value) {
-          setReview(reviewResult.value);
-          setStage("complete");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    if (savedJobId) {
+
+    function observeJob(jobId: string) {
+      setActiveJobId(jobId);
+      saveActiveJob("review", prId, jobId);
       setRunning(true);
       setStage("queued");
       let terminal = false;
       void api.reviewJob(
-        savedJobId,
+        jobId,
         (next) => {
           if (!cancelled) setStage(next);
         },
@@ -109,17 +97,46 @@ export function ReviewPage() {
           setStage("");
           return;
         }
-        if (reason instanceof PollingUnavailableError) setRetryJobId(savedJobId);
+        if (reason instanceof PollingUnavailableError) setRetryJobId(jobId);
         setError(reason instanceof Error ? reason.message : "Review failed");
         setStage(reason instanceof TerminalJobError ? "" : "status_unavailable");
       }).finally(() => {
-        if (terminal) clearActiveJob("review", prId, savedJobId);
+        if (terminal) clearActiveJob("review", prId, jobId);
         if (!cancelled) {
           if (terminal) setActiveJobId("");
           setRunning(false);
         }
       });
     }
+
+    const recovery = savedJobId
+      ? Promise.resolve({ jobId: savedJobId, review: null as Review | null })
+      : api.activeJob(prId, "review").then(async (jobId) => ({
+        jobId,
+        review: jobId ? null : await api.latestReview(prId, "memory"),
+      }));
+
+    Promise.allSettled([api.pr(prId), recovery])
+      .then(([pullRequestResult, recoveryResult]) => {
+        if (cancelled) return;
+        if (pullRequestResult.status === "fulfilled") {
+          setPr(pullRequestResult.value);
+        } else {
+          setPr(null);
+          setError(pullRequestResult.reason instanceof Error ? pullRequestResult.reason.message : "Pull request unavailable.");
+        }
+        if (recoveryResult.status === "rejected") {
+          setError(recoveryResult.reason instanceof Error ? recoveryResult.reason.message : "Review recovery unavailable.");
+        } else if (recoveryResult.value.jobId) {
+          observeJob(recoveryResult.value.jobId);
+        } else if (recoveryResult.value.review) {
+          setReview(recoveryResult.value.review);
+          setStage("complete");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => {
       cancelled = true;
     };

@@ -75,23 +75,27 @@ export function MemoryLabPage() {
     let cancelled = false;
     const savedJobId = prId ? loadActiveJob("comparison", prId) : null;
     setComparison(null);
-    setActiveJobId(savedJobId ?? "");
+    setActiveJobId("");
     setRetryJobId("");
     setStage("");
+    setRunning(false);
     if (!prId) {
       setRestoring(false);
       return () => {
         cancelled = true;
       };
     }
-    if (savedJobId) {
+
+    function observeJob(jobId: string) {
       setRestoring(false);
+      setActiveJobId(jobId);
+      saveActiveJob("comparison", prId, jobId);
       setRunning(true);
       setStage("queued");
       setError("");
       let terminal = false;
       void api.comparisonJob(
-        savedJobId,
+        jobId,
         (next) => {
           if (!cancelled) setStage(next);
         },
@@ -124,35 +128,39 @@ export function MemoryLabPage() {
           setStage("");
           return;
         }
-        if (reason instanceof PollingUnavailableError) setRetryJobId(savedJobId);
+        if (reason instanceof PollingUnavailableError) setRetryJobId(jobId);
         setError(reason instanceof Error ? reason.message : "Comparison failed");
         setStage(reason instanceof TerminalJobError ? "" : "status_unavailable");
       }).finally(() => {
-        if (terminal) clearActiveJob("comparison", prId, savedJobId);
+        if (terminal) clearActiveJob("comparison", prId, jobId);
         if (!cancelled) {
           if (terminal) setActiveJobId("");
           setRunning(false);
         }
       });
-      return () => {
-        cancelled = true;
-      };
     }
+
     setRestoring(true);
     setError("");
-    api.latestComparison(prId)
-      .then((result) => {
+    void (async () => {
+      try {
+        const jobId = savedJobId || await api.activeJob(prId, "comparison");
+        if (cancelled) return;
+        if (jobId) {
+          observeJob(jobId);
+          return;
+        }
+        const result = await api.latestComparison(prId);
         if (!cancelled) {
           setComparison(result);
           setStage(result ? "comparison_restored" : "");
         }
-      })
-      .catch((reason: Error) => {
-        if (!cancelled) setError(reason.message);
-      })
-      .finally(() => {
+      } catch (reason) {
+        if (!cancelled) setError(reason instanceof Error ? reason.message : "Comparison recovery unavailable.");
+      } finally {
         if (!cancelled) setRestoring(false);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };
