@@ -83,8 +83,8 @@ const review = {
   retrieval: { timings_ms: { query: 400, validation: 200, generation: 900 } },
 };
 
-const jobCreatedAt = "2026-10-30T06:00:00.000Z";
-const jobUpdatedAt = "2026-10-30T06:05:00.000Z";
+const jobCreatedAt = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+const jobUpdatedAt = new Date(Date.now() - 4 * 60 * 1000).toISOString();
 
 function json(data: unknown, status = 200): Response {
   return {
@@ -335,6 +335,9 @@ it("checks an existing review again after bounded polling is exhausted", async (
   expect(details?.querySelector(`time[datetime="${jobCreatedAt}"]`)).toBeTruthy();
   expect(details?.querySelector(`time[datetime="${jobUpdatedAt}"]`)).toBeTruthy();
   expect(details?.querySelectorAll(".job-time small")).toHaveLength(2);
+  const staleWarning = screen.getByText(/has not reported progress for at least 3 minutes/i);
+  expect(staleWarning.getAttribute("role")).toBe("status");
+  expect(staleWarning.textContent).toContain("no retry or provider call was started");
   expect(loadActiveJob("review", "pr-acme-87")).toBe("job-review");
   fireEvent.click(retry);
   expect(await screen.findByRole("article", { name: "Direct status write skips the service" })).toBeTruthy();
@@ -626,6 +629,7 @@ it("checks an existing comparison again after bounded polling is exhausted", asy
   expect(details?.querySelector(`time[datetime="${jobCreatedAt}"]`)).toBeTruthy();
   expect(details?.querySelector(`time[datetime="${jobUpdatedAt}"]`)).toBeTruthy();
   expect(details?.querySelectorAll(".job-time small")).toHaveLength(2);
+  expect(screen.getByText(/has not reported progress for at least 3 minutes/i)).toBeTruthy();
   expect(loadActiveJob("comparison", "pr-acme-87")).toBe("job-cmp");
   fireEvent.click(retry);
   expect(await screen.findByText("Guardrails passed")).toBeTruthy();

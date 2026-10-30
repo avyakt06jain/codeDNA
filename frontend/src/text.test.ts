@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { normalizeJobTimestamp } from "./api";
+import { JOB_STALE_AFTER_MS, isStaleJob } from "./components/ActiveJobDetails";
 import { bindingCopy, comparisonStageLabel, feedbackPayload, formatSeconds, memoryLabel, preferredPullRequestId, stageLabel, traceSteps } from "./text";
 
 describe("feedback reasons", () => {
@@ -21,6 +22,14 @@ describe("memory and timings", () => {
     expect(normalizeJobTimestamp("2026-10-30T06:05:00Z")).toBe("2026-10-30T06:05:00.000Z");
     expect(normalizeJobTimestamp("not-a-time")).toBeUndefined();
     expect(normalizeJobTimestamp(123)).toBeUndefined();
+  });
+
+  it("marks a job stale only after three minutes without an update", () => {
+    const updated = Date.parse("2026-10-30T06:05:00Z");
+    expect(isStaleJob("2026-10-30T06:05:00Z", updated + JOB_STALE_AFTER_MS - 1)).toBe(false);
+    expect(isStaleJob("2026-10-30T06:05:00Z", updated + JOB_STALE_AFTER_MS)).toBe(true);
+    expect(isStaleJob("not-a-time", updated + JOB_STALE_AFTER_MS)).toBe(false);
+    expect(isStaleJob(undefined, updated + JOB_STALE_AFTER_MS)).toBe(false);
   });
 
   it("names the health pill from the hindsight field", () => {

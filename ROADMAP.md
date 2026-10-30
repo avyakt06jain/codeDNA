@@ -123,8 +123,9 @@
 - **Verified:** Review and comparison creation atomically reuse same-PR/same-kind active work; concurrent SQLite claims return one job ID and only the creator schedules a background task.
 - **Verified:** Review Workspace and Memory Lab preserve the creation response's `reused` signal and announce reattachment before polling the existing job, so a click is not misrepresented as new provider work.
 - **Verified:** Queue, active-discovery, and status contracts expose UTC creation/update timestamps; the frontend rejects malformed values and shows sanitized job age plus an exact local time in active-job diagnostics.
+- **Verified:** A visible accessible warning appears after three minutes without a persisted job update, conservatively states that progress is unreported, and neither retries nor starts provider work.
 - **Verified:** A `404` for a saved active-job locator clears only that locator and falls back to the latest completed same-PR review/comparison through read-only endpoints, with no creation POST.
-- **Next:** Add an explicit stale-job warning derived from the persisted `updated_at` age, without automatically retrying or replaying provider work.
+- **Next:** Add a read-only active-work summary to the repository overview so judges can see ongoing review/comparison jobs without opening each PR.
 
 ## Documentation and version-control policy
 

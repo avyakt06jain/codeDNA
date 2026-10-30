@@ -36,6 +36,8 @@ If all bounded attempts fail, Memory Lab preserves the active comparison locator
 
 A collapsed `Active job details` disclosure remains available while that locator is active or recoverable. It shows only the validated opaque job ID, readable comparison status, sanitized started/updated ages, and exact localized times. Malformed server timestamp values are omitted, and the disclosure disappears on known terminal completion or failure.
 
+After three minutes without a valid `updated_at` change, a visible status warning says that progress has not been reported and that CodeDNA is still checking the same comparison. It does not rerun either model branch or mark the comparison failed.
+
 If that active job returns `404`, Memory Lab clears the stale locator and performs its existing latest-comparison lookup for the selected PR. A stored paired result restores normally; no comparison POST or model branch is started by recovery.
 
 ## Reset boundary

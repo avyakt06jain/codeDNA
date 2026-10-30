@@ -49,10 +49,11 @@
 - Review and comparison creation now serialize the same-PR claim, reuse queued/running work, and schedule a background task only for the caller that created the job.
 - Review Workspace and Memory Lab now preserve the creation response's `reused` flag and announce reattachment before polling, distinguishing existing provider work from a newly scheduled call.
 - Active review/comparison diagnostics now carry backend-owned UTC creation/update timestamps through creation, discovery, and polling; the UI rejects malformed values and shows age with exact local time.
+- Review Workspace and Memory Lab now show an accessible warning after three minutes without a persisted job update; it conservatively keeps observing the same job and starts no retry/provider work.
 
 ## In Progress
 
-- Post-MVP work continues with an explicit stale-job warning based on persisted update age.
+- Post-MVP work continues with repository-level visibility into active background work.
 
 ## Blocked
 
@@ -76,9 +77,20 @@
 
 ## Next Action
 
-Add an explicit stale-job warning derived from persisted `updated_at`, without automatically retrying or replaying provider work.
+Add a read-only active-work summary to the repository overview so ongoing review/comparison jobs are visible without opening each PR.
 
 ## Session Log
+
+### 2026-10-30 — Conservative no-progress warning
+
+- Goal: Make a potentially stalled job obvious without claiming failure or automatically replaying external work.
+- Implemented: a three-minute `updated_at` boundary, visible status warning outside the collapsed details, conservative same-job wording, and Review Workspace/Memory Lab coverage that preserves the existing locator and issues no POST.
+- Focused checks: `npm test -- --run src/ui.test.tsx src/text.test.ts --pool=vmThreads --maxWorkers=1 --isolate=false` → **31 passed across 2 files**; `npm run build` → **PASS**, 40 modules, 315.08 kB JavaScript and 14.10 kB CSS before gzip.
+- Regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest -q` → **32 passed**; `npm test -- --run --pool=vmThreads --maxWorkers=1 --isolate=false` → **34 passed across 4 files**.
+- Provider scope: **NOT RUN** — stale state is derived from already persisted timestamps; the tests assert the existing job remains and no replacement POST is made.
+- Known behavior: a legitimate blocking provider call can cross three minutes because `updated_at` advances at stage boundaries, not inside the provider SDK. The warning therefore says only that progress is unreported.
+- Live app check: the existing app refreshed and rendered the persisted Acme overview (4 PRs, 2 decisions, 16 review runs) while Hindsight remained truthfully `Memory unavailable`; no background job or provider call was started.
+- Next: add a read-only active-work summary to the repository overview.
 
 ### 2026-10-30 — Sanitized active-job age
 

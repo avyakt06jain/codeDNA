@@ -183,6 +183,8 @@ textarea { width: 100%; resize: vertical; }
 .job-details dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .job-time { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
 .job-time small { color: var(--muted); }
+.job-observability { display: grid; gap: 8px; }
+.job-stale { margin: 0; border: 1px solid #e7b84b; border-radius: 12px; background: #fff8df; color: #6d4b00; padding: 10px 14px; }
 .feedback-result, .pass-line { background: var(--green-soft); color: #0d5b36; }
 .fail-line { background: #fde8e4; color: #9f2d3a; }
 .run-summary { display: flex; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 12px; padding: 0 18px 8px; }
