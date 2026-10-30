@@ -12,7 +12,7 @@ Background review progress is announced through one persistent polite/atomic liv
 
 After the backend accepts a review, the page keeps its validated opaque job ID in per-tab session storage. Refreshing the same tab resumes GET-only polling of that job instead of issuing another review POST. Completion and known terminal failure clear the locator; cancellation, timeout, and transient polling errors keep it available for recovery. If no local locator exists, the page first discovers the newest queued/running review for the same stored PR. Only when none exists does it restore the latest completed memory review from SQLite.
 
-The creation endpoint also closes the simultaneous-tab race: if another ordinary review is already queued/running for the PR, it returns that job with `reused: true` and schedules no second provider task.
+The creation endpoint also closes the simultaneous-tab race: if another ordinary review is already queued/running for the PR, it returns that job with `reused: true` and schedules no second provider task. The workspace preserves that response field and visibly announces reattachment before polling the existing job.
 
 During a transient polling failure, the persistent live region and visible stage explain that CodeDNA is reconnecting to the existing review. The bounded retry does not enable the run action or create another job.
 

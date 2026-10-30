@@ -47,10 +47,11 @@
 - Review Workspace and Memory Lab expose a collapsed active-job disclosure with only the validated job ID and human-readable status, and remove it at terminal completion.
 - With no per-tab locator, both pages now discover the newest backend-owned queued/running job for the same PR and kind, save its validated ID, and resume polling without a POST.
 - Review and comparison creation now serialize the same-PR claim, reuse queued/running work, and schedule a background task only for the caller that created the job.
+- Review Workspace and Memory Lab now preserve the creation response's `reused` flag and announce reattachment before polling, distinguishing existing provider work from a newly scheduled call.
 
 ## In Progress
 
-- Post-MVP work continues with a user-visible explanation when a creation request reuses active work.
+- Post-MVP work continues with sanitized job-age diagnostics for stalled-work triage.
 
 ## Blocked
 
@@ -70,14 +71,23 @@
 - The feedback UI exposes accept and dismiss. The evolution page shows the supersession timeline. A free-text correction flow is still limited.
 - The evaluation has two synthetic held-out policy cases, so results are reported as case counts, not generalized accuracy claims.
 - A same-tab refresh prioritizes its session-stored locator. Closing the tab discards that local copy, but the next tab can rediscover the newest same-PR active job from SQLite; completed results still restore normally.
-- The API reports whether a creation request reused active work, but the frontend does not yet distinguish that outcome in its live status.
 - A polished recorded video and hackathon portal submission are external presentation actions and are not created or submitted automatically.
 
 ## Next Action
 
-Surface the API's `reused` result in the live status so a user knows their click reattached to existing work rather than starting another provider call.
+Expose sanitized job creation/update timestamps so a stalled active job can be distinguished from healthy recent work without revealing provider payloads.
 
 ## Session Log
+
+### 2026-10-30 — Visible active-work reuse
+
+- Goal: Tell a user when their review or comparison click reattached to already-running work instead of scheduling another provider request.
+- Implemented: typed `StartedJob` creation results, preserved backend `reused` flags, immediate Review Workspace and Memory Lab reattachment stages, task-specific accessible wording, and component regressions that hold polling briefly to observe the transient state.
+- Focused checks: `npm test -- --run src/ui.test.tsx src/text.test.ts --pool=vmThreads --maxWorkers=1 --isolate=false` → **29 passed across 2 files**. The first `npm run build` **FAILED** because `startReview` still typed its response as `ReviewJob`; narrowing that response to `ReviewJob & { reused?: boolean }` fixed the contract. The controlled rerun → **PASS**, 40 modules, 313.31 kB JavaScript and 13.83 kB CSS before gzip.
+- Regression: the first full frontend run exposed a timing race in the new Memory Lab test because it clicked while initial restoration still disabled the control; awaiting the enabled state fixed the test without changing production behavior. `npm test -- --run --pool=vmThreads --maxWorkers=1 --isolate=false` → **32 passed across 4 files**. `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest -q` → **32 passed**.
+- Provider scope: **NOT RUN** — the slice consumes an existing queue response and polls mocked persisted jobs; it does not execute Hindsight/Gemini work.
+- Live app check: the existing Vite/API app refreshed successfully and rendered the persisted Acme overview (4 PRs, 2 decisions, 16 review runs). Hindsight remained truthfully `Memory unavailable`; no provider request was triggered.
+- Next: expose sanitized job creation/update timestamps for stalled-work diagnosis.
 
 ### 2026-10-30 — Atomic active-job reuse
 

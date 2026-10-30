@@ -188,9 +188,11 @@ export function MemoryLabPage() {
     let jobId = "";
     let terminal = false;
     try {
-      jobId = await api.startComparison(selected);
+      const started = await api.startComparison(selected);
+      jobId = started.jobId;
       setActiveJobId(jobId);
       saveActiveJob("comparison", selected, jobId);
+      if (started.reused) setStage("comparison_reattached");
       const result = await api.comparisonJob(jobId, (next) => {
         if (alive.current) setStage(next);
       }, () => alive.current);

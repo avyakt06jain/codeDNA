@@ -167,9 +167,11 @@ export function ReviewPage() {
     let jobId = "";
     let terminal = false;
     try {
-      jobId = await api.startReview(prId, memoryEnabled);
+      const started = await api.startReview(prId, memoryEnabled);
+      jobId = started.jobId;
       setActiveJobId(jobId);
       saveActiveJob("review", prId, jobId);
+      if (started.reused) setStage("review_reattached");
       const result = await api.reviewJob(jobId, (next) => {
         if (alive.current) setStage(next);
       }, () => alive.current);

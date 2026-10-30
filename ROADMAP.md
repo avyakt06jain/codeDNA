@@ -121,8 +121,9 @@
 - **Verified:** Active and recoverable jobs expose a collapsed, sanitized details disclosure containing only the validated opaque job ID and human-readable stage; it clears at terminal completion.
 - **Verified:** When per-tab storage is absent, Review Workspace and Memory Lab discover the newest queued/running job for the same stored PR and kind, then resume GET-only polling before completed-result fallback.
 - **Verified:** Review and comparison creation atomically reuse same-PR/same-kind active work; concurrent SQLite claims return one job ID and only the creator schedules a background task.
+- **Verified:** Review Workspace and Memory Lab preserve the creation response's `reused` signal and announce reattachment before polling the existing job, so a click is not misrepresented as new provider work.
 - **Verified:** A `404` for a saved active-job locator clears only that locator and falls back to the latest completed same-PR review/comparison through read-only endpoints, with no creation POST.
-- **Next:** Surface the API's `reused` result in the live status so a user knows their click reattached to existing work rather than starting another provider call.
+- **Next:** Expose sanitized job creation/update timestamps so a stalled active job can be distinguished from healthy recent work without revealing provider payloads.
 
 ## Documentation and version-control policy
 

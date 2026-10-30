@@ -136,6 +136,11 @@ export type ReviewJob = {
   baseline?: Review;
 };
 
+export type StartedJob = {
+  jobId: string;
+  reused: boolean;
+};
+
 export type FeedbackResult = {
   id: string;
   binding: boolean;
@@ -411,13 +416,13 @@ export const api = {
     return jobIdFrom(row.job_id);
   },
   async startReview(prId: string, memoryEnabled: boolean) {
-    const created = await request<ReviewJob>(`/api/prs/${prId}/review-jobs`, {
+    const created = await request<ReviewJob & { reused?: boolean }>(`/api/prs/${prId}/review-jobs`, {
       method: "POST",
       body: JSON.stringify({ memory_enabled: memoryEnabled }),
     });
     const jobId = jobIdFrom(created.job_id || created.id);
     if (!jobId) throw new Error("The review did not return a job.");
-    return jobId;
+    return { jobId, reused: created.reused === true } satisfies StartedJob;
   },
   async reviewJob(jobId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
     let job: (ReviewJob & Record<string, unknown>) | null;
@@ -435,8 +440,8 @@ export const api = {
     return normalizeReview(job.review);
   },
   async review(prId: string, memoryEnabled: boolean, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
-    const jobId = await api.startReview(prId, memoryEnabled);
-    return api.reviewJob(jobId, onStage, shouldContinue);
+    const started = await api.startReview(prId, memoryEnabled);
+    return api.reviewJob(started.jobId, onStage, shouldContinue);
   },
   evidence: async (runId: string) => {
     const payload = await request<unknown>(`/api/reviews/${runId}/evidence`);
@@ -460,7 +465,7 @@ export const api = {
     const created = await request<ReviewJob & Record<string, unknown>>(`/api/prs/${prId}/comparison`, { method: "POST" });
     const jobId = jobIdFrom(created.job_id || created.id);
     if (!jobId) throw new Error("The comparison did not return a job.");
-    return jobId;
+    return { jobId, reused: created.reused === true } satisfies StartedJob;
   },
   async comparisonJob(jobId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
     let job: (ReviewJob & Record<string, unknown>) | null;
@@ -479,8 +484,8 @@ export const api = {
     return comparison;
   },
   async comparison(prId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
-    const jobId = await api.startComparison(prId);
-    return api.comparisonJob(jobId, onStage, shouldContinue);
+    const started = await api.startComparison(prId);
+    return api.comparisonJob(started.jobId, onStage, shouldContinue);
   },
 };
 

@@ -105,6 +105,9 @@ function installFetch(options?: {
   missingComparisonJob?: boolean;
   activeReviewJob?: boolean;
   activeComparisonJob?: boolean;
+  reusedReviewStart?: boolean;
+  reusedComparisonStart?: boolean;
+  pollDelayMs?: number;
 }) {
   const hindsight = options?.hindsight ?? "ready";
   let reviewPollFailures = options?.reviewPollFailures ?? 0;
@@ -168,8 +171,11 @@ function installFetch(options?: {
       return json({ ...decisions[0], memory: { document_id: "decision-DEC-0103", ingestion_status: "ready" } });
     }
     if (path.includes("/decisions")) return json(options?.decisionsWrapped ? { items: decisions } : decisions);
-    if (path.endsWith("/review-jobs") && method === "POST") return json({ job_id: "job-review", status: "queued", stage: "queued" }, 202);
+    if (path.endsWith("/review-jobs") && method === "POST") {
+      return json({ job_id: "job-review", status: "queued", stage: "queued", reused: options?.reusedReviewStart === true }, 202);
+    }
     if (path === "/api/review-jobs/job-review") {
+      if (options?.pollDelayMs) await new Promise((resolve) => setTimeout(resolve, options.pollDelayMs));
       if (options?.missingReviewJob) return json({ detail: "job not found" }, 404);
       if (reviewPollFailures > 0) {
         reviewPollFailures -= 1;
@@ -177,8 +183,11 @@ function installFetch(options?: {
       }
       return json({ status: "complete", stage: "complete", error_code: null, review });
     }
-    if (path.endsWith("/comparison") && method === "POST") return json({ job_id: "job-cmp", status: "queued", stage: "queued" }, 202);
+    if (path.endsWith("/comparison") && method === "POST") {
+      return json({ job_id: "job-cmp", status: "queued", stage: "queued", reused: options?.reusedComparisonStart === true }, 202);
+    }
     if (path === "/api/review-jobs/job-cmp") {
+      if (options?.pollDelayMs) await new Promise((resolve) => setTimeout(resolve, options.pollDelayMs));
       if (options?.missingComparisonJob) return json({ detail: "job not found" }, 404);
       if (comparisonPollFailures > 0) {
         comparisonPollFailures -= 1;
@@ -291,6 +300,16 @@ it("discovers an active review after tab storage is lost without starting anothe
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
+});
+
+it("announces when starting a review reuses existing provider work", async () => {
+  const fetchMock = installFetch({ reusedReviewStart: true, pollDelayMs: 100 });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  await screen.findByRole("heading", { name: /Update order status/ });
+  fireEvent.click(screen.getByRole("button", { name: "Run CodeDNA Review" }));
+  expect((await screen.findAllByText("Existing review found. Reattached without starting another provider call.")).length).toBeGreaterThan(0);
+  expect(await screen.findByRole("article", { name: "Direct status write skips the service" })).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
 });
 
 it("checks an existing review again after bounded polling is exhausted", async () => {
@@ -558,6 +577,23 @@ it("discovers an active comparison after tab storage is lost without starting an
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
+});
+
+it("announces when starting a comparison reuses existing provider work", async () => {
+  const comparison = {
+    evaluation: { passed: true, checks: { same_candidate: true }, counts: { memory_findings: 1 } },
+    memory: { run_id: "run-reused-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
+    baseline: { run_id: "run-reused-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
+  };
+  const fetchMock = installFetch({ comparison, reusedComparisonStart: true, pollDelayMs: 100 });
+  renderAt("/repos/repo-acme-commerce/lab");
+  await screen.findByRole("option", { name: /Update order status/ });
+  const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
+  await vi.waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  expect((await screen.findAllByText("Existing comparison found. Reattached without starting either provider branch.")).length).toBeGreaterThan(0);
+  expect(await screen.findByText("Guardrails passed")).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
 });
 
 it("checks an existing comparison again after bounded polling is exhausted", async () => {
