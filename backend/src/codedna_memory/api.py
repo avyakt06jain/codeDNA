@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
@@ -54,6 +55,20 @@ def _scope(decision: Decision) -> dict[str, Any]:
 def _source_pr_number(session: Session, source_pr_id: str) -> int | None:
     source = session.get(PullRequest, source_pr_id)
     return None if source is None else source.number
+
+
+def _utc_timestamp(value: datetime) -> str:
+    """Serialize persisted job times as unambiguous UTC without leaking job input."""
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _job_timestamps(job: ReviewJob) -> dict[str, str]:
+    return {
+        "created_at": _utc_timestamp(job.created_at),
+        "updated_at": _utc_timestamp(job.updated_at),
+    }
 
 
 def _memory_payload(session: Session, decision_id: str) -> dict[str, Any]:
@@ -368,6 +383,7 @@ def create_app(
                 "status": claim.job.status,
                 "stage": claim.job.stage,
                 "reused": not claim.created,
+                **_job_timestamps(claim.job),
             }
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
@@ -385,6 +401,7 @@ def create_app(
                 "kind": job.kind,
                 "error_code": job.error_code,
                 "review_run_id": job.review_run_id,
+                **_job_timestamps(job),
             }
             if job.status == "complete" and job.kind == "comparison":
                 comparison = _serialize_comparison(session, job)
@@ -410,6 +427,8 @@ def create_app(
                 "job_id": None if job is None else job.id,
                 "status": None if job is None else job.status,
                 "stage": None if job is None else job.stage,
+                "created_at": None if job is None else _utc_timestamp(job.created_at),
+                "updated_at": None if job is None else _utc_timestamp(job.updated_at),
             }
 
     @app.post("/api/prs/{pr_id}/comparison", status_code=202)
@@ -432,6 +451,7 @@ def create_app(
                 "status": claim.job.status,
                 "stage": claim.job.stage,
                 "reused": not claim.created,
+                **_job_timestamps(claim.job),
             }
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc

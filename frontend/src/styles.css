@@ -181,6 +181,8 @@ textarea { width: 100%; resize: vertical; }
 .job-details dl div { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 10px; }
 .job-details dt { color: var(--muted); }
 .job-details dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.job-time { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+.job-time small { color: var(--muted); }
 .feedback-result, .pass-line { background: var(--green-soft); color: #0d5b36; }
 .fail-line { background: #fde8e4; color: #9f2d3a; }
 .run-summary { display: flex; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 12px; padding: 0 18px 8px; }

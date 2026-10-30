@@ -122,8 +122,9 @@
 - **Verified:** When per-tab storage is absent, Review Workspace and Memory Lab discover the newest queued/running job for the same stored PR and kind, then resume GET-only polling before completed-result fallback.
 - **Verified:** Review and comparison creation atomically reuse same-PR/same-kind active work; concurrent SQLite claims return one job ID and only the creator schedules a background task.
 - **Verified:** Review Workspace and Memory Lab preserve the creation response's `reused` signal and announce reattachment before polling the existing job, so a click is not misrepresented as new provider work.
+- **Verified:** Queue, active-discovery, and status contracts expose UTC creation/update timestamps; the frontend rejects malformed values and shows sanitized job age plus an exact local time in active-job diagnostics.
 - **Verified:** A `404` for a saved active-job locator clears only that locator and falls back to the latest completed same-PR review/comparison through read-only endpoints, with no creation POST.
-- **Next:** Expose sanitized job creation/update timestamps so a stalled active job can be distinguished from healthy recent work without revealing provider payloads.
+- **Next:** Add an explicit stale-job warning derived from the persisted `updated_at` age, without automatically retrying or replaying provider work.
 
 ## Documentation and version-control policy
 

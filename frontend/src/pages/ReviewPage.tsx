@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { api, MissingJobError, PollingUnavailableError, TerminalJobError, type Decision, type Finding, type PullRequest, type Review } from "../api";
+import { api, MissingJobError, PollingUnavailableError, TerminalJobError, type Decision, type Finding, type JobTiming, type PullRequest, type Review } from "../api";
 import { clearActiveJob, loadActiveJob, saveActiveJob } from "../activeJobs";
 import { DiffView } from "../components/DiffView";
 import { ActiveJobDetails } from "../components/ActiveJobDetails";
@@ -22,6 +22,7 @@ export function ReviewPage() {
   const [memoryEnabled, setMemoryEnabled] = useState(true);
   const [running, setRunning] = useState(false);
   const [activeJobId, setActiveJobId] = useState("");
+  const [jobTiming, setJobTiming] = useState<JobTiming>({});
   const [retryJobId, setRetryJobId] = useState("");
   const [stage, setStage] = useState("");
   const [review, setReview] = useState<Review | null>(null);
@@ -33,6 +34,13 @@ export function ReviewPage() {
   const [dismissFinding, setDismissFinding] = useState<Finding | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [diffFocus, setDiffFocus] = useState<{ line: number | null; request: number }>({ line: null, request: 0 });
+
+  function updateJobTiming(next: JobTiming) {
+    setJobTiming((current) => ({
+      createdAt: next.createdAt ?? current.createdAt,
+      updatedAt: next.updatedAt ?? current.updatedAt,
+    }));
+  }
 
   useEffect(() => {
     alive.current = true;
@@ -50,6 +58,7 @@ export function ReviewPage() {
     setPr(null);
     setReview(null);
     setActiveJobId("");
+    setJobTiming({});
     setRetryJobId("");
     setStage("");
     setEvidenceFinding(null);
@@ -57,8 +66,9 @@ export function ReviewPage() {
     setFeedbackMessage("");
     setDiffFocus({ line: null, request: 0 });
 
-    function observeJob(jobId: string) {
+    function observeJob(jobId: string, timing: JobTiming = {}) {
       setActiveJobId(jobId);
+      setJobTiming(timing);
       saveActiveJob("review", prId, jobId);
       setRunning(true);
       setStage("queued");
@@ -69,6 +79,7 @@ export function ReviewPage() {
           if (!cancelled) setStage(next);
         },
         () => !cancelled && alive.current,
+        updateJobTiming,
       ).then((result) => {
         if (!result || cancelled) return;
         terminal = true;
@@ -103,17 +114,20 @@ export function ReviewPage() {
       }).finally(() => {
         if (terminal) clearActiveJob("review", prId, jobId);
         if (!cancelled) {
-          if (terminal) setActiveJobId("");
+          if (terminal) {
+            setActiveJobId("");
+            setJobTiming({});
+          }
           setRunning(false);
         }
       });
     }
 
     const recovery = savedJobId
-      ? Promise.resolve({ jobId: savedJobId, review: null as Review | null })
-      : api.activeJob(prId, "review").then(async (jobId) => ({
-        jobId,
-        review: jobId ? null : await api.latestReview(prId, "memory"),
+      ? Promise.resolve({ job: { jobId: savedJobId, createdAt: undefined, updatedAt: undefined }, review: null as Review | null })
+      : api.activeJob(prId, "review").then(async (job) => ({
+        job,
+        review: job ? null : await api.latestReview(prId, "memory"),
       }));
 
     Promise.allSettled([api.pr(prId), recovery])
@@ -127,8 +141,8 @@ export function ReviewPage() {
         }
         if (recoveryResult.status === "rejected") {
           setError(recoveryResult.reason instanceof Error ? recoveryResult.reason.message : "Review recovery unavailable.");
-        } else if (recoveryResult.value.jobId) {
-          observeJob(recoveryResult.value.jobId);
+        } else if (recoveryResult.value.job) {
+          observeJob(recoveryResult.value.job.jobId, recoveryResult.value.job);
         } else if (recoveryResult.value.review) {
           setReview(recoveryResult.value.review);
           setStage("complete");
@@ -158,6 +172,7 @@ export function ReviewPage() {
     setError("");
     setReview(null);
     setActiveJobId("");
+    setJobTiming({});
     setRetryJobId("");
     setEvidenceFinding(null);
     setEvidence([]);
@@ -170,11 +185,12 @@ export function ReviewPage() {
       const started = await api.startReview(prId, memoryEnabled);
       jobId = started.jobId;
       setActiveJobId(jobId);
+      setJobTiming({ createdAt: started.createdAt, updatedAt: started.updatedAt });
       saveActiveJob("review", prId, jobId);
       if (started.reused) setStage("review_reattached");
       const result = await api.reviewJob(jobId, (next) => {
         if (alive.current) setStage(next);
-      }, () => alive.current);
+      }, () => alive.current, updateJobTiming);
       if (!result || !alive.current) return;
       terminal = true;
       setRetryJobId("");
@@ -189,7 +205,10 @@ export function ReviewPage() {
     } finally {
       if (terminal && jobId) clearActiveJob("review", prId, jobId);
       if (alive.current) {
-        if (terminal) setActiveJobId("");
+        if (terminal) {
+          setActiveJobId("");
+          setJobTiming({});
+        }
         setRunning(false);
       }
     }
@@ -206,7 +225,7 @@ export function ReviewPage() {
     try {
       const result = await api.reviewJob(jobId, (next) => {
         if (alive.current) setStage(next);
-      }, () => alive.current);
+      }, () => alive.current, updateJobTiming);
       if (!result || !alive.current) return;
       terminal = true;
       setReview(result);
@@ -236,7 +255,10 @@ export function ReviewPage() {
     } finally {
       if (terminal) clearActiveJob("review", prId, jobId);
       if (alive.current) {
-        if (terminal) setActiveJobId("");
+        if (terminal) {
+          setActiveJobId("");
+          setJobTiming({});
+        }
         setRunning(false);
       }
     }
@@ -304,7 +326,7 @@ export function ReviewPage() {
         </div>
       </header>
       {error ? <ErrorNote>{error}</ErrorNote> : null}
-      <ActiveJobDetails jobId={activeJobId} status={stageLabel(stage)} />
+      <ActiveJobDetails jobId={activeJobId} status={stageLabel(stage)} {...jobTiming} />
       {retryJobId ? (
         <button type="button" className="secondary" disabled={running} onClick={() => void checkReviewAgain()}>
           Check review again

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { normalizeJobTimestamp } from "./api";
 import { bindingCopy, comparisonStageLabel, feedbackPayload, formatSeconds, memoryLabel, preferredPullRequestId, stageLabel, traceSteps } from "./text";
 
 describe("feedback reasons", () => {
@@ -16,6 +17,12 @@ describe("feedback reasons", () => {
 });
 
 describe("memory and timings", () => {
+  it("accepts only parseable job timestamps", () => {
+    expect(normalizeJobTimestamp("2026-10-30T06:05:00Z")).toBe("2026-10-30T06:05:00.000Z");
+    expect(normalizeJobTimestamp("not-a-time")).toBeUndefined();
+    expect(normalizeJobTimestamp(123)).toBeUndefined();
+  });
+
   it("names the health pill from the hindsight field", () => {
     expect(memoryLabel("starting")).toBe("Preparing memory");
     expect(memoryLabel("ready")).toBe("Memory connected");

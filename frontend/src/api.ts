@@ -134,11 +134,22 @@ export type ReviewJob = {
   evaluation?: Comparison["evaluation"];
   memory?: Review;
   baseline?: Review;
+  created_at?: string;
+  updated_at?: string;
 };
 
-export type StartedJob = {
+export type JobTiming = {
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type StartedJob = JobTiming & {
   jobId: string;
   reused: boolean;
+};
+
+export type ActiveJob = JobTiming & {
+  jobId: string;
 };
 
 export type FeedbackResult = {
@@ -168,6 +179,20 @@ function asNumber(value: unknown): number | undefined {
 
 function asString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
+}
+
+export function normalizeJobTimestamp(value: unknown): string | undefined {
+  const raw = asString(value);
+  if (!raw) return undefined;
+  const timestamp = Date.parse(raw);
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : undefined;
+}
+
+function jobTimingFrom(raw: Record<string, unknown>): JobTiming {
+  return {
+    createdAt: normalizeJobTimestamp(raw.created_at),
+    updatedAt: normalizeJobTimestamp(raw.updated_at),
+  };
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -351,6 +376,7 @@ async function pollReviewJob(
   jobId: string,
   onStage?: (stage: string) => void,
   shouldContinue: () => boolean = () => true,
+  onTiming?: (timing: JobTiming) => void,
 ): Promise<(ReviewJob & Record<string, unknown>) | null> {
   let consecutiveFailures = 0;
   for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {
@@ -375,6 +401,7 @@ async function pollReviewJob(
       continue;
     }
     if (!shouldContinue()) return null;
+    onTiming?.(jobTimingFrom(job));
     if (job.stage) onStage?.(job.stage);
     if (job.status === "complete" || job.status === "completed" || job.status === "failed") return job;
     await delay(POLL_DELAY_MS);
@@ -413,7 +440,8 @@ export const api = {
   activeJob: async (prId: string, kind: "review" | "comparison") => {
     const payload = await request<unknown>(`/api/prs/${prId}/review-jobs/active?kind=${kind}`);
     const row = isRecord(payload) ? payload : {};
-    return jobIdFrom(row.job_id);
+    const jobId = jobIdFrom(row.job_id);
+    return jobId ? { jobId, ...jobTimingFrom(row) } satisfies ActiveJob : null;
   },
   async startReview(prId: string, memoryEnabled: boolean) {
     const created = await request<ReviewJob & { reused?: boolean }>(`/api/prs/${prId}/review-jobs`, {
@@ -422,12 +450,12 @@ export const api = {
     });
     const jobId = jobIdFrom(created.job_id || created.id);
     if (!jobId) throw new Error("The review did not return a job.");
-    return { jobId, reused: created.reused === true } satisfies StartedJob;
+    return { jobId, reused: created.reused === true, ...jobTimingFrom(created) } satisfies StartedJob;
   },
-  async reviewJob(jobId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
+  async reviewJob(jobId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean, onTiming?: (timing: JobTiming) => void) {
     let job: (ReviewJob & Record<string, unknown>) | null;
     try {
-      job = await pollReviewJob(jobId, onStage, shouldContinue);
+      job = await pollReviewJob(jobId, onStage, shouldContinue, onTiming);
     } catch (reason) {
       if (reason instanceof ApiRequestError && reason.status === 404) {
         throw new MissingJobError("The active review is no longer available.");
@@ -465,12 +493,12 @@ export const api = {
     const created = await request<ReviewJob & Record<string, unknown>>(`/api/prs/${prId}/comparison`, { method: "POST" });
     const jobId = jobIdFrom(created.job_id || created.id);
     if (!jobId) throw new Error("The comparison did not return a job.");
-    return { jobId, reused: created.reused === true } satisfies StartedJob;
+    return { jobId, reused: created.reused === true, ...jobTimingFrom(created) } satisfies StartedJob;
   },
-  async comparisonJob(jobId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
+  async comparisonJob(jobId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean, onTiming?: (timing: JobTiming) => void) {
     let job: (ReviewJob & Record<string, unknown>) | null;
     try {
-      job = await pollReviewJob(jobId, onStage, shouldContinue);
+      job = await pollReviewJob(jobId, onStage, shouldContinue, onTiming);
     } catch (reason) {
       if (reason instanceof ApiRequestError && reason.status === 404) {
         throw new MissingJobError("The active comparison is no longer available.");

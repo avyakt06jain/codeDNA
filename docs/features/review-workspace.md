@@ -18,7 +18,7 @@ During a transient polling failure, the persistent live region and visible stage
 
 If all bounded attempts fail, the workspace preserves the active job locator and shows `Check review again`. Activating it polls that same job through GET only; it does not submit the diff or invoke the provider again.
 
-A collapsed `Active job details` disclosure remains available while that locator is active or recoverable. It shows only the validated opaque job ID and readable review status, then disappears on known terminal completion or failure.
+A collapsed `Active job details` disclosure remains available while that locator is active or recoverable. It shows only the validated opaque job ID, readable review status, sanitized started/updated ages, and exact localized times. Malformed server timestamp values are omitted. The disclosure disappears on known terminal completion or failure.
 
 If the backend confirms that the saved active job is missing, the workspace clears the stale locator and reads the latest completed memory review for that PR. It restores that review when available; otherwise it shows explicit guidance to start a new review. This fallback is read-only.
 

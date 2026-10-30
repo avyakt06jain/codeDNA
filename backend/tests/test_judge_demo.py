@@ -266,13 +266,15 @@ def test_comparison_job_completes_with_injected_clients(tmp_path, monkeypatch):
     active = endpoints(app)["/api/prs/{pr_id}/review-jobs/active"](
         CANDIDATE_PR_ID, "comparison"
     )
-    assert active == {
+    assert {key: active[key] for key in ("pr_id", "kind", "job_id", "status", "stage")} == {
         "pr_id": CANDIDATE_PR_ID,
         "kind": "comparison",
         "job_id": queued.id,
         "status": "queued",
         "stage": "queued",
     }
+    assert active["created_at"].endswith("Z")
+    assert active["updated_at"].endswith("Z")
     empty = endpoints(app)["/api/prs/{pr_id}/comparisons/latest"](CANDIDATE_PR_ID)
     assert empty["job_id"] is None
     assert empty["comparison"] is None
@@ -288,6 +290,8 @@ def test_comparison_job_completes_with_injected_clients(tmp_path, monkeypatch):
     assert DemoModel.instances == 1
     assert payload["kind"] == "comparison"
     assert payload["status"] == "complete"
+    assert payload["created_at"] == active["created_at"]
+    assert payload["updated_at"].endswith("Z")
     assert "review" not in payload
     comparison = payload["comparison"]
     assert comparison["memory"]["mode"] == "memory"
@@ -339,8 +343,19 @@ def test_queue_endpoints_reuse_active_jobs_and_schedule_once(tmp_path):
     assert first_review["job_id"] == repeated_review["job_id"]
     assert first_review["reused"] is False
     assert repeated_review["reused"] is True
+    assert first_review["created_at"].endswith("Z")
+    assert first_review["updated_at"].endswith("Z")
+    assert repeated_review["created_at"] == first_review["created_at"]
     assert len(first_review_tasks.tasks) == 1
     assert repeated_review_tasks.tasks == []
+    review_status = route["/api/review-jobs/{job_id}"](first_review["job_id"])
+    assert review_status["created_at"] == first_review["created_at"]
+    assert review_status["updated_at"].endswith("Z")
+    active_review = route["/api/prs/{pr_id}/review-jobs/active"](
+        CANDIDATE_PR_ID, "review"
+    )
+    assert active_review["created_at"] == first_review["created_at"]
+    assert active_review["updated_at"].endswith("Z")
 
     first_comparison_tasks = BackgroundTasks()
     first_comparison = route["/api/prs/{pr_id}/comparison"](
@@ -355,6 +370,8 @@ def test_queue_endpoints_reuse_active_jobs_and_schedule_once(tmp_path):
     assert first_comparison["job_id"] == repeated_comparison["job_id"]
     assert first_comparison["reused"] is False
     assert repeated_comparison["reused"] is True
+    assert first_comparison["created_at"].endswith("Z")
+    assert repeated_comparison["created_at"] == first_comparison["created_at"]
     assert len(first_comparison_tasks.tasks) == 1
     assert repeated_comparison_tasks.tasks == []
 

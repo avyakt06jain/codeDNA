@@ -48,10 +48,11 @@
 - With no per-tab locator, both pages now discover the newest backend-owned queued/running job for the same PR and kind, save its validated ID, and resume polling without a POST.
 - Review and comparison creation now serialize the same-PR claim, reuse queued/running work, and schedule a background task only for the caller that created the job.
 - Review Workspace and Memory Lab now preserve the creation response's `reused` flag and announce reattachment before polling, distinguishing existing provider work from a newly scheduled call.
+- Active review/comparison diagnostics now carry backend-owned UTC creation/update timestamps through creation, discovery, and polling; the UI rejects malformed values and shows age with exact local time.
 
 ## In Progress
 
-- Post-MVP work continues with sanitized job-age diagnostics for stalled-work triage.
+- Post-MVP work continues with an explicit stale-job warning based on persisted update age.
 
 ## Blocked
 
@@ -75,9 +76,20 @@
 
 ## Next Action
 
-Expose sanitized job creation/update timestamps so a stalled active job can be distinguished from healthy recent work without revealing provider payloads.
+Add an explicit stale-job warning derived from persisted `updated_at`, without automatically retrying or replaying provider work.
 
 ## Session Log
+
+### 2026-10-30 — Sanitized active-job age
+
+- Goal: Make queued/running work diagnosable by age without exposing provider payloads, review content, or credentials.
+- Implemented: unambiguous UTC `created_at`/`updated_at` on queue, discovery, and status responses; client-side parse/normalization; polling updates; and collapsed started/updated age fields with exact localized times in Review Workspace and Memory Lab.
+- Focused checks: `python -m pytest ...::test_queue_endpoints_reuse_active_jobs_and_schedule_once` → **1 passed**; `npm test -- --run src/ui.test.tsx src/text.test.ts --pool=vmThreads --maxWorkers=1 --isolate=false` → **30 passed across 2 files**.
+- Corrections: the first `npm run build` **FAILED** on the saved/discovered locator union; explicit optional timing fields fixed the type. The first focused UI run then **FAILED 2 tests** because saved session locators correctly have no timestamp before a successful status response; the cases now use backend active-job discovery and verify both timestamps. The first full backend run **FAILED 1 existing exact-payload assertion** after the intentional response expansion; the assertion now verifies the original fields plus UTC timestamps. A later focused UI run exposed one existing reconnect announcement that lasted only the test environment's 1 ms backoff; a 50 ms mocked response delay now makes both reconnect tests deterministic without changing production timing.
+- Regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest -q` → **32 passed**; `npm test -- --run --pool=vmThreads --maxWorkers=1 --isolate=false` → **33 passed across 4 files**; `npm run build` → **PASS**, 40 modules, 314.69 kB JavaScript and 13.94 kB CSS before gzip.
+- Provider scope: **NOT RUN** — this slice reads persisted job metadata only and does not invoke Hindsight or Gemini.
+- Live app check: the existing app loaded its persisted Acme overview (4 PRs, 2 decisions, 16 review runs); Hindsight remained truthfully `Memory unavailable`, and no review/comparison was started.
+- Next: add a truthful stale-job warning derived from `updated_at` without replaying work.
 
 ### 2026-10-30 — Visible active-work reuse
 

@@ -34,7 +34,7 @@ Transient status-poll failures display and announce that CodeDNA is reconnecting
 
 If all bounded attempts fail, Memory Lab preserves the active comparison locator and shows `Check comparison again`. Activating it polls that same job through GET only, so neither comparison branch is recreated.
 
-A collapsed `Active job details` disclosure remains available while that locator is active or recoverable. It shows only the validated opaque job ID and readable comparison status, then disappears on known terminal completion or failure.
+A collapsed `Active job details` disclosure remains available while that locator is active or recoverable. It shows only the validated opaque job ID, readable comparison status, sanitized started/updated ages, and exact localized times. Malformed server timestamp values are omitted, and the disclosure disappears on known terminal completion or failure.
 
 If that active job returns `404`, Memory Lab clears the stale locator and performs its existing latest-comparison lookup for the selected PR. A stored paired result restores normally; no comparison POST or model branch is started by recovery.
 

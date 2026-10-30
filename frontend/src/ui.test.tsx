@@ -83,6 +83,9 @@ const review = {
   retrieval: { timings_ms: { query: 400, validation: 200, generation: 900 } },
 };
 
+const jobCreatedAt = "2026-10-30T06:00:00.000Z";
+const jobUpdatedAt = "2026-10-30T06:05:00.000Z";
+
 function json(data: unknown, status = 200): Response {
   return {
     ok: status >= 200 && status < 300,
@@ -148,7 +151,15 @@ function installFetch(options?: {
       const jobId = kind === "comparison"
         ? options?.activeComparisonJob ? "job-cmp" : null
         : options?.activeReviewJob ? "job-review" : null;
-      return json({ pr_id: "pr-acme-87", kind, job_id: jobId, status: jobId ? "running" : null, stage: jobId ? "reviewing_diff" : null });
+      return json({
+        pr_id: "pr-acme-87",
+        kind,
+        job_id: jobId,
+        status: jobId ? "running" : null,
+        stage: jobId ? "reviewing_diff" : null,
+        created_at: jobId ? jobCreatedAt : null,
+        updated_at: jobId ? jobUpdatedAt : null,
+      });
     }
     if (path.endsWith("/lineage")) {
       return json({
@@ -172,7 +183,7 @@ function installFetch(options?: {
     }
     if (path.includes("/decisions")) return json(options?.decisionsWrapped ? { items: decisions } : decisions);
     if (path.endsWith("/review-jobs") && method === "POST") {
-      return json({ job_id: "job-review", status: "queued", stage: "queued", reused: options?.reusedReviewStart === true }, 202);
+      return json({ job_id: "job-review", status: "queued", stage: "queued", reused: options?.reusedReviewStart === true, created_at: jobCreatedAt, updated_at: jobCreatedAt }, 202);
     }
     if (path === "/api/review-jobs/job-review") {
       if (options?.pollDelayMs) await new Promise((resolve) => setTimeout(resolve, options.pollDelayMs));
@@ -181,10 +192,10 @@ function installFetch(options?: {
         reviewPollFailures -= 1;
         return json({ detail: "temporary outage" }, 503);
       }
-      return json({ status: "complete", stage: "complete", error_code: null, review });
+      return json({ status: "complete", stage: "complete", error_code: null, created_at: jobCreatedAt, updated_at: jobUpdatedAt, review });
     }
     if (path.endsWith("/comparison") && method === "POST") {
-      return json({ job_id: "job-cmp", status: "queued", stage: "queued", reused: options?.reusedComparisonStart === true }, 202);
+      return json({ job_id: "job-cmp", status: "queued", stage: "queued", reused: options?.reusedComparisonStart === true, created_at: jobCreatedAt, updated_at: jobCreatedAt }, 202);
     }
     if (path === "/api/review-jobs/job-cmp") {
       if (options?.pollDelayMs) await new Promise((resolve) => setTimeout(resolve, options.pollDelayMs));
@@ -193,7 +204,7 @@ function installFetch(options?: {
         comparisonPollFailures -= 1;
         return json({ detail: "temporary outage" }, 503);
       }
-      return json({ status: "complete", stage: "complete", error_code: null, comparison: options?.comparison });
+      return json({ status: "complete", stage: "complete", error_code: null, created_at: jobCreatedAt, updated_at: jobUpdatedAt, comparison: options?.comparison });
     }
     if (path.endsWith("/evidence")) return json({ decisions });
     if (path.endsWith("/feedback") && method === "POST") return json({ id: "fb-1", binding: false }, 201);
@@ -282,7 +293,7 @@ it("restores the latest memory review after the pull-request page reloads", asyn
 
 it("reattaches to an active review after refresh without starting another job", async () => {
   saveActiveJob("review", "pr-acme-87", "job-review");
-  const fetchMock = installFetch({ reviewPollFailures: 1 });
+  const fetchMock = installFetch({ reviewPollFailures: 1, pollDelayMs: 50 });
   renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
   expect((await screen.findAllByText("Connection interrupted. Reconnecting to the existing review…")).length).toBeGreaterThan(0);
   expect(await screen.findByRole("article", { name: "Direct status write skips the service" }, { timeout: 3000 })).toBeTruthy();
@@ -313,8 +324,7 @@ it("announces when starting a review reuses existing provider work", async () =>
 });
 
 it("checks an existing review again after bounded polling is exhausted", async () => {
-  saveActiveJob("review", "pr-acme-87", "job-review");
-  const fetchMock = installFetch({ reviewPollFailures: 4 });
+  const fetchMock = installFetch({ activeReviewJob: true, reviewPollFailures: 4 });
   renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
   const retry = await screen.findByRole("button", { name: "Check review again" });
   const details = screen.getByText("Active job details").closest("details");
@@ -322,6 +332,9 @@ it("checks an existing review again after bounded polling is exhausted", async (
   fireEvent.click(screen.getByText("Active job details"));
   expect(within(details as HTMLElement).getByText("job-review")).toBeTruthy();
   expect(within(details as HTMLElement).getByText("Status temporarily unavailable")).toBeTruthy();
+  expect(details?.querySelector(`time[datetime="${jobCreatedAt}"]`)).toBeTruthy();
+  expect(details?.querySelector(`time[datetime="${jobUpdatedAt}"]`)).toBeTruthy();
+  expect(details?.querySelectorAll(".job-time small")).toHaveLength(2);
   expect(loadActiveJob("review", "pr-acme-87")).toBe("job-review");
   fireEvent.click(retry);
   expect(await screen.findByRole("article", { name: "Direct status write skips the service" })).toBeTruthy();
@@ -554,7 +567,7 @@ it("reattaches to an active comparison after refresh without starting another jo
     },
   };
   saveActiveJob("comparison", "pr-acme-87", "job-cmp");
-  const fetchMock = installFetch({ comparison: resumed, comparisonPollFailures: 1 });
+  const fetchMock = installFetch({ comparison: resumed, comparisonPollFailures: 1, pollDelayMs: 50 });
   renderAt("/repos/repo-acme-commerce/lab");
   expect((await screen.findAllByText("Connection interrupted. Reconnecting to the existing comparison…")).length).toBeGreaterThan(0);
   expect(await screen.findByText("Guardrails passed", {}, { timeout: 3000 })).toBeTruthy();
@@ -602,8 +615,7 @@ it("checks an existing comparison again after bounded polling is exhausted", asy
     memory: { run_id: "run-retry-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-retry-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
   };
-  saveActiveJob("comparison", "pr-acme-87", "job-cmp");
-  const fetchMock = installFetch({ comparison: resumed, comparisonPollFailures: 4 });
+  const fetchMock = installFetch({ comparison: resumed, activeComparisonJob: true, comparisonPollFailures: 4 });
   renderAt("/repos/repo-acme-commerce/lab");
   const retry = await screen.findByRole("button", { name: "Check comparison again" });
   const details = screen.getByText("Active job details").closest("details");
@@ -611,6 +623,9 @@ it("checks an existing comparison again after bounded polling is exhausted", asy
   fireEvent.click(screen.getByText("Active job details"));
   expect(within(details as HTMLElement).getByText("job-cmp")).toBeTruthy();
   expect(within(details as HTMLElement).getByText("Status temporarily unavailable")).toBeTruthy();
+  expect(details?.querySelector(`time[datetime="${jobCreatedAt}"]`)).toBeTruthy();
+  expect(details?.querySelector(`time[datetime="${jobUpdatedAt}"]`)).toBeTruthy();
+  expect(details?.querySelectorAll(".job-time small")).toHaveLength(2);
   expect(loadActiveJob("comparison", "pr-acme-87")).toBe("job-cmp");
   fireEvent.click(retry);
   expect(await screen.findByText("Guardrails passed")).toBeTruthy();
