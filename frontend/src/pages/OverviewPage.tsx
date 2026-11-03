@@ -6,6 +6,8 @@ import { EmptyNote, ErrorNote, LoadingNote } from "../components/Status";
 import { designStatus, formatWhen, recentPullRequests, sourceLabel, statValue } from "../text";
 import { useWorkspace } from "../workspace";
 
+const ACTIVE_WORK_REFRESH_MS = import.meta.env.MODE === "test" ? 10 : 5000;
+
 export function OverviewPage() {
   const { repoId, repositories } = useWorkspace();
   const repo = repositories.find((item) => item.id === repoId);
@@ -14,6 +16,7 @@ export function OverviewPage() {
   const [prs, setPrs] = useState<PullRequestSummary[]>([]);
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [activeJobs, setActiveJobs] = useState<RepositoryActiveJob[]>([]);
+  const [activeJobsError, setActiveJobsError] = useState("");
   const [listError, setListError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -22,7 +25,7 @@ export function OverviewPage() {
     setLoading(true);
     setSummaryError("");
     setListError("");
-    Promise.allSettled([api.summary(repoId), api.prs(repoId), api.decisions(repoId), api.repositoryActiveJobs(repoId)]).then(([summaryResult, prResult, decisionResult, jobsResult]) => {
+    Promise.allSettled([api.summary(repoId), api.prs(repoId), api.decisions(repoId)]).then(([summaryResult, prResult, decisionResult]) => {
       if (cancelled) return;
       if (summaryResult.status === "fulfilled") setSummary(summaryResult.value);
       else {
@@ -34,16 +37,42 @@ export function OverviewPage() {
       else problems.push(prResult.reason instanceof Error ? prResult.reason.message : "Pull requests are unavailable.");
       if (decisionResult.status === "fulfilled") setDecisions(decisionResult.value);
       else problems.push(decisionResult.reason instanceof Error ? decisionResult.reason.message : "Decisions are unavailable.");
-      if (jobsResult.status === "fulfilled") setActiveJobs(jobsResult.value);
-      else problems.push(jobsResult.reason instanceof Error ? jobsResult.reason.message : "Active work is unavailable.");
       if (prResult.status === "rejected") setPrs([]);
       if (decisionResult.status === "rejected") setDecisions([]);
-      if (jobsResult.status === "rejected") setActiveJobs([]);
       setListError(problems.join(" "));
       setLoading(false);
     });
     return () => {
       cancelled = true;
+    };
+  }, [repoId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer = 0;
+    setActiveJobs([]);
+    setActiveJobsError("");
+
+    const refresh = async () => {
+      try {
+        const rows = await api.repositoryActiveJobs(repoId);
+        if (cancelled) return;
+        setActiveJobs(rows);
+        setActiveJobsError("");
+        if (rows.length > 0) {
+          timer = window.setTimeout(() => void refresh(), ACTIVE_WORK_REFRESH_MS);
+        }
+      } catch {
+        if (cancelled) return;
+        setActiveJobs([]);
+        setActiveJobsError("Active work is unavailable.");
+      }
+    };
+
+    void refresh();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [repoId]);
 
@@ -80,6 +109,7 @@ export function OverviewPage() {
         </section>
       ) : null}
       {listError ? <ErrorNote>{listError}</ErrorNote> : null}
+      {activeJobsError ? <ErrorNote>{activeJobsError}</ErrorNote> : null}
       {!loading && activeJobs.length > 0 ? (
         <section className="card active-work" aria-labelledby="active-work-heading">
           <div className="panel-head">

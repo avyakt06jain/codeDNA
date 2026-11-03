@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import App from "./App";
@@ -109,6 +109,7 @@ function installFetch(options?: {
   activeReviewJob?: boolean;
   activeComparisonJob?: boolean;
   repositoryActiveJobs?: boolean;
+  repositoryActiveJobsCompleteAfter?: number;
   reusedReviewStart?: boolean;
   reusedComparisonStart?: boolean;
   pollDelayMs?: number;
@@ -116,6 +117,7 @@ function installFetch(options?: {
   const hindsight = options?.hindsight ?? "ready";
   let reviewPollFailures = options?.reviewPollFailures ?? 0;
   let comparisonPollFailures = options?.comparisonPollFailures ?? 0;
+  let repositoryActiveJobReads = 0;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const url = new URL(raw, "http://localhost");
@@ -138,7 +140,11 @@ function installFetch(options?: {
       });
     }
     if (path === "/api/repositories/repo-acme-commerce/review-jobs/active") {
-      return json(options?.repositoryActiveJobs ? [{
+      repositoryActiveJobReads += 1;
+      const active = options?.repositoryActiveJobs
+        && (options.repositoryActiveJobsCompleteAfter === undefined
+          || repositoryActiveJobReads <= options.repositoryActiveJobsCompleteAfter);
+      return json(active ? [{
         job_id: "job-cmp",
         pr_id: "pr-acme-87",
         pr_number: 87,
@@ -465,6 +471,19 @@ it("shows repository active work without starting or polling provider work", asy
   expect(within(section).getByText(/has not reported progress for at least 3 minutes/i)).toBeTruthy();
   fireEvent.click(within(section).getByText("Active job details"));
   expect(within(section).getByText("job-cmp")).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(0);
+});
+
+it("refreshes the overview only while active work remains", async () => {
+  const fetchMock = installFetch({
+    repositoryActiveJobs: true,
+    repositoryActiveJobsCompleteAfter: 1,
+  });
+  renderAt("/");
+  expect(await screen.findByRole("region", { name: "Active work" })).toBeTruthy();
+  await waitFor(() => expect(screen.queryByRole("region", { name: "Active work" })).toBeNull());
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/repositories/repo-acme-commerce/review-jobs/active"))).toHaveLength(2);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(0);
 });

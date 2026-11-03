@@ -51,10 +51,11 @@
 - Active review/comparison diagnostics now carry backend-owned UTC creation/update timestamps through creation, discovery, and polling; the UI rejects malformed values and shows age with exact local time.
 - Review Workspace and Memory Lab now show an accessible warning after three minutes without a persisted job update; it conservatively keeps observing the same job and starts no retry/provider work.
 - Repository overview now shows repository-scoped queued/running review and comparison jobs with PR links and sanitized diagnostics from one read-only request; no job result polling, creation POST, or provider call is triggered.
+- While rows remain active, the overview refreshes only that repository-scoped summary every five seconds and stops automatically when the response is empty, unavailable, navigated away, or unmounted.
 
 ## In Progress
 
-- Post-MVP work continues with conservative overview refresh for active background work.
+- Post-MVP work continues with accessible completion feedback for repository-level active work.
 
 ## Blocked
 
@@ -78,9 +79,20 @@
 
 ## Next Action
 
-Refresh the repository active-work snapshot conservatively while work is present so a judge can observe terminal disappearance without reloading the page.
+Announce the transition from active work to no active work in a single polite status message for screen-reader users.
 
 ## Session Log
+
+### 2026-11-03 — Bounded repository active-work refresh
+
+- Goal: Let the overview reflect completion without a manual reload while preserving the read-only, no-provider boundary.
+- Implemented: a five-second active-summary refresh that runs only while rows exist and cancels on empty response, error, repository change, or unmount.
+- Focused frontend check: `npm test -- --run src/ui.test.tsx` → **25 passed**. The new regression observes exactly two summary GETs (active then empty), no job-result GET, and no POST.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **36 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 316.91 kB JavaScript and 14.55 kB CSS before gzip.
+- Provider safety: no Hindsight/Gemini request was made; this slice reads SQLite-backed API state only.
+- Live app: loopback verification returned API `ok`, UI HTTP 200, Hindsight truthfully `unavailable`, and 0 active jobs; the app remained running without provider startup.
+- Next: announce active-to-empty completion once through a polite live region.
 
 ### 2026-11-03 — Repository-level active-work visibility
 

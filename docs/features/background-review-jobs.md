@@ -29,7 +29,7 @@ An HTTP `404` has separate terminal meaning: the saved active-job locator no lon
 - Job state and completed results survive browser reloads.
 - The session-stored job ID is a recovery locator, not an authorization decision; repository/PR ownership and work execution remain backend controlled.
 - Closing a tab discards its local locator, but a new tab discovers same-PR active work from SQLite. Simultaneous creation requests serialize and reuse the same active job instead of duplicating provider work.
-- The repository overview performs one read-only repository-scoped lookup and lists queued/running jobs with their owning PR, kind, stage, and sanitized timestamps. It does not poll job results or create provider work.
+- The repository overview uses a read-only repository-scoped lookup and lists queued/running jobs with their owning PR, kind, stage, and sanitized timestamps. While rows remain it refreshes only this summary every five seconds, stopping on an empty response, error, repository change, or unmount. It does not poll individual job results or create provider work.
 - Active work does not resume after API-process termination because the local MVP uses in-process FastAPI background tasks, not an external worker queue.
 - The shared Hindsight server is API-owned, while each worker creates its own SDK client to avoid sharing event-loop-bound client state across threads.
 - The next API startup atomically marks every leftover `queued`/`running` job `failed` with `job_interrupted_by_restart`. It does not replay work that may already have called an external provider or partially persisted a run.

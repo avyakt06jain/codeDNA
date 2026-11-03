@@ -126,7 +126,8 @@
 - **Verified:** A visible accessible warning appears after three minutes without a persisted job update, conservatively states that progress is unreported, and neither retries nor starts provider work.
 - **Verified:** A `404` for a saved active-job locator clears only that locator and falls back to the latest completed same-PR review/comparison through read-only endpoints, with no creation POST.
 - **Verified:** The repository overview lists repository-scoped queued/running review and comparison jobs with PR links, sanitized stage/timestamps, and stale warnings through a read-only endpoint; it never polls job results or starts provider work.
-- **Next:** Refresh the repository active-work snapshot conservatively while work is present so a judge can observe terminal disappearance without reloading the page.
+- **Verified:** Repository active-work visibility refreshes every five seconds only while active rows exist, then stops on completion, error, navigation, or unmount; tests prove it performs no job-result GET or creation POST.
+- **Next:** Announce the transition from active work to no active work in a single polite status message for screen-reader users.
 
 ## Documentation and version-control policy
 
