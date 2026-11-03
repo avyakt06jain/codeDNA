@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, type Decision, type PullRequestSummary, type RepositoryActiveJob, type Summary } from "../api";
 import { ActiveJobDetails } from "../components/ActiveJobDetails";
@@ -17,6 +17,8 @@ export function OverviewPage() {
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [activeJobs, setActiveJobs] = useState<RepositoryActiveJob[]>([]);
   const [activeJobsError, setActiveJobsError] = useState("");
+  const [activeWorkAnnouncement, setActiveWorkAnnouncement] = useState("");
+  const hadActiveJobs = useRef(false);
   const [listError, setListError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -52,6 +54,8 @@ export function OverviewPage() {
     let timer = 0;
     setActiveJobs([]);
     setActiveJobsError("");
+    setActiveWorkAnnouncement("");
+    hadActiveJobs.current = false;
 
     const refresh = async () => {
       try {
@@ -60,7 +64,12 @@ export function OverviewPage() {
         setActiveJobs(rows);
         setActiveJobsError("");
         if (rows.length > 0) {
+          hadActiveJobs.current = true;
+          setActiveWorkAnnouncement("");
           timer = window.setTimeout(() => void refresh(), ACTIVE_WORK_REFRESH_MS);
+        } else if (hadActiveJobs.current) {
+          hadActiveJobs.current = false;
+          setActiveWorkAnnouncement("Active work is no longer running. Open the pull request to inspect its saved result or failure.");
         }
       } catch {
         if (cancelled) return;
@@ -110,6 +119,7 @@ export function OverviewPage() {
       ) : null}
       {listError ? <ErrorNote>{listError}</ErrorNote> : null}
       {activeJobsError ? <ErrorNote>{activeJobsError}</ErrorNote> : null}
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{activeWorkAnnouncement}</p>
       {!loading && activeJobs.length > 0 ? (
         <section className="card active-work" aria-labelledby="active-work-heading">
           <div className="panel-head">

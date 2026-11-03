@@ -460,6 +460,7 @@ it("shows overview counts from the summary without GitHub metrics", async () => 
   expect(screen.queryByText(/view on github/i)).toBeNull();
   expect(screen.queryByText(/\bstars\b/i)).toBeNull();
   expect(screen.queryByText(/contributors/i)).toBeNull();
+  expect(screen.queryByText(/Active work is no longer running/i)).toBeNull();
 });
 
 it("shows repository active work without starting or polling provider work", async () => {
@@ -483,6 +484,10 @@ it("refreshes the overview only while active work remains", async () => {
   renderAt("/");
   expect(await screen.findByRole("region", { name: "Active work" })).toBeTruthy();
   await waitFor(() => expect(screen.queryByRole("region", { name: "Active work" })).toBeNull());
+  const completionMessage = "Active work is no longer running. Open the pull request to inspect its saved result or failure.";
+  const completion = screen.getByText(completionMessage);
+  expect(completion.getAttribute("role")).toBe("status");
+  expect(screen.getAllByRole("status").filter((item) => item.textContent === completionMessage)).toHaveLength(1);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/repositories/repo-acme-commerce/review-jobs/active"))).toHaveLength(2);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(0);

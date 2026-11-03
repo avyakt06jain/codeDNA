@@ -52,10 +52,11 @@
 - Review Workspace and Memory Lab now show an accessible warning after three minutes without a persisted job update; it conservatively keeps observing the same job and starts no retry/provider work.
 - Repository overview now shows repository-scoped queued/running review and comparison jobs with PR links and sanitized diagnostics from one read-only request; no job result polling, creation POST, or provider call is triggered.
 - While rows remain active, the overview refreshes only that repository-scoped summary every five seconds and stops automatically when the response is empty, unavailable, navigated away, or unmounted.
+- A single polite/atomic status now announces when previously visible active work is no longer running and directs assistive-technology users to inspect the saved result or failure; initial empty state stays silent.
 
 ## In Progress
 
-- Post-MVP work continues with accessible completion feedback for repository-level active work.
+- Post-MVP work continues with bounded transient-error recovery for repository-level active work.
 
 ## Blocked
 
@@ -79,9 +80,20 @@
 
 ## Next Action
 
-Announce the transition from active work to no active work in a single polite status message for screen-reader users.
+Add bounded transient-error recovery to the read-only overview summary without polling job results or starting provider work.
 
 ## Session Log
+
+### 2026-11-03 — Accessible active-work completion announcement
+
+- Goal: Make overview job disappearance understandable to screen-reader users without claiming whether work succeeded or failed.
+- Implemented: one persistent polite/atomic live region that announces only a nonempty-to-empty transition and directs the user to inspect the PR's saved result or failure. Initial empty state and repository changes reset silently.
+- Focused frontend check: the first assertion incorrectly assumed the global memory-health status was absent and failed; the assertion was narrowed to the completion message. Unchanged rerun `npm test -- --run src/ui.test.tsx` → **25 passed**.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **36 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 317.22 kB JavaScript and 14.55 kB CSS before gzip.
+- Provider safety: the change is UI-only and starts no Hindsight/Gemini or job-result request.
+- Live app: loopback returned API `ok` and UI HTTP 200 after Vite hot reload; Hindsight remained truthfully `unavailable` and no provider startup was attempted.
+- Next: retry bounded transient overview-summary failures without creating work.
 
 ### 2026-11-03 — Bounded repository active-work refresh
 
