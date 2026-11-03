@@ -18,6 +18,7 @@ export function OverviewPage() {
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [activeJobs, setActiveJobs] = useState<RepositoryActiveJob[]>([]);
   const [activeJobsError, setActiveJobsError] = useState("");
+  const [activeJobsRetryKey, setActiveJobsRetryKey] = useState(0);
   const [activeWorkAnnouncement, setActiveWorkAnnouncement] = useState("");
   const hadActiveJobs = useRef(false);
   const [listError, setListError] = useState("");
@@ -93,7 +94,7 @@ export function OverviewPage() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [repoId]);
+  }, [repoId, activeJobsRetryKey]);
 
   const name = summary?.display_name || repo?.display_name || repoId;
   const recent = recentPullRequests(prs);
@@ -128,7 +129,16 @@ export function OverviewPage() {
         </section>
       ) : null}
       {listError ? <ErrorNote>{listError}</ErrorNote> : null}
-      {activeJobsError ? <ErrorNote>{activeJobsError}</ErrorNote> : null}
+      {activeJobsError ? (
+        <ErrorNote>
+          <span>{activeJobsError}</span>
+          {activeJobsError === "Active work is unavailable." ? (
+            <button className="secondary" type="button" onClick={() => setActiveJobsRetryKey((value) => value + 1)}>
+              Check active work again
+            </button>
+          ) : null}
+        </ErrorNote>
+      ) : null}
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{activeWorkAnnouncement}</p>
       {!loading && activeJobs.length > 0 ? (
         <section className="card active-work" aria-labelledby="active-work-heading">

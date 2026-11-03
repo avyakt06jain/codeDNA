@@ -54,10 +54,11 @@
 - While rows remain active, the overview refreshes only that repository-scoped summary every five seconds and stops automatically when the response is empty, unavailable, navigated away, or unmounted.
 - A single polite/atomic status now announces when previously visible active work is no longer running and directs assistive-technology users to inspect the saved result or failure; initial empty state stays silent.
 - Transient overview-summary failures now retry at most three times after 1/2/4 seconds, keep existing rows visible while reconnecting, and stop without polling a job result or creating work.
+- After overview-summary recovery is exhausted, an explicit `Check active work again` button starts a fresh bounded read-only cycle and disappears on success.
 
 ## In Progress
 
-- Post-MVP work continues with explicit read-only recovery after overview-summary retry exhaustion.
+- Post-MVP work continues with keyboard-focus recovery after manual overview-summary retry.
 
 ## Blocked
 
@@ -81,9 +82,20 @@
 
 ## Next Action
 
-Offer an explicit read-only `Check active work again` action after bounded summary recovery is exhausted.
+Preserve useful keyboard position when the manual overview-summary retry resolves and removes its trigger.
 
 ## Session Log
+
+### 2026-11-04 — Explicit overview-summary retry
+
+- Goal: Let a judge recover repository-level job visibility after bounded automatic retries stop, without starting review/provider work.
+- Implemented: `Check active work again` restarts only the repository summary cycle with fresh bounded retry state and clears on a successful response.
+- Focused frontend check: `npm test -- --run src/ui.test.tsx` → **27 passed**. The new regression observes four failed summary GETs, one explicit successful summary GET, no job-result GET, and no POST.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **38 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 317.66 kB JavaScript and 14.55 kB CSS before gzip.
+- Provider safety: the action calls only the SQLite-backed repository active-summary endpoint; no Hindsight/Gemini call was made.
+- Live app: loopback returned API `ok` and UI HTTP 200 after hot reload; Hindsight remained truthfully `unavailable` and no provider startup was attempted.
+- Next: move focus predictably when successful retry removes its button.
 
 ### 2026-11-04 — Bounded overview-summary recovery
 

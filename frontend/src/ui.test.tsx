@@ -510,6 +510,18 @@ it("retries a transient overview-summary failure without creating work", async (
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/"))).toHaveLength(0);
 });
 
+it("checks the read-only overview summary again after retries are exhausted", async () => {
+  const fetchMock = installFetch({ repositoryActiveJobFailures: 4 });
+  renderAt("/");
+  const retry = await screen.findByRole("button", { name: "Check active work again" });
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/repositories/repo-acme-commerce/review-jobs/active"))).toHaveLength(4);
+  fireEvent.click(retry);
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Check active work again" })).toBeNull());
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/repositories/repo-acme-commerce/review-jobs/active"))).toHaveLength(5);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/"))).toHaveLength(0);
+});
+
 it("lists wrapped decisions and opens the evolution lineage", async () => {
   installFetch({ decisionsWrapped: true });
   renderAt("/repos/repo-acme-commerce/dna");

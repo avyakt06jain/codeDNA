@@ -129,7 +129,8 @@
 - **Verified:** Repository active-work visibility refreshes every five seconds only while active rows exist, then stops on completion, error, navigation, or unmount; tests prove it performs no job-result GET or creation POST.
 - **Verified:** A nonempty-to-empty active-work transition produces one conservative polite/atomic announcement; initial empty state and navigation do not claim completion.
 - **Verified:** The overview summary retries only transient network/selected HTTP failures with bounded 1/2/4-second delays, preserves existing rows while reconnecting, and performs no job-result GET or creation POST.
-- **Next:** Offer an explicit read-only `Check active work again` action after bounded summary recovery is exhausted.
+- **Verified:** After bounded overview-summary recovery is exhausted, `Check active work again` starts a fresh summary-only cycle; tests prove the action issues no job-result GET or creation POST.
+- **Next:** Preserve useful keyboard position when the manual overview-summary retry resolves and removes its trigger.
 
 ## Documentation and version-control policy
 
