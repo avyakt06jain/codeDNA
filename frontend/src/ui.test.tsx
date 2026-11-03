@@ -515,11 +515,35 @@ it("checks the read-only overview summary again after retries are exhausted", as
   renderAt("/");
   const retry = await screen.findByRole("button", { name: "Check active work again" });
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/repositories/repo-acme-commerce/review-jobs/active"))).toHaveLength(4);
+  retry.focus();
   fireEvent.click(retry);
   await waitFor(() => expect(screen.queryByRole("button", { name: "Check active work again" })).toBeNull());
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Repository overview" })));
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/repositories/repo-acme-commerce/review-jobs/active"))).toHaveLength(5);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/"))).toHaveLength(0);
+});
+
+it("returns focus to the retry action when another bounded cycle fails", async () => {
+  const fetchMock = installFetch({ repositoryActiveJobFailures: 8 });
+  renderAt("/");
+  const retry = await screen.findByRole("button", { name: "Check active work again" });
+  retry.focus();
+  fireEvent.click(retry);
+  await waitFor(() => expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/repositories/repo-acme-commerce/review-jobs/active"))).toHaveLength(8));
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: "Check active work again" }));
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
+it("moves focus to restored active work after a manual summary retry", async () => {
+  const fetchMock = installFetch({ repositoryActiveJobFailures: 4, repositoryActiveJobs: true });
+  renderAt("/");
+  const retry = await screen.findByRole("button", { name: "Check active work again" });
+  retry.focus();
+  fireEvent.click(retry);
+  const heading = await screen.findByRole("heading", { name: "Active work" });
+  await waitFor(() => expect(document.activeElement).toBe(heading));
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
 it("lists wrapped decisions and opens the evolution lineage", async () => {

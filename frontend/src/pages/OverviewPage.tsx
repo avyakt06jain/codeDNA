@@ -21,8 +21,31 @@ export function OverviewPage() {
   const [activeJobsRetryKey, setActiveJobsRetryKey] = useState(0);
   const [activeWorkAnnouncement, setActiveWorkAnnouncement] = useState("");
   const hadActiveJobs = useRef(false);
+  const manualRetryPending = useRef(false);
+  const overviewHeadingRef = useRef<HTMLHeadingElement>(null);
+  const activeWorkHeadingRef = useRef<HTMLHeadingElement>(null);
+  const activeWorkRetryRef = useRef<HTMLButtonElement>(null);
+  const [pendingFocus, setPendingFocus] = useState<"overview" | "active" | "retry" | null>(null);
   const [listError, setListError] = useState("");
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    manualRetryPending.current = false;
+    setPendingFocus(null);
+  }, [repoId]);
+
+  useEffect(() => {
+    if (!pendingFocus) return;
+    const target = pendingFocus === "active"
+      ? activeWorkHeadingRef.current
+      : pendingFocus === "retry"
+        ? activeWorkRetryRef.current
+        : overviewHeadingRef.current;
+    if (target) {
+      target.focus();
+      setPendingFocus(null);
+    }
+  }, [pendingFocus, activeJobs.length, activeJobsError]);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,6 +90,10 @@ export function OverviewPage() {
         consecutiveFailures = 0;
         setActiveJobs(rows);
         setActiveJobsError("");
+        if (manualRetryPending.current) {
+          manualRetryPending.current = false;
+          setPendingFocus(rows.length > 0 ? "active" : "overview");
+        }
         if (rows.length > 0) {
           hadActiveJobs.current = true;
           setActiveWorkAnnouncement("");
@@ -86,6 +113,10 @@ export function OverviewPage() {
         }
         setActiveJobs([]);
         setActiveJobsError("Active work is unavailable.");
+        if (manualRetryPending.current) {
+          manualRetryPending.current = false;
+          setPendingFocus("retry");
+        }
       }
     };
 
@@ -103,7 +134,7 @@ export function OverviewPage() {
     <div className="page">
       <header className="page-head">
         <div>
-          <h1>Repository overview</h1>
+          <h1 ref={overviewHeadingRef} tabIndex={-1}>Repository overview</h1>
           <p>Engineering memory for {name}.</p>
         </div>
       </header>
@@ -133,7 +164,15 @@ export function OverviewPage() {
         <ErrorNote>
           <span>{activeJobsError}</span>
           {activeJobsError === "Active work is unavailable." ? (
-            <button className="secondary" type="button" onClick={() => setActiveJobsRetryKey((value) => value + 1)}>
+            <button
+              ref={activeWorkRetryRef}
+              className="secondary"
+              type="button"
+              onClick={() => {
+                manualRetryPending.current = true;
+                setActiveJobsRetryKey((value) => value + 1);
+              }}
+            >
               Check active work again
             </button>
           ) : null}
@@ -144,7 +183,7 @@ export function OverviewPage() {
         <section className="card active-work" aria-labelledby="active-work-heading">
           <div className="panel-head">
             <div>
-              <h2 id="active-work-heading">Active work</h2>
+              <h2 ref={activeWorkHeadingRef} id="active-work-heading" tabIndex={-1}>Active work</h2>
               <p className="quiet">Read-only status from persisted background jobs. Opening a PR does not start new provider work.</p>
             </div>
             <span className="nav-count" aria-label={`${activeJobs.length} active jobs`}>{activeJobs.length}</span>

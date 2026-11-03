@@ -55,10 +55,11 @@
 - A single polite/atomic status now announces when previously visible active work is no longer running and directs assistive-technology users to inspect the saved result or failure; initial empty state stays silent.
 - Transient overview-summary failures now retry at most three times after 1/2/4 seconds, keep existing rows visible while reconnecting, and stop without polling a job result or creating work.
 - After overview-summary recovery is exhausted, an explicit `Check active work again` button starts a fresh bounded read-only cycle and disappears on success.
+- Manual summary retry now restores focus to the resulting Active work heading, the overview heading for an empty result, or the recreated retry action after another failure.
 
 ## In Progress
 
-- Post-MVP work continues with keyboard-focus recovery after manual overview-summary retry.
+- Post-MVP work continues with visible freshness for the repository active-work snapshot.
 
 ## Blocked
 
@@ -82,9 +83,20 @@
 
 ## Next Action
 
-Preserve useful keyboard position when the manual overview-summary retry resolves and removes its trigger.
+Show when the repository active-work summary was last checked successfully so judges can assess snapshot freshness.
 
 ## Session Log
+
+### 2026-11-04 — Manual summary-retry focus recovery
+
+- Goal: Prevent keyboard focus from falling back to the document body when a manual summary retry removes and replaces UI.
+- Implemented: focus targets for restored Active work, empty successful recovery, and repeated failure; repository navigation cancels pending focus intent.
+- Focused frontend check: the first success assertion ran before the focus effect and failed; it was corrected to wait for focus. Final `npm test -- --run src/ui.test.tsx` → **29 passed**, covering active, empty, and repeated-failure outcomes with no POST.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **40 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 318.12 kB JavaScript and 14.55 kB CSS before gzip.
+- Provider safety: focus recovery is UI-only and does not start Hindsight/Gemini or job-result work.
+- Live app: loopback returned API `ok` and UI HTTP 200 after hot reload; Hindsight remained truthfully `unavailable` and no provider startup was attempted.
+- Next: display the last successful active-summary check time.
 
 ### 2026-11-04 — Explicit overview-summary retry
 
