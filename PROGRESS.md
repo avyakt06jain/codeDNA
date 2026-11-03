@@ -4,7 +4,7 @@
 
 ## Current State
 
-- Date: 2026-11-03
+- Date: 2026-11-04
 - Phase: G0–G5 MVP gates complete; the evolved judge demo was exercised against a restarted local API.
 - Implementation: The retain → recall → validate → review → feedback → supersede → ablate loop is verified locally against real Hindsight and Gemini. `CODEDNA_DEMO_SCENE=evolved` leaves `DEC-0103` active and `DEC-0042` superseded.
 - Git: `main` is initialized, connected to GitHub, and verified checkpoints are pushed without rewriting published history.
@@ -53,10 +53,11 @@
 - Repository overview now shows repository-scoped queued/running review and comparison jobs with PR links and sanitized diagnostics from one read-only request; no job result polling, creation POST, or provider call is triggered.
 - While rows remain active, the overview refreshes only that repository-scoped summary every five seconds and stops automatically when the response is empty, unavailable, navigated away, or unmounted.
 - A single polite/atomic status now announces when previously visible active work is no longer running and directs assistive-technology users to inspect the saved result or failure; initial empty state stays silent.
+- Transient overview-summary failures now retry at most three times after 1/2/4 seconds, keep existing rows visible while reconnecting, and stop without polling a job result or creating work.
 
 ## In Progress
 
-- Post-MVP work continues with bounded transient-error recovery for repository-level active work.
+- Post-MVP work continues with explicit read-only recovery after overview-summary retry exhaustion.
 
 ## Blocked
 
@@ -80,9 +81,20 @@
 
 ## Next Action
 
-Add bounded transient-error recovery to the read-only overview summary without polling job results or starting provider work.
+Offer an explicit read-only `Check active work again` action after bounded summary recovery is exhausted.
 
 ## Session Log
+
+### 2026-11-04 — Bounded overview-summary recovery
+
+- Goal: Keep repository-level job observability resilient to short API/network interruptions without broadening the provider-call boundary.
+- Implemented: shared transient-error classification, bounded 1/2/4-second overview retries, visible reconnecting state, success reset, and preservation of already rendered active rows during recovery.
+- Focused frontend check: `npm test -- --run src/ui.test.tsx` → **26 passed**. The new regression observes one transient `503`, one successful summary retry, no job-result GET, and no POST.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **37 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 317.45 kB JavaScript and 14.55 kB CSS before gzip.
+- Provider safety: recovery calls only the repository active-summary GET; no Hindsight/Gemini call was made.
+- Live app: loopback returned API `ok`, UI HTTP 200, 0 active jobs, and Hindsight truthfully `unavailable`; Vite hot reload kept the app runnable without provider startup.
+- Next: provide an explicit same-summary retry after bounded recovery is exhausted.
 
 ### 2026-11-03 — Accessible active-work completion announcement
 

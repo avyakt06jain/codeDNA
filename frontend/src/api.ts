@@ -179,6 +179,11 @@ class ApiRequestError extends Error {
   }
 }
 
+export function isTransientRequestError(reason: unknown): boolean {
+  return reason instanceof TypeError
+    || (reason instanceof ApiRequestError && [408, 425, 429, 500, 502, 503, 504].includes(reason.status));
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -396,9 +401,7 @@ async function pollReviewJob(
       job = await request<ReviewJob & Record<string, unknown>>(`/api/review-jobs/${jobId}`);
       consecutiveFailures = 0;
     } catch (reason) {
-      const transient = reason instanceof TypeError
-        || (reason instanceof ApiRequestError && [408, 425, 429, 500, 502, 503, 504].includes(reason.status));
-      if (!transient) throw reason;
+      if (!isTransientRequestError(reason)) throw reason;
       if (consecutiveFailures >= POLL_RETRY_DELAYS_MS.length) {
         throw new PollingUnavailableError(
           reason instanceof Error ? reason.message : "The job status is temporarily unavailable.",

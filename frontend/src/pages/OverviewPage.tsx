@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, type Decision, type PullRequestSummary, type RepositoryActiveJob, type Summary } from "../api";
+import { api, isTransientRequestError, type Decision, type PullRequestSummary, type RepositoryActiveJob, type Summary } from "../api";
 import { ActiveJobDetails } from "../components/ActiveJobDetails";
 import { EmptyNote, ErrorNote, LoadingNote } from "../components/Status";
 import { designStatus, formatWhen, recentPullRequests, sourceLabel, statValue } from "../text";
 import { useWorkspace } from "../workspace";
 
 const ACTIVE_WORK_REFRESH_MS = import.meta.env.MODE === "test" ? 10 : 5000;
+const ACTIVE_WORK_RETRY_DELAYS_MS = import.meta.env.MODE === "test" ? [1, 2, 4] as const : [1000, 2000, 4000] as const;
 
 export function OverviewPage() {
   const { repoId, repositories } = useWorkspace();
@@ -52,6 +53,7 @@ export function OverviewPage() {
   useEffect(() => {
     let cancelled = false;
     let timer = 0;
+    let consecutiveFailures = 0;
     setActiveJobs([]);
     setActiveJobsError("");
     setActiveWorkAnnouncement("");
@@ -61,6 +63,7 @@ export function OverviewPage() {
       try {
         const rows = await api.repositoryActiveJobs(repoId);
         if (cancelled) return;
+        consecutiveFailures = 0;
         setActiveJobs(rows);
         setActiveJobsError("");
         if (rows.length > 0) {
@@ -71,8 +74,15 @@ export function OverviewPage() {
           hadActiveJobs.current = false;
           setActiveWorkAnnouncement("Active work is no longer running. Open the pull request to inspect its saved result or failure.");
         }
-      } catch {
+      } catch (reason) {
         if (cancelled) return;
+        if (isTransientRequestError(reason) && consecutiveFailures < ACTIVE_WORK_RETRY_DELAYS_MS.length) {
+          const delay = ACTIVE_WORK_RETRY_DELAYS_MS[consecutiveFailures];
+          consecutiveFailures += 1;
+          setActiveJobsError("Active work status was interrupted. Retrying the read-only summary…");
+          timer = window.setTimeout(() => void refresh(), delay);
+          return;
+        }
         setActiveJobs([]);
         setActiveJobsError("Active work is unavailable.");
       }

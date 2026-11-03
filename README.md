@@ -101,7 +101,7 @@ Open:
 - `http://127.0.0.1:5173/repos/repo-acme-commerce/dna/DEC-0103` — decision evolution
 - `http://127.0.0.1:5173/repos/repo-acme-commerce/lab` — Memory Lab
 
-The repository overview includes a read-only Active work panel when queued or running reviews/comparisons exist. It links to the owning PR and shows only sanitized job diagnostics. While active rows remain, the summary refreshes every five seconds and stops when work disappears; assistive technology receives one conservative completion-status announcement. The overview never starts work or polls individual job results.
+The repository overview includes a read-only Active work panel when queued or running reviews/comparisons exist. It links to the owning PR and shows only sanitized job diagnostics. While active rows remain, the summary refreshes every five seconds and stops when work disappears; transient summary failures receive bounded 1/2/4-second retries, and assistive technology receives one conservative completion-status announcement. The overview never starts work or polls individual job results.
 
 See [docs/DEMO.md](docs/DEMO.md) for the verified presentation path.
 

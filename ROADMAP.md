@@ -128,7 +128,8 @@
 - **Verified:** The repository overview lists repository-scoped queued/running review and comparison jobs with PR links, sanitized stage/timestamps, and stale warnings through a read-only endpoint; it never polls job results or starts provider work.
 - **Verified:** Repository active-work visibility refreshes every five seconds only while active rows exist, then stops on completion, error, navigation, or unmount; tests prove it performs no job-result GET or creation POST.
 - **Verified:** A nonempty-to-empty active-work transition produces one conservative polite/atomic announcement; initial empty state and navigation do not claim completion.
-- **Next:** Add bounded transient-error recovery to the read-only overview summary without polling job results or starting provider work.
+- **Verified:** The overview summary retries only transient network/selected HTTP failures with bounded 1/2/4-second delays, preserves existing rows while reconnecting, and performs no job-result GET or creation POST.
+- **Next:** Offer an explicit read-only `Check active work again` action after bounded summary recovery is exhausted.
 
 ## Documentation and version-control policy
 

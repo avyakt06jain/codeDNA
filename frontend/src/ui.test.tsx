@@ -110,6 +110,7 @@ function installFetch(options?: {
   activeComparisonJob?: boolean;
   repositoryActiveJobs?: boolean;
   repositoryActiveJobsCompleteAfter?: number;
+  repositoryActiveJobFailures?: number;
   reusedReviewStart?: boolean;
   reusedComparisonStart?: boolean;
   pollDelayMs?: number;
@@ -118,6 +119,7 @@ function installFetch(options?: {
   let reviewPollFailures = options?.reviewPollFailures ?? 0;
   let comparisonPollFailures = options?.comparisonPollFailures ?? 0;
   let repositoryActiveJobReads = 0;
+  let repositoryActiveJobFailures = options?.repositoryActiveJobFailures ?? 0;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const url = new URL(raw, "http://localhost");
@@ -141,6 +143,10 @@ function installFetch(options?: {
     }
     if (path === "/api/repositories/repo-acme-commerce/review-jobs/active") {
       repositoryActiveJobReads += 1;
+      if (repositoryActiveJobFailures > 0) {
+        repositoryActiveJobFailures -= 1;
+        return json({ detail: "temporary outage" }, 503);
+      }
       const active = options?.repositoryActiveJobs
         && (options.repositoryActiveJobsCompleteAfter === undefined
           || repositoryActiveJobReads <= options.repositoryActiveJobsCompleteAfter);
@@ -491,6 +497,17 @@ it("refreshes the overview only while active work remains", async () => {
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/repositories/repo-acme-commerce/review-jobs/active"))).toHaveLength(2);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(0);
+});
+
+it("retries a transient overview-summary failure without creating work", async () => {
+  const fetchMock = installFetch({ repositoryActiveJobFailures: 1 });
+  renderAt("/");
+  expect(await screen.findByText("Active work status was interrupted. Retrying the read-only summary…")).toBeTruthy();
+  await waitFor(() => expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/repositories/repo-acme-commerce/review-jobs/active"))).toHaveLength(2));
+  expect(screen.queryByText("Active work is unavailable.")).toBeNull();
+  expect(screen.queryByText("Active work status was interrupted. Retrying the read-only summary…")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/"))).toHaveLength(0);
 });
 
 it("lists wrapped decisions and opens the evolution lineage", async () => {
