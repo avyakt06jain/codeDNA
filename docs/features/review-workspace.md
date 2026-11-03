@@ -22,6 +22,8 @@ A collapsed `Active job details` disclosure remains available while that locator
 
 After three minutes without a valid `updated_at` change, a visible status warning says that progress has not been reported and that CodeDNA is still checking the same review. It does not submit another review or imply the current job has failed.
 
+Before a judge opens the workspace, repository overview can show a read-only active review/comparison summary linked to the owning PR. Loading the overview neither starts work nor polls the job-result endpoint.
+
 If the backend confirms that the saved active job is missing, the workspace clears the stale locator and reads the latest completed memory review for that PR. It restores that review when available; otherwise it shows explicit guidance to start a new review. This fallback is read-only.
 
 Finding locations are navigation controls rather than decorative labels. Activating a line-specific location selects its file and moves programmatic focus to the validated changed line, which receives a visible focus outline and an accessible line label. Findings without a line fall back to the diff region. Manual file selection and a new review clear the previous target.

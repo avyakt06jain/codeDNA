@@ -152,6 +152,16 @@ export type ActiveJob = JobTiming & {
   jobId: string;
 };
 
+export type RepositoryActiveJob = JobTiming & {
+  jobId: string;
+  prId: string;
+  prNumber: number;
+  prTitle: string;
+  kind: "review" | "comparison";
+  status: "queued" | "running";
+  stage: string;
+};
+
 export type FeedbackResult = {
   id: string;
   binding: boolean;
@@ -442,6 +452,31 @@ export const api = {
     const row = isRecord(payload) ? payload : {};
     const jobId = jobIdFrom(row.job_id);
     return jobId ? { jobId, ...jobTimingFrom(row) } satisfies ActiveJob : null;
+  },
+  repositoryActiveJobs: async (repositoryId: string) => {
+    const rows = unwrapRecords(
+      await request<unknown>(`/api/repositories/${repositoryId}/review-jobs/active`),
+    );
+    return rows.flatMap((row): RepositoryActiveJob[] => {
+      const jobId = jobIdFrom(row.job_id);
+      const kind = row.kind === "review" || row.kind === "comparison" ? row.kind : null;
+      const status = row.status === "queued" || row.status === "running" ? row.status : null;
+      const prNumber = asNumber(row.pr_number);
+      const prId = asString(row.pr_id)?.trim();
+      const prTitle = asString(row.pr_title)?.trim();
+      const stage = asString(row.stage)?.trim();
+      if (!jobId || !kind || !status || !prId || !prTitle || prNumber === undefined || !stage) return [];
+      return [{
+        jobId,
+        prId,
+        prNumber,
+        prTitle,
+        kind,
+        status,
+        stage,
+        ...jobTimingFrom(row),
+      }];
+    });
   },
   async startReview(prId: string, memoryEnabled: boolean) {
     const created = await request<ReviewJob & { reused?: boolean }>(`/api/prs/${prId}/review-jobs`, {

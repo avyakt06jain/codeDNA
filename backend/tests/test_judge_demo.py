@@ -275,6 +275,25 @@ def test_comparison_job_completes_with_injected_clients(tmp_path, monkeypatch):
     }
     assert active["created_at"].endswith("Z")
     assert active["updated_at"].endswith("Z")
+    repository_active = endpoints(app)[
+        "/api/repositories/{repository_id}/review-jobs/active"
+    ](ACME_REPOSITORY_ID)
+    assert repository_active == [
+        {
+            "job_id": queued.id,
+            "pr_id": CANDIDATE_PR_ID,
+            "pr_number": 87,
+            "pr_title": "Mark fulfilled orders as shipped",
+            "kind": "comparison",
+            "status": "queued",
+            "stage": "queued",
+            "created_at": active["created_at"],
+            "updated_at": active["updated_at"],
+        }
+    ]
+    assert endpoints(app)[
+        "/api/repositories/{repository_id}/review-jobs/active"
+    ](ANALYTICS_REPOSITORY_ID) == []
     empty = endpoints(app)["/api/prs/{pr_id}/comparisons/latest"](CANDIDATE_PR_ID)
     assert empty["job_id"] is None
     assert empty["comparison"] is None
@@ -317,6 +336,9 @@ def test_comparison_job_completes_with_injected_clients(tmp_path, monkeypatch):
     assert endpoints(app)["/api/prs/{pr_id}/review-jobs/active"](
         CANDIDATE_PR_ID, "comparison"
     )["job_id"] is None
+    assert endpoints(app)[
+        "/api/repositories/{repository_id}/review-jobs/active"
+    ](ACME_REPOSITORY_ID) == []
 
 
 def test_queue_endpoints_reuse_active_jobs_and_schedule_once(tmp_path):

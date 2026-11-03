@@ -4,7 +4,7 @@
 
 ## Current State
 
-- Date: 2026-10-30
+- Date: 2026-11-03
 - Phase: G0–G5 MVP gates complete; the evolved judge demo was exercised against a restarted local API.
 - Implementation: The retain → recall → validate → review → feedback → supersede → ablate loop is verified locally against real Hindsight and Gemini. `CODEDNA_DEMO_SCENE=evolved` leaves `DEC-0103` active and `DEC-0042` superseded.
 - Git: `main` is initialized, connected to GitHub, and verified checkpoints are pushed without rewriting published history.
@@ -50,10 +50,11 @@
 - Review Workspace and Memory Lab now preserve the creation response's `reused` flag and announce reattachment before polling, distinguishing existing provider work from a newly scheduled call.
 - Active review/comparison diagnostics now carry backend-owned UTC creation/update timestamps through creation, discovery, and polling; the UI rejects malformed values and shows age with exact local time.
 - Review Workspace and Memory Lab now show an accessible warning after three minutes without a persisted job update; it conservatively keeps observing the same job and starts no retry/provider work.
+- Repository overview now shows repository-scoped queued/running review and comparison jobs with PR links and sanitized diagnostics from one read-only request; no job result polling, creation POST, or provider call is triggered.
 
 ## In Progress
 
-- Post-MVP work continues with repository-level visibility into active background work.
+- Post-MVP work continues with conservative overview refresh for active background work.
 
 ## Blocked
 
@@ -77,9 +78,21 @@
 
 ## Next Action
 
-Add a read-only active-work summary to the repository overview so ongoing review/comparison jobs are visible without opening each PR.
+Refresh the repository active-work snapshot conservatively while work is present so a judge can observe terminal disappearance without reloading the page.
 
 ## Session Log
+
+### 2026-11-03 — Repository-level active-work visibility
+
+- Goal: Make ongoing review/comparison jobs visible before a judge opens an individual PR, without causing provider work.
+- Implemented: repository-scoped active-job query, sanitized PR/job summary contract, overview Active work panel with PR links, timestamps, and the existing conservative stale warning.
+- Backend check: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests\test_review_jobs.py -q` → **6 passed**.
+- Frontend focused check: first Vitest attempt failed before collecting tests because its forks worker timed out; unchanged rerun `npm test -- --run src/ui.test.tsx` → **24 passed**.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **35 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 316.72 kB JavaScript and 14.55 kB CSS before gzip.
+- Safety: the overview performs one repository read and neither polls individual job results nor issues a creation POST.
+- Live app: restarted the API with Hindsight autostart disabled and the Vite UI; loopback checks returned API `ok`, Hindsight `unavailable`, 4 Acme PRs, 16 saved review runs, 0 active jobs, and HTTP 200 for the UI. No provider call was made.
+- Next: conservatively refresh the active-work snapshot only while active rows remain.
 
 ### 2026-10-30 — Conservative no-progress warning
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, type Decision, type PullRequestSummary, type Summary } from "../api";
+import { api, type Decision, type PullRequestSummary, type RepositoryActiveJob, type Summary } from "../api";
+import { ActiveJobDetails } from "../components/ActiveJobDetails";
 import { EmptyNote, ErrorNote, LoadingNote } from "../components/Status";
 import { designStatus, formatWhen, recentPullRequests, sourceLabel, statValue } from "../text";
 import { useWorkspace } from "../workspace";
@@ -12,6 +13,7 @@ export function OverviewPage() {
   const [summaryError, setSummaryError] = useState("");
   const [prs, setPrs] = useState<PullRequestSummary[]>([]);
   const [decisions, setDecisions] = useState<Decision[]>([]);
+  const [activeJobs, setActiveJobs] = useState<RepositoryActiveJob[]>([]);
   const [listError, setListError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -20,7 +22,7 @@ export function OverviewPage() {
     setLoading(true);
     setSummaryError("");
     setListError("");
-    Promise.allSettled([api.summary(repoId), api.prs(repoId), api.decisions(repoId)]).then(([summaryResult, prResult, decisionResult]) => {
+    Promise.allSettled([api.summary(repoId), api.prs(repoId), api.decisions(repoId), api.repositoryActiveJobs(repoId)]).then(([summaryResult, prResult, decisionResult, jobsResult]) => {
       if (cancelled) return;
       if (summaryResult.status === "fulfilled") setSummary(summaryResult.value);
       else {
@@ -32,8 +34,11 @@ export function OverviewPage() {
       else problems.push(prResult.reason instanceof Error ? prResult.reason.message : "Pull requests are unavailable.");
       if (decisionResult.status === "fulfilled") setDecisions(decisionResult.value);
       else problems.push(decisionResult.reason instanceof Error ? decisionResult.reason.message : "Decisions are unavailable.");
+      if (jobsResult.status === "fulfilled") setActiveJobs(jobsResult.value);
+      else problems.push(jobsResult.reason instanceof Error ? jobsResult.reason.message : "Active work is unavailable.");
       if (prResult.status === "rejected") setPrs([]);
       if (decisionResult.status === "rejected") setDecisions([]);
+      if (jobsResult.status === "rejected") setActiveJobs([]);
       setListError(problems.join(" "));
       setLoading(false);
     });
@@ -75,6 +80,33 @@ export function OverviewPage() {
         </section>
       ) : null}
       {listError ? <ErrorNote>{listError}</ErrorNote> : null}
+      {!loading && activeJobs.length > 0 ? (
+        <section className="card active-work" aria-labelledby="active-work-heading">
+          <div className="panel-head">
+            <div>
+              <h2 id="active-work-heading">Active work</h2>
+              <p className="quiet">Read-only status from persisted background jobs. Opening a PR does not start new provider work.</p>
+            </div>
+            <span className="nav-count" aria-label={`${activeJobs.length} active jobs`}>{activeJobs.length}</span>
+          </div>
+          <ul className="active-work-list">
+            {activeJobs.map((job) => (
+              <li key={job.jobId}>
+                <div>
+                  <Link to={`/repos/${repoId}/prs/${job.prId}`}>PR #{job.prNumber}: {job.prTitle}</Link>
+                  <p>{job.kind === "comparison" ? "Memory Lab comparison" : "Code review"} · {job.status} · {job.stage.replaceAll("_", " ")}</p>
+                </div>
+                <ActiveJobDetails
+                  jobId={job.jobId}
+                  status={`${job.status} · ${job.stage.replaceAll("_", " ")}`}
+                  createdAt={job.createdAt}
+                  updatedAt={job.updatedAt}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <div className="split">
         <section className="card list-card">
           <div className="panel-head">

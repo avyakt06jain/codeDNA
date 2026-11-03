@@ -6,7 +6,7 @@ from sqlalchemy import select
 from codedna_memory.constants import CANDIDATE_PR_ID
 from codedna_memory.database import create_database_engine, initialize_schema, seed_synthetic_provenance, session_factory
 from codedna_memory.models import ReviewJob
-from codedna_memory.review_jobs import claim_review_job, create_review_job, execute_review_job, find_active_review_job, reconcile_interrupted_jobs
+from codedna_memory.review_jobs import claim_review_job, create_review_job, execute_review_job, find_active_review_job, list_repository_active_jobs, reconcile_interrupted_jobs
 from codedna_memory.review_schemas import CandidateFinding, ReviewModelOutput
 
 
@@ -42,6 +42,33 @@ def test_active_job_discovery_is_scoped_to_pr_and_kind(tmp_path: Path):
         assert find_active_review_job(
             session, pr_id=CANDIDATE_PR_ID, kind="review"
         ) is None
+
+
+def test_repository_active_jobs_are_scoped_and_exclude_terminal_work(tmp_path: Path):
+    engine = create_database_engine(f"sqlite:///{tmp_path / 'repo-active-jobs.sqlite3'}")
+    initialize_schema(engine)
+    sessions = session_factory(engine)
+    with sessions() as session:
+        seed_synthetic_provenance(session)
+        active = create_review_job(
+            session, pr_id=CANDIDATE_PR_ID, memory_enabled=True, kind="comparison"
+        )
+        terminal = create_review_job(
+            session, pr_id=CANDIDATE_PR_ID, memory_enabled=False
+        )
+        terminal.status = "complete"
+        terminal.stage = "complete"
+        session.commit()
+
+        rows = list_repository_active_jobs(
+            session, repository_id="repo-acme-commerce"
+        )
+        assert [(job.id, pull_request.id) for job, pull_request in rows] == [
+            (active.id, CANDIDATE_PR_ID)
+        ]
+        assert list_repository_active_jobs(
+            session, repository_id="repo-analytics-service"
+        ) == []
 
 
 def test_concurrent_claims_reuse_one_active_job(tmp_path: Path):

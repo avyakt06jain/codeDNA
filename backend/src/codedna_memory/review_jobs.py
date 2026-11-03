@@ -9,7 +9,7 @@ from typing import Any, Callable
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
-from .models import PullRequest, ReviewJob
+from .models import PullRequest, Repository, ReviewJob
 from .review_model import ReviewModel
 from .review_service import ReviewService
 
@@ -67,6 +67,26 @@ def find_active_review_job(
             ReviewJob.status.in_(("queued", "running")),
         )
         .order_by(ReviewJob.updated_at.desc(), ReviewJob.created_at.desc(), ReviewJob.id.desc())
+    )
+
+
+def list_repository_active_jobs(
+    session: Session, *, repository_id: str
+) -> list[tuple[ReviewJob, PullRequest]]:
+    """Return nonterminal work for one repository without exposing other banks."""
+
+    if session.get(Repository, repository_id) is None:
+        raise ValueError("Repository not found")
+    return list(
+        session.execute(
+            select(ReviewJob, PullRequest)
+            .join(PullRequest, ReviewJob.pr_id == PullRequest.id)
+            .where(
+                PullRequest.repository_id == repository_id,
+                ReviewJob.status.in_(("queued", "running")),
+            )
+            .order_by(ReviewJob.updated_at.desc(), ReviewJob.id.desc())
+        ).all()
     )
 
 

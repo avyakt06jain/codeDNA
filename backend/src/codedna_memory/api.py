@@ -24,7 +24,7 @@ from .hindsight_runtime import get_runtime, shared_memory_client
 from .models import Decision, MemoryDocument, PullRequest, Repository, ReviewJob, ReviewRun
 from .policy_service import prepare_evolved_demo, record_feedback, supersede_decision
 from .review_model import GeminiReviewModel, ReviewModel
-from .review_jobs import claim_review_job, execute_review_job, find_active_review_job, reconcile_interrupted_jobs
+from .review_jobs import claim_review_job, execute_review_job, find_active_review_job, list_repository_active_jobs, reconcile_interrupted_jobs
 from .review_schemas import FeedbackRequest, ReviewCreated, ReviewRequest, SupersedeRequest
 from .review_service import ReviewService, serialize_review
 
@@ -430,6 +430,29 @@ def create_app(
                 "created_at": None if job is None else _utc_timestamp(job.created_at),
                 "updated_at": None if job is None else _utc_timestamp(job.updated_at),
             }
+
+    @app.get("/api/repositories/{repository_id}/review-jobs/active")
+    def repository_active_review_jobs(repository_id: str) -> list[dict[str, Any]]:
+        try:
+            with sessions() as session:
+                rows = list_repository_active_jobs(
+                    session, repository_id=repository_id
+                )
+                return [
+                    {
+                        "job_id": job.id,
+                        "pr_id": pull_request.id,
+                        "pr_number": pull_request.number,
+                        "pr_title": pull_request.title,
+                        "kind": job.kind,
+                        "status": job.status,
+                        "stage": job.stage,
+                        **_job_timestamps(job),
+                    }
+                    for job, pull_request in rows
+                ]
+        except ValueError as exc:
+            raise HTTPException(404, "Repository not found") from exc
 
     @app.post("/api/prs/{pr_id}/comparison", status_code=202)
     def queue_comparison(pr_id: str, background_tasks: BackgroundTasks) -> dict[str, Any]:

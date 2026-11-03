@@ -108,6 +108,7 @@ function installFetch(options?: {
   missingComparisonJob?: boolean;
   activeReviewJob?: boolean;
   activeComparisonJob?: boolean;
+  repositoryActiveJobs?: boolean;
   reusedReviewStart?: boolean;
   reusedComparisonStart?: boolean;
   pollDelayMs?: number;
@@ -135,6 +136,19 @@ function installFetch(options?: {
         review_run_count: 4,
         hindsight,
       });
+    }
+    if (path === "/api/repositories/repo-acme-commerce/review-jobs/active") {
+      return json(options?.repositoryActiveJobs ? [{
+        job_id: "job-cmp",
+        pr_id: "pr-acme-87",
+        pr_number: 87,
+        pr_title: "Update order status",
+        kind: "comparison",
+        status: "running",
+        stage: "running_memory_review",
+        created_at: jobCreatedAt,
+        updated_at: jobUpdatedAt,
+      }] : []);
     }
     if (path.endsWith("/prs")) return json(prs);
     if (path === "/api/prs/pr-acme-87" && method === "GET") {
@@ -440,6 +454,19 @@ it("shows overview counts from the summary without GitHub metrics", async () => 
   expect(screen.queryByText(/view on github/i)).toBeNull();
   expect(screen.queryByText(/\bstars\b/i)).toBeNull();
   expect(screen.queryByText(/contributors/i)).toBeNull();
+});
+
+it("shows repository active work without starting or polling provider work", async () => {
+  const fetchMock = installFetch({ repositoryActiveJobs: true });
+  renderAt("/");
+  const section = await screen.findByRole("region", { name: "Active work" });
+  expect(within(section).getByRole("link", { name: "PR #87: Update order status" })).toBeTruthy();
+  expect(within(section).getByText(/Memory Lab comparison · running · running memory review/i)).toBeTruthy();
+  expect(within(section).getByText(/has not reported progress for at least 3 minutes/i)).toBeTruthy();
+  fireEvent.click(within(section).getByText("Active job details"));
+  expect(within(section).getByText("job-cmp")).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(0);
 });
 
 it("lists wrapped decisions and opens the evolution lineage", async () => {
