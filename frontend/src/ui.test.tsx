@@ -154,6 +154,8 @@ function installFetch(options?: {
   reusedComparisonStart?: boolean;
   pollDelayMs?: number;
   evaluationCaseFailures?: number;
+  evaluationCaseFailuresAfter?: number;
+  evaluationCaseUpdateAfter?: number;
 }) {
   const hindsight = options?.hindsight ?? "ready";
   let reviewPollFailures = options?.reviewPollFailures ?? 0;
@@ -161,6 +163,7 @@ function installFetch(options?: {
   let repositoryActiveJobReads = 0;
   let repositoryActiveJobFailures = options?.repositoryActiveJobFailures ?? 0;
   let evaluationCaseFailures = options?.evaluationCaseFailures ?? 0;
+  let evaluationCaseReads = 0;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const url = new URL(raw, "http://localhost");
@@ -169,9 +172,21 @@ function installFetch(options?: {
     if (path === "/api/health") return json({ status: "ok", memory: "configured", hindsight, interrupted_jobs: options?.interruptedJobs ?? 0 });
     if (path === "/api/repositories") return json(repositories);
     if (path === "/api/evaluation-cases") {
-      if (evaluationCaseFailures > 0) {
+      evaluationCaseReads += 1;
+      if (evaluationCaseFailures > 0 && evaluationCaseReads > (options?.evaluationCaseFailuresAfter ?? 0)) {
         evaluationCaseFailures -= 1;
         return json({ detail: "temporary catalog outage" }, 503);
+      }
+      if (options?.evaluationCaseUpdateAfter && evaluationCaseReads >= options.evaluationCaseUpdateAfter) {
+        return json(evaluationCases.map((item, index) => index === 0 ? {
+          ...item,
+          latest_evaluation: {
+            ...item.latest_evaluation,
+            passed: false,
+            passed_checks: 5,
+            updated_at: "2026-11-05T00:00:00Z",
+          },
+        } : item));
       }
       return json(evaluationCases);
     }
@@ -734,6 +749,30 @@ it("opens a recorded fixture on its held-out candidate without starting work", a
   const selector = await screen.findByRole("combobox", { name: "Pull request" }) as HTMLSelectElement;
   await waitFor(() => expect(selector.value).toBe("pr-acme-120"));
   expect(screen.getByRole("link", { name: "Case selected" }).getAttribute("href")).toBe("/repos/repo-acme-commerce/lab?case=pr-acme-120");
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
+it("refreshes a healthy fixture catalog through GET only", async () => {
+  const fetchMock = installFetch({ evaluationCaseUpdateAfter: 2 });
+  renderAt("/repos/repo-acme-commerce/lab");
+  const fixtures = await screen.findByRole("region", { name: "Verified evaluation fixtures" });
+  expect(await within(fixtures).findAllByText(/6\/6 guardrails passed in latest stored run/)).toHaveLength(2);
+  fireEvent.click(within(fixtures).getByRole("button", { name: "Refresh fixture catalog" }));
+  expect(await within(fixtures).findByText(/5\/6 guardrails passed in latest stored run/)).toBeTruthy();
+  await waitFor(() => expect(document.activeElement).toBe(within(fixtures).getByRole("heading", { name: "Verified evaluation fixtures" })));
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/evaluation-cases"))).toHaveLength(2);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
+it("preserves the last fixture catalog when refresh recovery is exhausted", async () => {
+  const fetchMock = installFetch({ evaluationCaseFailures: 4, evaluationCaseFailuresAfter: 1 });
+  renderAt("/repos/repo-acme-commerce/lab");
+  const fixtures = await screen.findByRole("region", { name: "Verified evaluation fixtures" });
+  expect(await within(fixtures).findByText("Source PR #103 → held-out PR #120")).toBeTruthy();
+  fireEvent.click(within(fixtures).getByRole("button", { name: "Refresh fixture catalog" }));
+  expect(await within(fixtures).findByRole("button", { name: "Retry fixture catalog" })).toBeTruthy();
+  expect(within(fixtures).getByText("Source PR #103 → held-out PR #120")).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/evaluation-cases"))).toHaveLength(5);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 

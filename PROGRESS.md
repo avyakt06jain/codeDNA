@@ -62,10 +62,11 @@
 - Repository summary timers now pause while the document is hidden and resume with one immediate read-only check when visibility returns.
 - Memory Lab now reads both held-out cases from a backend-owned SQLite contract, including repository/source/candidate/active-decision metadata, latest stored guardrail results, and direct candidate-selection links.
 - Evaluation-catalog reads now recover from transient failures with bounded retries and an explicit GET-only retry action that preserves keyboard position.
+- A successfully loaded fixture catalog can now be refreshed through the same GET-only boundary; failed refreshes retain last-known-good case navigation.
 
 ## In Progress
 
-- Post-MVP work continues with cross-tab refresh of successful evaluation-catalog results.
+- Post-MVP work continues by synchronizing catalog results immediately after local comparison completion.
 
 ## Blocked
 
@@ -89,9 +90,20 @@
 
 ## Next Action
 
-Add an explicit read-only refresh for a successfully loaded Memory Lab fixture catalog so another tab's completed comparison can be observed without reloading.
+Refresh the Memory Lab fixture catalog automatically after a comparison completes on the current page, reusing the existing GET-only recovery boundary.
 
 ## Session Log
+
+### 2026-11-05 — Read-only fixture catalog refresh
+
+- Goal: Let a judge observe stored comparison changes from another tab without reloading Memory Lab or starting provider work.
+- Implemented: `Refresh fixture catalog` reuses the bounded GET-only loader, updates latest stored guardrail results, returns focus to the catalog heading, and preserves last-known-good rows when all refresh attempts fail.
+- Focused frontend check before the final preservation case: `npm test -- --run src/ui.test.tsx` → **37 passed**.
+- Full regression after all cases: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **49 passed across 4 files**. Refresh tests prove a second GET updates 6/6 to a newer stored 5/6 result, exhaustion retains the prior case, focus returns correctly, and zero POSTs are issued.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 323.71 kB JavaScript and 15.92 kB CSS before gzip.
+- Live app: API health returned `ok`, the catalog returned two cases, Memory Lab returned HTTP 200, and Hindsight remained truthfully `unavailable`.
+- Provider safety: healthy refresh and its failure recovery call only `GET /api/evaluation-cases`.
+- Next: trigger the same read-only refresh automatically after a comparison completes locally.
 
 ### 2026-11-05 — Recoverable evaluation-catalog reads
 

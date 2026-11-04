@@ -118,7 +118,6 @@ export function MemoryLabPage() {
         }
       }
       if (!cancelled) {
-        setEvaluationCases([]);
         setCasesError(failure instanceof Error ? failure.message : "Fixture catalog unavailable.");
       }
     })().finally(() => {
@@ -252,6 +251,11 @@ export function MemoryLabPage() {
         ? "Loading pull requests…"
         : "";
 
+  function reloadCatalog() {
+    manualCasesRetry.current = true;
+    setCasesRetryKey((value) => value + 1);
+  }
+
   async function runComparison() {
     if (!selected) return;
     setRunning(true);
@@ -367,10 +371,7 @@ export function MemoryLabPage() {
         {casesError ? (
           <div className="catalog-recovery">
             <ErrorNote>Fixture catalog unavailable: {casesError}</ErrorNote>
-            <button ref={casesRetryButton} type="button" className="secondary" disabled={casesLoading} onClick={() => {
-              manualCasesRetry.current = true;
-              setCasesRetryKey((value) => value + 1);
-            }}>
+            <button ref={casesRetryButton} type="button" className="secondary" disabled={casesLoading} onClick={reloadCatalog}>
               Retry fixture catalog
             </button>
           </div>
@@ -403,6 +404,11 @@ export function MemoryLabPage() {
             );
           })}
         </ul>
+        {!casesLoading && !casesError && evaluationCases.length > 0 ? (
+          <button type="button" className="secondary catalog-refresh" onClick={reloadCatalog}>
+            Refresh fixture catalog
+          </button>
+        ) : null}
       </section>
       <div className="lab-controls">
         <label>
