@@ -182,6 +182,15 @@ export function OverviewPage() {
         </ErrorNote>
       ) : null}
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{activeWorkAnnouncement}</p>
+      {!loading && activeJobsCheckedAt && activeJobs.length === 0 && !activeJobsError ? (
+        <section className="card active-work-empty" aria-labelledby="no-active-work-heading">
+          <h2 id="no-active-work-heading">No active work</h2>
+          <p>No queued or running CodeDNA reviews or Memory Lab comparisons were found.</p>
+          <p className="quiet active-work-checked">
+            Last checked <time dateTime={activeJobsCheckedAt}>{formatWhen(activeJobsCheckedAt) ?? activeJobsCheckedAt}</time>
+          </p>
+        </section>
+      ) : null}
       {!loading && activeJobs.length > 0 ? (
         <section className="card active-work" aria-labelledby="active-work-heading">
           <div className="panel-head">

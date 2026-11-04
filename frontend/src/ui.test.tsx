@@ -467,12 +467,17 @@ it("shows overview counts from the summary without GitHub metrics", async () => 
   expect(screen.queryByText(/\bstars\b/i)).toBeNull();
   expect(screen.queryByText(/contributors/i)).toBeNull();
   expect(screen.queryByText(/Active work is no longer running/i)).toBeNull();
+  const emptyWork = screen.getByRole("region", { name: "No active work" });
+  expect(within(emptyWork).getByText(/No queued or running CodeDNA reviews or Memory Lab comparisons/i)).toBeTruthy();
+  const lastChecked = within(emptyWork).getByText(/Last checked/i).querySelector("time");
+  expect(Number.isFinite(Date.parse(lastChecked?.getAttribute("datetime") ?? ""))).toBe(true);
 });
 
 it("shows repository active work without starting or polling provider work", async () => {
   const fetchMock = installFetch({ repositoryActiveJobs: true });
   renderAt("/");
   const section = await screen.findByRole("region", { name: "Active work" });
+  expect(screen.queryByRole("region", { name: "No active work" })).toBeNull();
   expect(within(section).getByRole("link", { name: "PR #87: Update order status" })).toBeTruthy();
   expect(within(section).getByText(/Memory Lab comparison · running · running memory review/i)).toBeTruthy();
   const lastChecked = within(section).getByText(/Last checked/i).querySelector("time");
@@ -534,7 +539,7 @@ it("returns focus to the retry action when another bounded cycle fails", async (
   retry.focus();
   fireEvent.click(retry);
   await waitFor(() => expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/repositories/repo-acme-commerce/review-jobs/active"))).toHaveLength(8));
-  expect(document.activeElement).toBe(screen.getByRole("button", { name: "Check active work again" }));
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Check active work again" })));
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 

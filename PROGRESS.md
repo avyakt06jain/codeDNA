@@ -57,10 +57,11 @@
 - After overview-summary recovery is exhausted, an explicit `Check active work again` button starts a fresh bounded read-only cycle and disappears on success.
 - Manual summary retry now restores focus to the resulting Active work heading, the overview heading for an empty result, or the recreated retry action after another failure.
 - Active work now displays a localized, machine-readable `Last checked` time set only after a successful repository-summary response.
+- Successful empty summaries now render a compact `No active work` card with its check time rather than leaving monitoring state implicit.
 
 ## In Progress
 
-- Post-MVP work continues with an explicit observed-empty state for repository-level work.
+- Post-MVP work continues with manual discovery of work started after an empty summary.
 
 ## Blocked
 
@@ -84,9 +85,20 @@
 
 ## Next Action
 
-Show a compact read-only `No active work` state with its successful check time so an empty overview is also demonstrably observed.
+Add an explicit summary-only refresh action to `No active work` so work started in another tab can be discovered without reloading.
 
 ## Session Log
+
+### 2026-11-04 — Observed empty active-work state
+
+- Goal: Make a successful empty repository job check visible instead of making absence indistinguishable from an unobserved state.
+- Implemented: a compact `No active work` card names queued/running review and comparison scope and shows the successful machine-readable/localized check time.
+- Focused frontend check: the first run exposed an unrelated focus-effect timing assertion; it was corrected to wait for focus. Final `npm test -- --run src/ui.test.tsx` → **29 passed**, including observed-empty content/timestamp and active/empty mutual exclusion.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **40 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 318.77 kB JavaScript and 14.73 kB CSS before gzip.
+- Provider safety: the state reuses the existing repository-summary response and adds no API or provider calls.
+- Live app: loopback returned API `ok` and UI HTTP 200 after hot reload; Hindsight remained truthfully `unavailable` and no provider startup was attempted.
+- Next: let the user refresh this empty summary explicitly without reloading the page.
 
 ### 2026-11-04 — Active-summary freshness
 

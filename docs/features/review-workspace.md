@@ -34,6 +34,8 @@ Manual summary recovery preserves keyboard position by focusing restored Active 
 
 Visible Active work includes the latest successful repository-summary check time, separate from each job's backend-owned creation/update timestamps.
 
+When that summary is successfully empty, the overview renders a timestamped `No active work` state rather than implying the review workspace itself was never checked.
+
 If the backend confirms that the saved active job is missing, the workspace clears the stale locator and reads the latest completed memory review for that PR. It restores that review when available; otherwise it shows explicit guidance to start a new review. This fallback is read-only.
 
 Finding locations are navigation controls rather than decorative labels. Activating a line-specific location selects its file and moves programmatic focus to the validated changed line, which receives a visible focus outline and an accessible line label. Findings without a line fall back to the diff region. Manual file selection and a new review clear the previous target.

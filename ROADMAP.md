@@ -132,7 +132,8 @@
 - **Verified:** After bounded overview-summary recovery is exhausted, `Check active work again` starts a fresh summary-only cycle; tests prove the action issues no job-result GET or creation POST.
 - **Verified:** Manual summary retry preserves keyboard position by focusing restored Active work, the overview heading for an empty success, or the recreated retry action after another failure.
 - **Verified:** Active work shows a parseable, localized `Last checked` time from the latest successful repository-summary response; transient failures do not mislabel a failed attempt as fresh.
-- **Next:** Show a compact read-only `No active work` state with its successful check time so an empty overview is also demonstrably observed.
+- **Verified:** A successful empty repository-summary response renders a compact `No active work` state with the same parseable check time, without implying that provider work was run.
+- **Next:** Add an explicit summary-only refresh action to `No active work` so work started in another tab can be discovered without reloading.
 
 ## Documentation and version-control policy
 
