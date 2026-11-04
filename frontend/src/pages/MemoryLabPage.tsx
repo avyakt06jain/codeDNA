@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { api, MissingJobError, PollingUnavailableError, TerminalJobError, type Comparison, type JobTiming, type PullRequestSummary, type Review } from "../api";
+import { api, MissingJobError, PollingUnavailableError, TerminalJobError, type Comparison, type EvaluationCase, type JobTiming, type PullRequestSummary, type Review } from "../api";
 import { clearActiveJob, loadActiveJob, saveActiveJob } from "../activeJobs";
 import { ActiveJobDetails } from "../components/ActiveJobDetails";
 import { FindingArticle } from "../components/FindingArticle";
 import { EmptyNote, ErrorNote, LiveStatus, LoadingNote } from "../components/Status";
-import { comparisonStageLabel, EVALUATION_CASES, formatSeconds, humanize, preferredPullRequestId, traceSteps } from "../text";
+import { comparisonStageLabel, formatSeconds, formatWhen, humanize, preferredPullRequestId, traceSteps } from "../text";
 import { useWorkspace } from "../workspace";
 
 function RunColumn({ title, note, review }: { title: string; note: string; review: Review }) {
@@ -35,6 +35,9 @@ export function MemoryLabPage() {
   const { hindsight } = useWorkspace();
   const alive = useRef(true);
   const [prs, setPrs] = useState<PullRequestSummary[]>([]);
+  const [evaluationCases, setEvaluationCases] = useState<EvaluationCase[]>([]);
+  const [casesLoading, setCasesLoading] = useState(true);
+  const [casesError, setCasesError] = useState("");
   const [prId, setPrId] = useState("");
   const [loading, setLoading] = useState(true);
   const [restoring, setRestoring] = useState(false);
@@ -83,6 +86,27 @@ export function MemoryLabPage() {
       cancelled = true;
     };
   }, [repoId, requestedCaseId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setCasesLoading(true);
+    api.evaluationCases()
+      .then((rows) => {
+        if (!cancelled) {
+          setEvaluationCases(rows);
+          setCasesError("");
+        }
+      })
+      .catch((reason: Error) => {
+        if (!cancelled) setCasesError(reason.message);
+      })
+      .finally(() => {
+        if (!cancelled) setCasesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -307,22 +331,31 @@ export function MemoryLabPage() {
             <h2 id="evaluation-cases-title">Verified evaluation fixtures</h2>
             <p>Two synthetic held-out cases have recorded live Hindsight/Gemini proofs. These are case counts, not an accuracy score.</p>
           </div>
-          <span>2 cases</span>
+          <span>{evaluationCases.length} {evaluationCases.length === 1 ? "case" : "cases"}</span>
         </div>
+        {casesLoading ? <p className="hint">Loading fixture catalog…</p> : null}
+        {casesError ? <p className="hint">Fixture catalog unavailable: {casesError}</p> : null}
+        {!casesLoading && !casesError && evaluationCases.length === 0 ? <p className="hint">No authoritative evaluation fixtures are available.</p> : null}
         <ul>
-          {EVALUATION_CASES.map((item) => {
-            const active = repoId === item.repositoryId && selected === item.candidatePrId;
+          {evaluationCases.map((item) => {
+            const active = repoId === item.repository_id && selected === item.candidate_pr_id;
+            const recorded = item.latest_evaluation;
             return (
-              <li key={item.candidatePrId} className={active ? "active" : undefined}>
+              <li key={item.candidate_pr_id} className={active ? "active" : undefined}>
                 <div>
-                  <strong>{item.repositoryName}</strong>
-                  <span>Source PR #{item.sourcePrNumber} → held-out PR #{item.candidatePrNumber}</span>
-                  <span>{item.decisionId} · {item.recordedChecks}/6 guardrails recorded</span>
+                  <strong>{item.repository_name}</strong>
+                  <span>Source PR #{item.source_pr_number} → held-out PR #{item.candidate_pr_number}</span>
+                  <span>{item.decision_id} · {item.decision_status}</span>
+                  <span>
+                    {recorded
+                      ? `${recorded.passed_checks}/${recorded.total_checks} guardrails passed in latest stored run${recorded.updated_at ? ` · ${formatWhen(recorded.updated_at)}` : ""}`
+                      : "No completed comparison recorded in this database"}
+                  </span>
                 </div>
                 <Link
                   className="secondary"
                   aria-current={active ? "true" : undefined}
-                  to={`/repos/${item.repositoryId}/lab?case=${item.candidatePrId}`}
+                  to={`/repos/${item.repository_id}/lab?case=${item.candidate_pr_id}`}
                 >
                   {active ? "Case selected" : "Open case"}
                 </Link>

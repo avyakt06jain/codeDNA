@@ -18,6 +18,14 @@ SUPERSESSION_SOURCE_PR_ID = "pr-acme-103"
 SUPERSESSION_CANDIDATE_PR_ID = "pr-acme-120"
 SUPERSEDING_DECISION_ID = "DEC-0103"
 SUPERSEDING_DOCUMENT_ID = "decision-DEC-0103"
+
+# Backend-owned registry for the two synthetic, repository-isolated evaluation
+# fixtures. All user-facing repository, PR, decision, and result fields are
+# resolved from SQLite before a case is exposed by the API.
+EVALUATION_CASE_SPECS = (
+    (SUPERSESSION_CANDIDATE_PR_ID, SUPERSEDING_DECISION_ID),
+    (ANALYTICS_CANDIDATE_PR_ID, ANALYTICS_DECISION_ID),
+)
 SHIPPING_DECISION_TITLE = "Shipment transitions use the shipping workflow"
 SHIPPING_DECISION_RULE = "Use OrderWorkflow.shipOrder() for transitions to shipped."
 SHIPPING_DECISION_RATIONALE = (

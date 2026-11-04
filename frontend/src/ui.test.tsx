@@ -13,6 +13,43 @@ const prs = [
   { id: "pr-acme-120", number: 120, title: "Ship replacement orders", created_at: "2026-10-25T12:00:00Z" },
 ];
 
+const evaluationCases = [
+  {
+    repository_id: "repo-acme-commerce",
+    repository_name: "Acme Commerce",
+    source_pr_id: "pr-acme-103",
+    source_pr_number: 103,
+    candidate_pr_id: "pr-acme-120",
+    candidate_pr_number: 120,
+    decision_id: "DEC-0103",
+    decision_status: "active",
+    latest_evaluation: {
+      job_id: "job-acme-proof",
+      passed: true,
+      passed_checks: 6,
+      total_checks: 6,
+      updated_at: "2026-10-27T12:00:00Z",
+    },
+  },
+  {
+    repository_id: "repo-analytics-service",
+    repository_name: "Analytics Service",
+    source_pr_id: "pr-analytics-11",
+    source_pr_number: 11,
+    candidate_pr_id: "pr-analytics-29",
+    candidate_pr_number: 29,
+    decision_id: "DEC-0211",
+    decision_status: "active",
+    latest_evaluation: {
+      job_id: "job-analytics-proof",
+      passed: true,
+      passed_checks: 6,
+      total_checks: 6,
+      updated_at: "2026-10-27T13:00:00Z",
+    },
+  },
+];
+
 const diff = [
   "diff --git a/src/orders/update.ts b/src/orders/update.ts",
   "--- a/src/orders/update.ts",
@@ -129,6 +166,7 @@ function installFetch(options?: {
     const method = (init?.method ?? "GET").toUpperCase();
     if (path === "/api/health") return json({ status: "ok", memory: "configured", hindsight, interrupted_jobs: options?.interruptedJobs ?? 0 });
     if (path === "/api/repositories") return json(repositories);
+    if (path === "/api/evaluation-cases") return json(evaluationCases);
     if (path.endsWith("/summary")) {
       return json({
         repository_id: "repo-acme-commerce",
@@ -671,9 +709,10 @@ it("makes both recorded held-out evaluation fixtures inspectable in Memory Lab",
   const fixtures = await screen.findByRole("region", { name: "Verified evaluation fixtures" });
   expect(within(fixtures).getByText("2 cases")).toBeTruthy();
   expect(within(fixtures).getByText("Source PR #103 → held-out PR #120")).toBeTruthy();
-  expect(within(fixtures).getByText("DEC-0103 · 6/6 guardrails recorded")).toBeTruthy();
+  expect(within(fixtures).getByText("DEC-0103 · active")).toBeTruthy();
   expect(within(fixtures).getByText("Source PR #11 → held-out PR #29")).toBeTruthy();
-  expect(within(fixtures).getByText("DEC-0211 · 6/6 guardrails recorded")).toBeTruthy();
+  expect(within(fixtures).getByText("DEC-0211 · active")).toBeTruthy();
+  expect(within(fixtures).getAllByText(/6\/6 guardrails passed in latest stored run/)).toHaveLength(2);
   const links = within(fixtures).getAllByRole("link", { name: "Open case" }) as HTMLAnchorElement[];
   expect(links.map((link) => link.getAttribute("href"))).toEqual([
     "/repos/repo-acme-commerce/lab?case=pr-acme-120",

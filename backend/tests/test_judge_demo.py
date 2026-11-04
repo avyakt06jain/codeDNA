@@ -24,6 +24,7 @@ from codedna_memory.constants import (
     DECISION_ID,
     DOCUMENT_ID,
     SHIPPING_DECISION_RULE,
+    SOURCE_PR_ID,
     SUPERSEDING_DECISION_ID,
     SUPERSEDING_DOCUMENT_ID,
 )
@@ -142,9 +143,33 @@ def test_repository_summary_and_decision_lineage(tmp_path):
     assert analytics["active_decisions"] == 1
     assert analytics["hindsight"] == "unavailable"
 
+    assert [item["candidate_pr_number"] for item in route["/api/evaluation-cases"]()] == [29]
+
     engine = create_database_engine(url)
     with session_factory(engine)() as session:
         prepare_evolved_demo(session)
+
+    cases = route["/api/evaluation-cases"]()
+    assert [item["candidate_pr_number"] for item in cases] == [120, 29]
+    assert [item["source_pr_number"] for item in cases] == [103, 11]
+    assert [item["decision_id"] for item in cases] == [
+        SUPERSEDING_DECISION_ID,
+        ANALYTICS_DECISION_ID,
+    ]
+    assert all(item["decision_status"] == "active" for item in cases)
+    assert all(item["latest_evaluation"] is None for item in cases)
+
+    with session_factory(engine)() as session:
+        analytics_decision = session.get(Decision, ANALYTICS_DECISION_ID)
+        assert analytics_decision is not None
+        analytics_decision.source_pr_id = SOURCE_PR_ID
+        session.commit()
+    assert [item["candidate_pr_number"] for item in route["/api/evaluation-cases"]()] == [120]
+    with session_factory(engine)() as session:
+        analytics_decision = session.get(Decision, ANALYTICS_DECISION_ID)
+        assert analytics_decision is not None
+        analytics_decision.source_pr_id = ANALYTICS_PR_ID
+        session.commit()
 
     items = route["/api/decisions/{decision_id}/lineage"](SUPERSEDING_DECISION_ID)["items"]
     assert [item["id"] for item in items] == [DECISION_ID, SUPERSEDING_DECISION_ID]

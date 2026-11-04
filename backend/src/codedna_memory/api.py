@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from .constants import EVALUATION_CASE_SPECS
 from .database import (
     create_database_engine,
     initialize_schema,
@@ -160,6 +161,66 @@ def _serialize_comparison(session: Session, job: ReviewJob) -> dict[str, Any] | 
     }
 
 
+def _latest_comparison_job(session: Session, pr_id: str) -> ReviewJob | None:
+    return session.scalar(
+        select(ReviewJob)
+        .where(
+            ReviewJob.pr_id == pr_id,
+            ReviewJob.kind == "comparison",
+            ReviewJob.status == "complete",
+            ReviewJob.review_run_id.is_not(None),
+            ReviewJob.baseline_run_id.is_not(None),
+        )
+        .order_by(ReviewJob.updated_at.desc(), ReviewJob.id.desc())
+    )
+
+
+def _evaluation_case_payloads(session: Session) -> list[dict[str, Any]]:
+    payloads: list[dict[str, Any]] = []
+    for candidate_id, decision_id in EVALUATION_CASE_SPECS:
+        candidate = session.get(PullRequest, candidate_id)
+        decision = session.get(Decision, decision_id)
+        if candidate is None or decision is None or decision.status != "active":
+            continue
+        repository = session.get(Repository, candidate.repository_id)
+        source = session.get(PullRequest, decision.source_pr_id)
+        if (
+            repository is None
+            or source is None
+            or decision.repository_id != repository.id
+            or source.repository_id != repository.id
+        ):
+            continue
+        latest_job = _latest_comparison_job(session, candidate.id)
+        latest_evaluation = None
+        if latest_job is not None:
+            comparison = _serialize_comparison(session, latest_job)
+            if comparison is not None:
+                evaluation = comparison["evaluation"]
+                checks = evaluation.get("checks", {})
+                latest_evaluation = {
+                    "job_id": latest_job.id,
+                    "passed": evaluation.get("passed") is True,
+                    "passed_checks": sum(value is True for value in checks.values()),
+                    "total_checks": len(checks),
+                    "updated_at": _utc_timestamp(latest_job.updated_at),
+                }
+        payloads.append(
+            {
+                "repository_id": repository.id,
+                "repository_name": repository.display_name,
+                "source_pr_id": source.id,
+                "source_pr_number": source.number,
+                "candidate_pr_id": candidate.id,
+                "candidate_pr_number": candidate.number,
+                "decision_id": decision.id,
+                "decision_status": decision.status,
+                "latest_evaluation": latest_evaluation,
+            }
+        )
+    return payloads
+
+
 def create_app(
     *,
     database_url: str | None = None,
@@ -211,6 +272,11 @@ def create_app(
         with sessions() as session:
             rows = session.scalars(select(Repository).order_by(Repository.slug)).all()
             return [{"id": row.id, "slug": row.slug, "display_name": row.display_name} for row in rows]
+
+    @app.get("/api/evaluation-cases")
+    def evaluation_cases() -> list[dict[str, Any]]:
+        with sessions() as session:
+            return _evaluation_case_payloads(session)
 
     @app.get("/api/repositories/{repository_id}/prs")
     def pull_requests(repository_id: str) -> list[dict[str, Any]]:
@@ -506,17 +572,7 @@ def create_app(
         with sessions() as session:
             if session.get(PullRequest, pr_id) is None:
                 raise HTTPException(404, "Pull request not found")
-            job = session.scalar(
-                select(ReviewJob)
-                .where(
-                    ReviewJob.pr_id == pr_id,
-                    ReviewJob.kind == "comparison",
-                    ReviewJob.status == "complete",
-                    ReviewJob.review_run_id.is_not(None),
-                    ReviewJob.baseline_run_id.is_not(None),
-                )
-                .order_by(ReviewJob.updated_at.desc(), ReviewJob.id.desc())
-            )
+            job = _latest_comparison_job(session, pr_id)
             comparison = None if job is None else _serialize_comparison(session, job)
             return {
                 "pr_id": pr_id,

@@ -60,11 +60,11 @@
 - Successful empty summaries now render a compact `No active work` card with its check time rather than leaving monitoring state implicit.
 - `No active work` now offers a summary-only refresh that can discover newly queued work from another tab, focus it, and resume normal read-only monitoring.
 - Repository summary timers now pause while the document is hidden and resume with one immediate read-only check when visibility returns.
-- Memory Lab now exposes both recorded held-out cases in-product, including source/candidate PRs, decision IDs, recorded guardrail counts, and direct candidate-selection links.
+- Memory Lab now reads both held-out cases from a backend-owned SQLite contract, including repository/source/candidate/active-decision metadata, latest stored guardrail results, and direct candidate-selection links.
 
 ## In Progress
 
-- Post-MVP work continues by moving evaluation-case discovery behind backend-owned SQLite data.
+- Post-MVP work continues with recoverable evaluation-catalog reads in Memory Lab.
 
 ## Blocked
 
@@ -88,9 +88,21 @@
 
 ## Next Action
 
-Derive the Memory Lab evaluation-case manifest from a read-only backend contract backed by authoritative SQLite records instead of duplicating fixture IDs in the frontend.
+Add a bounded, explicit read-only retry for Memory Lab evaluation-catalog outages without starting comparison/provider work.
 
 ## Session Log
+
+### 2026-11-04 — Backend-owned evaluation fixture catalog
+
+- Goal: Remove duplicated fixture truth from the frontend and make each displayed result correspond to authoritative stored records.
+- Implemented: `GET /api/evaluation-cases` fail-closed resolution of candidate, active decision, source PR, and repository; newest complete paired comparison evaluation; typed frontend normalization; truthful no-result state; and candidate selection constrained by the repository PR response.
+- Focused checks: `.\.venv\Scripts\python.exe -m pytest backend\tests\test_evaluation.py backend\tests\test_judge_demo.py -q` → **13 passed**; `npm test -- --run src/ui.test.tsx src/text.test.ts` → **41 passed across 2 files**.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `.\.venv\Scripts\python.exe -m compileall -q backend\src backend\tests` → **PASS**; `npm test -- --run` → **44 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 322.83 kB JavaScript and 15.81 kB CSS before gzip.
+- Live correction: the first restart from the repository root **FAILED** with `ModuleNotFoundError: codedna_memory`; the exact prior listener was already stopped, so the API was relaunched from `backend` with the verified `.venv` and no Hindsight autostart.
+- Live verification: API health returned `ok`, Hindsight remained truthfully `unavailable`, Memory Lab returned HTTP 200, and the SQLite-backed catalog returned exactly PR #120/`DEC-0103` and PR #29/`DEC-0211`, each with a recomputed 6/6 latest stored result.
+- Provider safety: catalog fetch/navigation is read-only and neither starts a comparison nor contacts Hindsight/Gemini.
+- Next: make temporary catalog-read failures explicitly retryable through the same GET-only boundary.
 
 ### 2026-11-04 — Inspectable Memory Lab fixture catalog
 

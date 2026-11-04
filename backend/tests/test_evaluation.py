@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+from codedna_memory.api import create_app
 from codedna_memory.constants import (
     ANALYTICS_BANK_ID,
     ANALYTICS_CANDIDATE_PR_DIFF,
@@ -16,7 +17,7 @@ from codedna_memory.database import (
 )
 from codedna_memory.diff_parser import build_memory_query, parse_unified_diff
 from codedna_memory.evaluation import evaluate_comparison
-from codedna_memory.models import MemoryDocument, PullRequest
+from codedna_memory.models import MemoryDocument, PullRequest, ReviewJob
 from codedna_memory.review_schemas import CandidateFinding, ReviewModelOutput
 from codedna_memory.review_service import ReviewService, serialize_review
 
@@ -148,7 +149,8 @@ def test_second_held_out_case_is_grounded_and_uncontaminated(tmp_path):
     ):
         assert leaked_answer not in candidate_blob
 
-    engine = create_database_engine(f"sqlite:///{tmp_path / 'analytics-evaluation.sqlite3'}")
+    database_url = f"sqlite:///{tmp_path / 'analytics-evaluation.sqlite3'}"
+    engine = create_database_engine(database_url)
     initialize_schema(engine)
     client = AnalyticsRecallClient()
     with session_factory(engine)() as session:
@@ -170,6 +172,19 @@ def test_second_held_out_case_is_grounded_and_uncontaminated(tmp_path):
         )
         memory = serialize_review(session, memory_run)
         baseline = serialize_review(session, baseline_run)
+        session.add(
+            ReviewJob(
+                id="job-analytics-evaluation",
+                pr_id=ANALYTICS_CANDIDATE_PR_ID,
+                memory_enabled=True,
+                kind="comparison",
+                status="complete",
+                stage="complete",
+                review_run_id=memory_run.id,
+                baseline_run_id=baseline_run.id,
+            )
+        )
+        session.commit()
 
     assert len(client.calls) == 1
     assert client.calls[0]["bank_id"] == ANALYTICS_BANK_ID
@@ -191,3 +206,17 @@ def test_second_held_out_case_is_grounded_and_uncontaminated(tmp_path):
     result = evaluate_comparison(memory, baseline)
     assert result["passed"] is True
     assert all(result["checks"].values())
+
+    app = create_app(database_url=database_url, model_factory=AnalyticsEvaluationModel)
+    route = {item.path: item.endpoint for item in app.routes if hasattr(item, "path")}
+    cases = route["/api/evaluation-cases"]()
+    analytics = next(item for item in cases if item["candidate_pr_id"] == ANALYTICS_CANDIDATE_PR_ID)
+    assert analytics["repository_name"] == "Analytics Service (synthetic)"
+    assert analytics["source_pr_id"] == ANALYTICS_PR_ID
+    assert analytics["source_pr_number"] == 11
+    assert analytics["decision_id"] == ANALYTICS_DECISION_ID
+    assert analytics["latest_evaluation"]["job_id"] == "job-analytics-evaluation"
+    assert analytics["latest_evaluation"]["passed"] is True
+    assert analytics["latest_evaluation"]["passed_checks"] == 6
+    assert analytics["latest_evaluation"]["total_checks"] == 6
+    assert analytics["latest_evaluation"]["updated_at"].endswith("Z")

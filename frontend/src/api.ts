@@ -13,6 +13,24 @@ export type Repository = {
   display_name: string;
 };
 
+export type EvaluationCase = {
+  repository_id: string;
+  repository_name: string;
+  source_pr_id: string;
+  source_pr_number: number;
+  candidate_pr_id: string;
+  candidate_pr_number: number;
+  decision_id: string;
+  decision_status: string;
+  latest_evaluation: {
+    job_id: string;
+    passed: boolean;
+    passed_checks: number;
+    total_checks: number;
+    updated_at?: string;
+  } | null;
+};
+
 export type Summary = {
   repository_id?: string;
   slug?: string;
@@ -434,6 +452,10 @@ function jobFailure(job: ReviewJob, fallback: string): TerminalJobError {
 export const api = {
   health: async () => normalizeHealth(await request<unknown>("/api/health")),
   repositories: async () => unwrapRecords(await request<unknown>("/api/repositories")).map(normalizeRepository),
+  evaluationCases: async () => unwrapRecords(await request<unknown>("/api/evaluation-cases")).flatMap((row) => {
+    const item = normalizeEvaluationCase(row);
+    return item ? [item] : [];
+  }),
   summary: async (repositoryId: string) => normalizeSummary(await request<unknown>(`/api/repositories/${repositoryId}/summary`)),
   prs: async (repositoryId: string) => unwrapRecords(await request<unknown>(`/api/repositories/${repositoryId}/prs`)).map(normalizePullRequestSummary),
   pr: async (prId: string) => normalizePullRequest(await request<unknown>(`/api/prs/${prId}`)),
@@ -573,6 +595,46 @@ function normalizeRepository(raw: Record<string, unknown>): Repository {
     id,
     slug,
     display_name: String(raw.display_name ?? slug ?? id ?? "Repository"),
+  };
+}
+
+function normalizeEvaluationCase(raw: Record<string, unknown>): EvaluationCase | null {
+  const repositoryId = asString(raw.repository_id)?.trim();
+  const repositoryName = asString(raw.repository_name)?.trim();
+  const sourcePrId = asString(raw.source_pr_id)?.trim();
+  const sourcePrNumber = asNumber(raw.source_pr_number);
+  const candidatePrId = asString(raw.candidate_pr_id)?.trim();
+  const candidatePrNumber = asNumber(raw.candidate_pr_number);
+  const decisionId = asString(raw.decision_id)?.trim();
+  const decisionStatus = asString(raw.decision_status)?.trim();
+  if (!repositoryId || !repositoryName || !sourcePrId || !sourcePrNumber || !candidatePrId || !candidatePrNumber || !decisionId || !decisionStatus) return null;
+
+  const evaluation = isRecord(raw.latest_evaluation) ? raw.latest_evaluation : null;
+  let latestEvaluation: EvaluationCase["latest_evaluation"] = null;
+  if (evaluation) {
+    const jobId = jobIdFrom(evaluation.job_id);
+    const passedChecks = asNumber(evaluation.passed_checks);
+    const totalChecks = asNumber(evaluation.total_checks);
+    if (jobId && typeof evaluation.passed === "boolean" && passedChecks !== undefined && totalChecks !== undefined && passedChecks >= 0 && totalChecks > 0 && passedChecks <= totalChecks) {
+      latestEvaluation = {
+        job_id: jobId,
+        passed: evaluation.passed,
+        passed_checks: passedChecks,
+        total_checks: totalChecks,
+        updated_at: normalizeJobTimestamp(evaluation.updated_at),
+      };
+    }
+  }
+  return {
+    repository_id: repositoryId,
+    repository_name: repositoryName,
+    source_pr_id: sourcePrId,
+    source_pr_number: sourcePrNumber,
+    candidate_pr_id: candidatePrId,
+    candidate_pr_number: candidatePrNumber,
+    decision_id: decisionId,
+    decision_status: decisionStatus,
+    latest_evaluation: latestEvaluation,
   };
 }
 

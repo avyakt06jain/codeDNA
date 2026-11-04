@@ -136,7 +136,8 @@
 - **Verified:** `Check for active work` refreshes an observed-empty summary, discovers work queued elsewhere, restores focus to Active work, and issues no job-result GET or creation POST.
 - **Verified:** Repository summary timers pause while the document is hidden; an initially hidden overview performs no summary GET and visibility restoration triggers one immediate read-only check.
 - **Verified:** Memory Lab exposes both recorded held-out cases with repository, source PR, candidate PR, decision ID, and 6/6 recorded guardrails; opening a case selects its fetched candidate and starts no provider work.
-- **Next:** Move the evaluation-case manifest behind a read-only backend contract derived from authoritative SQLite fixture records, removing duplicated frontend identifiers.
+- **Verified:** `GET /api/evaluation-cases` resolves repository/source/candidate/active-decision metadata and the newest valid stored comparison from SQLite; invalid or cross-repository records fail closed, and the frontend no longer owns fixture identifiers.
+- **Next:** Add a bounded, explicit read-only retry for evaluation-catalog outages so temporary API failures do not leave Memory Lab fixture navigation stranded.
 
 ## Documentation and version-control policy
 
