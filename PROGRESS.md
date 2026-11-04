@@ -69,7 +69,6 @@
 ## Blocked
 
 - No implementation blocker. The currently restarted API reports Hindsight unavailable after Gemini returned `503 UNAVAILABLE` during provider verification; saved reviews/comparisons and citation inspection remain usable, while new memory calls require provider recovery and an API restart.
-- GitHub synchronization is temporarily blocked: local commit `6b1d99a` is preserved, but two unchanged `git push origin main` attempts returned `Permission denied (publickey)`; no amend or force-push was used.
 
 ## Known Limitations
 
@@ -89,9 +88,18 @@
 
 ## Next Action
 
-Restore GitHub SSH authentication and push local commit `6b1d99a` without amending or force-pushing; then add a bounded, explicit read-only retry for Memory Lab evaluation-catalog outages.
+Add a bounded, explicit read-only retry for Memory Lab evaluation-catalog outages without starting comparison/provider work.
 
 ## Session Log
+
+### 2026-11-04 — GitHub synchronization recovery
+
+- Goal: Recover the two preserved local commits without rewriting history.
+- Verification: `git ls-remote git@github.com:avyakt06jain/codeDNA.git HEAD` succeeded and confirmed the remote still ended at `66880d2` before synchronization.
+- Result: unchanged commits `6b1d99a` and `57ece21` pushed successfully with `git push origin main`; no amend or force-push was used.
+- Live app: API health remained `ok`, the SQLite-backed evaluation catalog returned two cases, Memory Lab returned HTTP 200, and Hindsight remained truthfully `unavailable`.
+- Tests: **NOT RUN — this recovery changed no implementation code; the preserved commits retain their recorded 33-backend/44-frontend verification.**
+- Next: make temporary evaluation-catalog read failures explicitly retryable through the GET-only boundary.
 
 ### 2026-11-04 — Backend-owned evaluation fixture catalog
 
