@@ -60,10 +60,11 @@
 - Successful empty summaries now render a compact `No active work` card with its check time rather than leaving monitoring state implicit.
 - `No active work` now offers a summary-only refresh that can discover newly queued work from another tab, focus it, and resume normal read-only monitoring.
 - Repository summary timers now pause while the document is hidden and resume with one immediate read-only check when visibility returns.
+- Memory Lab now exposes both recorded held-out cases in-product, including source/candidate PRs, decision IDs, recorded guardrail counts, and direct candidate-selection links.
 
 ## In Progress
 
-- Post-MVP work continues with inspectable held-out evaluation coverage in Memory Lab.
+- Post-MVP work continues by moving evaluation-case discovery behind backend-owned SQLite data.
 
 ## Blocked
 
@@ -87,9 +88,21 @@
 
 ## Next Action
 
-Expose the two verified held-out evaluation cases in Memory Lab so demo coverage is inspectable without reading project docs.
+Derive the Memory Lab evaluation-case manifest from a read-only backend contract backed by authoritative SQLite records instead of duplicating fixture IDs in the frontend.
 
 ## Session Log
+
+### 2026-11-04 — Inspectable Memory Lab fixture catalog
+
+- Goal: Make both verified held-out cases understandable and directly selectable without requiring project-document context.
+- Implemented: a two-case Memory Lab manifest names each synthetic repository, source PR, held-out candidate, active decision, and recorded 6/6 result; repository-scoped links select only a candidate present in the fetched PR list and trigger no creation POST.
+- Focused frontend check: `npm test -- --run src/ui.test.tsx src/text.test.ts` → **42 passed across 2 files**. One intermediate run **FAILED 1 test** because this suite does not install the `toHaveAttribute` matcher; the assertion was corrected to inspect the DOM attribute directly.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **45 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 321.51 kB JavaScript and 15.81 kB CSS before gzip.
+- Provider safety: fixture navigation performs only repository PR, active-job, and latest-comparison reads; no Hindsight/Gemini call or comparison POST was made.
+- Live app: the candidate-specific Memory Lab route returned HTTP 200 and API health remained `ok`; Hindsight stayed truthfully `unavailable`.
+- Limitation: the two-case presentation manifest currently duplicates fixture identifiers in the frontend; actual candidate selection still fails closed against the repository's API-provided PR list.
+- Next: return the manifest from a read-only backend endpoint derived from SQLite fixture records.
 
 ### 2026-11-04 — Visibility-aware summary polling
 

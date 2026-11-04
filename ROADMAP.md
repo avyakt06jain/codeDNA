@@ -135,7 +135,8 @@
 - **Verified:** A successful empty repository-summary response renders a compact `No active work` state with the same parseable check time, without implying that provider work was run.
 - **Verified:** `Check for active work` refreshes an observed-empty summary, discovers work queued elsewhere, restores focus to Active work, and issues no job-result GET or creation POST.
 - **Verified:** Repository summary timers pause while the document is hidden; an initially hidden overview performs no summary GET and visibility restoration triggers one immediate read-only check.
-- **Next:** Expose the two verified held-out evaluation cases in Memory Lab so demo coverage is inspectable without reading project docs.
+- **Verified:** Memory Lab exposes both recorded held-out cases with repository, source PR, candidate PR, decision ID, and 6/6 recorded guardrails; opening a case selects its fetched candidate and starts no provider work.
+- **Next:** Move the evaluation-case manifest behind a read-only backend contract derived from authoritative SQLite fixture records, removing duplicated frontend identifiers.
 
 ## Documentation and version-control policy
 

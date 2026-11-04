@@ -220,6 +220,17 @@ textarea { width: 100%; resize: vertical; }
 .lineage-chain li.current { border-color: #b7e0c8; background: #f7fcf9; }
 .current-panel.current { border-color: #b7e0c8; background: #f7fcf9; }
 .lab-controls label { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.evaluation-cases { margin-bottom: 16px; }
+.evaluation-cases-head { display: flex; justify-content: space-between; gap: 16px; align-items: start; margin-bottom: 10px; }
+.evaluation-cases-head h2 { margin: 0; font-size: 18px; }
+.evaluation-cases-head p { margin: 4px 0 0; color: var(--muted); max-width: 720px; }
+.evaluation-cases-head > span { flex: none; border-radius: 999px; background: var(--green-soft); color: var(--green); padding: 4px 9px; font-size: 12px; font-weight: 700; }
+.evaluation-cases ul { list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 0; margin: 0; }
+.evaluation-cases li { display: flex; justify-content: space-between; gap: 12px; align-items: center; border: 1px solid var(--line); border-radius: 12px; background: white; padding: 13px 14px; }
+.evaluation-cases li.active { border-color: #8fd2ae; background: #f4fbf7; }
+.evaluation-cases li > div { display: grid; gap: 3px; min-width: 0; }
+.evaluation-cases li span { color: var(--muted); font-size: 12px; }
+.evaluation-cases .secondary { flex: none; text-decoration: none; }
 .lab-column .panel-head p { margin: 4px 0 0; color: var(--muted); }
 .pad-x { padding: 0 18px; }
 .trace { list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 0; margin: 16px 0; }
@@ -271,6 +282,8 @@ legend { font-weight: 700; padding: 0; margin-bottom: 4px; }
   .review-controls { max-width: none; justify-content: flex-start; }
   .review-controls .hint { text-align: left; }
   .active-work-list > li { grid-template-columns: 1fr; }
+  .evaluation-cases ul { grid-template-columns: 1fr; }
+  .evaluation-cases li { align-items: flex-start; }
 }
 @media (prefers-reduced-motion: reduce) {
   .spinner { animation: none; }

@@ -4,6 +4,37 @@ export const DEFAULT_REPO_ID = "repo-acme-commerce";
 export const DEFAULT_PR_ID = "pr-acme-87";
 export const ANALYTICS_EVALUATION_PR_ID = "pr-analytics-29";
 
+export type EvaluationCase = {
+  repositoryId: string;
+  repositoryName: string;
+  sourcePrNumber: number;
+  candidatePrId: string;
+  candidatePrNumber: number;
+  decisionId: string;
+  recordedChecks: number;
+};
+
+export const EVALUATION_CASES: EvaluationCase[] = [
+  {
+    repositoryId: "repo-acme-commerce",
+    repositoryName: "Acme Commerce",
+    sourcePrNumber: 103,
+    candidatePrId: "pr-acme-120",
+    candidatePrNumber: 120,
+    decisionId: "DEC-0103",
+    recordedChecks: 6,
+  },
+  {
+    repositoryId: "repo-analytics-service",
+    repositoryName: "Analytics Service",
+    sourcePrNumber: 11,
+    candidatePrId: ANALYTICS_EVALUATION_PR_ID,
+    candidatePrNumber: 29,
+    decisionId: "DEC-0211",
+    recordedChecks: 6,
+  },
+];
+
 export type FeedbackChoice = "not_applicable" | "incorrect" | "outdated" | "other";
 
 export const FEEDBACK_CHOICES: { id: FeedbackChoice; label: string; action: "not_applicable" | "rejected" | "corrected" }[] = [

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, MissingJobError, PollingUnavailableError, TerminalJobError, type Comparison, type JobTiming, type PullRequestSummary, type Review } from "../api";
 import { clearActiveJob, loadActiveJob, saveActiveJob } from "../activeJobs";
 import { ActiveJobDetails } from "../components/ActiveJobDetails";
 import { FindingArticle } from "../components/FindingArticle";
 import { EmptyNote, ErrorNote, LiveStatus, LoadingNote } from "../components/Status";
-import { comparisonStageLabel, formatSeconds, humanize, preferredPullRequestId, traceSteps } from "../text";
+import { comparisonStageLabel, EVALUATION_CASES, formatSeconds, humanize, preferredPullRequestId, traceSteps } from "../text";
 import { useWorkspace } from "../workspace";
 
 function RunColumn({ title, note, review }: { title: string; note: string; review: Review }) {
@@ -30,6 +30,8 @@ function RunColumn({ title, note, review }: { title: string; note: string; revie
 
 export function MemoryLabPage() {
   const { repoId = "" } = useParams();
+  const [searchParams] = useSearchParams();
+  const requestedCaseId = searchParams.get("case") ?? "";
   const { hindsight } = useWorkspace();
   const alive = useRef(true);
   const [prs, setPrs] = useState<PullRequestSummary[]>([]);
@@ -66,7 +68,10 @@ export function MemoryLabPage() {
       .then((rows) => {
         if (cancelled) return;
         setPrs(rows);
-        setPrId((current) => (rows.some((item) => item.id === current) ? current : preferredPullRequestId(rows, repoId)));
+        setPrId((current) => {
+          if (requestedCaseId && rows.some((item) => item.id === requestedCaseId)) return requestedCaseId;
+          return rows.some((item) => item.id === current) ? current : preferredPullRequestId(rows, repoId);
+        });
       })
       .catch((reason: Error) => {
         if (!cancelled) setError(reason.message);
@@ -77,7 +82,7 @@ export function MemoryLabPage() {
     return () => {
       cancelled = true;
     };
-  }, [repoId]);
+  }, [repoId, requestedCaseId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -296,6 +301,36 @@ export function MemoryLabPage() {
           <p>Same change. Same model. Memory is the only variable.</p>
         </div>
       </header>
+      <section className="evaluation-cases" aria-labelledby="evaluation-cases-title">
+        <div className="evaluation-cases-head">
+          <div>
+            <h2 id="evaluation-cases-title">Verified evaluation fixtures</h2>
+            <p>Two synthetic held-out cases have recorded live Hindsight/Gemini proofs. These are case counts, not an accuracy score.</p>
+          </div>
+          <span>2 cases</span>
+        </div>
+        <ul>
+          {EVALUATION_CASES.map((item) => {
+            const active = repoId === item.repositoryId && selected === item.candidatePrId;
+            return (
+              <li key={item.candidatePrId} className={active ? "active" : undefined}>
+                <div>
+                  <strong>{item.repositoryName}</strong>
+                  <span>Source PR #{item.sourcePrNumber} → held-out PR #{item.candidatePrNumber}</span>
+                  <span>{item.decisionId} · {item.recordedChecks}/6 guardrails recorded</span>
+                </div>
+                <Link
+                  className="secondary"
+                  aria-current={active ? "true" : undefined}
+                  to={`/repos/${item.repositoryId}/lab?case=${item.candidatePrId}`}
+                >
+                  {active ? "Case selected" : "Open case"}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
       <div className="lab-controls">
         <label>
           Pull request

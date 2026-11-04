@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { normalizeJobTimestamp } from "./api";
 import { JOB_STALE_AFTER_MS, isStaleJob } from "./components/ActiveJobDetails";
-import { bindingCopy, comparisonStageLabel, feedbackPayload, formatSeconds, memoryLabel, preferredPullRequestId, stageLabel, traceSteps } from "./text";
+import { bindingCopy, comparisonStageLabel, EVALUATION_CASES, feedbackPayload, formatSeconds, memoryLabel, preferredPullRequestId, stageLabel, traceSteps } from "./text";
 
 describe("feedback reasons", () => {
   it("maps each dismiss choice to a stored action and keeps the label", () => {
@@ -61,6 +61,16 @@ describe("memory and timings", () => {
 });
 
 describe("evaluation fixture selection", () => {
+  it("publishes two distinct held-out cases with recorded provenance", () => {
+    expect(EVALUATION_CASES).toHaveLength(2);
+    expect(new Set(EVALUATION_CASES.map((item) => item.repositoryId)).size).toBe(2);
+    expect(new Set(EVALUATION_CASES.map((item) => item.candidatePrId)).size).toBe(2);
+    expect(EVALUATION_CASES.map((item) => [item.sourcePrNumber, item.candidatePrNumber, item.decisionId])).toEqual([
+      [103, 120, "DEC-0103"],
+      [11, 29, "DEC-0211"],
+    ]);
+  });
+
   it("prefers each repository's held-out candidate instead of its historical source", () => {
     const analytics = [
       { id: "pr-analytics-11", number: 11, title: "Historical source" },

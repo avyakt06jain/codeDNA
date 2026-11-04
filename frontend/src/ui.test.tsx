@@ -10,6 +10,7 @@ const repositories = [
 
 const prs = [
   { id: "pr-acme-87", number: 87, title: "Update order status", created_at: "2026-10-20T12:00:00Z" },
+  { id: "pr-acme-120", number: 120, title: "Ship replacement orders", created_at: "2026-10-25T12:00:00Z" },
 ];
 
 const diff = [
@@ -174,6 +175,9 @@ function installFetch(options?: {
     if (path === "/api/prs/pr-acme-87/comparisons/latest" && method === "GET") {
       return json({ pr_id: "pr-acme-87", job_id: options?.latestComparison ? "job-restored" : null, comparison: options?.latestComparison ?? null });
     }
+    if (path === "/api/prs/pr-acme-120/comparisons/latest" && method === "GET") {
+      return json({ pr_id: "pr-acme-120", job_id: null, comparison: null });
+    }
     if (path === "/api/prs/pr-acme-87/review-jobs/active" && method === "GET") {
       const kind = url.searchParams.get("kind");
       const jobId = kind === "comparison"
@@ -188,6 +192,9 @@ function installFetch(options?: {
         created_at: jobId ? jobCreatedAt : null,
         updated_at: jobId ? jobUpdatedAt : null,
       });
+    }
+    if (path === "/api/prs/pr-acme-120/review-jobs/active" && method === "GET") {
+      return json({ pr_id: "pr-acme-120", kind: url.searchParams.get("kind"), job_id: null, status: null, stage: null });
     }
     if (path.endsWith("/lineage")) {
       return json({
@@ -656,6 +663,31 @@ it("shows a memory-lab trace only for recorded timings and lists guardrails", as
   expect(within(memory).getByText("Design mismatch")).toBeTruthy();
   expect(within(baseline).getByText("General")).toBeTruthy();
   expect(baseline.textContent?.toLowerCase()).not.toContain("historical evidence");
+});
+
+it("makes both recorded held-out evaluation fixtures inspectable in Memory Lab", async () => {
+  installFetch();
+  renderAt("/repos/repo-acme-commerce/lab");
+  const fixtures = await screen.findByRole("region", { name: "Verified evaluation fixtures" });
+  expect(within(fixtures).getByText("2 cases")).toBeTruthy();
+  expect(within(fixtures).getByText("Source PR #103 → held-out PR #120")).toBeTruthy();
+  expect(within(fixtures).getByText("DEC-0103 · 6/6 guardrails recorded")).toBeTruthy();
+  expect(within(fixtures).getByText("Source PR #11 → held-out PR #29")).toBeTruthy();
+  expect(within(fixtures).getByText("DEC-0211 · 6/6 guardrails recorded")).toBeTruthy();
+  const links = within(fixtures).getAllByRole("link", { name: "Open case" }) as HTMLAnchorElement[];
+  expect(links.map((link) => link.getAttribute("href"))).toEqual([
+    "/repos/repo-acme-commerce/lab?case=pr-acme-120",
+    "/repos/repo-analytics-service/lab?case=pr-analytics-29",
+  ]);
+});
+
+it("opens a recorded fixture on its held-out candidate without starting work", async () => {
+  const fetchMock = installFetch();
+  renderAt("/repos/repo-acme-commerce/lab?case=pr-acme-120");
+  const selector = await screen.findByRole("combobox", { name: "Pull request" }) as HTMLSelectElement;
+  await waitFor(() => expect(selector.value).toBe("pr-acme-120"));
+  expect(screen.getByRole("link", { name: "Case selected" }).getAttribute("href")).toBe("/repos/repo-acme-commerce/lab?case=pr-acme-120");
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
 it("restores the latest completed comparison without starting a new job", async () => {
