@@ -19,6 +19,7 @@ export function OverviewPage() {
   const [activeJobs, setActiveJobs] = useState<RepositoryActiveJob[]>([]);
   const [activeJobsError, setActiveJobsError] = useState("");
   const [activeJobsRetryKey, setActiveJobsRetryKey] = useState(0);
+  const [activeJobsCheckedAt, setActiveJobsCheckedAt] = useState<string>();
   const [activeWorkAnnouncement, setActiveWorkAnnouncement] = useState("");
   const hadActiveJobs = useRef(false);
   const manualRetryPending = useRef(false);
@@ -80,6 +81,7 @@ export function OverviewPage() {
     let consecutiveFailures = 0;
     setActiveJobs([]);
     setActiveJobsError("");
+    setActiveJobsCheckedAt(undefined);
     setActiveWorkAnnouncement("");
     hadActiveJobs.current = false;
 
@@ -90,6 +92,7 @@ export function OverviewPage() {
         consecutiveFailures = 0;
         setActiveJobs(rows);
         setActiveJobsError("");
+        setActiveJobsCheckedAt(new Date().toISOString());
         if (manualRetryPending.current) {
           manualRetryPending.current = false;
           setPendingFocus(rows.length > 0 ? "active" : "overview");
@@ -185,6 +188,11 @@ export function OverviewPage() {
             <div>
               <h2 ref={activeWorkHeadingRef} id="active-work-heading" tabIndex={-1}>Active work</h2>
               <p className="quiet">Read-only status from persisted background jobs. Opening a PR does not start new provider work.</p>
+              {activeJobsCheckedAt ? (
+                <p className="quiet active-work-checked">
+                  Last checked <time dateTime={activeJobsCheckedAt}>{formatWhen(activeJobsCheckedAt) ?? activeJobsCheckedAt}</time>
+                </p>
+              ) : null}
             </div>
             <span className="nav-count" aria-label={`${activeJobs.length} active jobs`}>{activeJobs.length}</span>
           </div>

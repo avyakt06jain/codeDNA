@@ -131,7 +131,8 @@
 - **Verified:** The overview summary retries only transient network/selected HTTP failures with bounded 1/2/4-second delays, preserves existing rows while reconnecting, and performs no job-result GET or creation POST.
 - **Verified:** After bounded overview-summary recovery is exhausted, `Check active work again` starts a fresh summary-only cycle; tests prove the action issues no job-result GET or creation POST.
 - **Verified:** Manual summary retry preserves keyboard position by focusing restored Active work, the overview heading for an empty success, or the recreated retry action after another failure.
-- **Next:** Show when the repository active-work summary was last checked successfully so judges can assess snapshot freshness.
+- **Verified:** Active work shows a parseable, localized `Last checked` time from the latest successful repository-summary response; transient failures do not mislabel a failed attempt as fresh.
+- **Next:** Show a compact read-only `No active work` state with its successful check time so an empty overview is also demonstrably observed.
 
 ## Documentation and version-control policy
 

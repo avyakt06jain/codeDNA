@@ -187,6 +187,7 @@ textarea { width: 100%; resize: vertical; }
 .job-stale { margin: 0; border: 1px solid #e7b84b; border-radius: 12px; background: #fff8df; color: #6d4b00; padding: 10px 14px; }
 .active-work { margin-bottom: 16px; }
 .active-work .panel-head p { margin: 4px 0 0; }
+.active-work .panel-head .active-work-checked { font-size: 12px; }
 .active-work-list { list-style: none; margin: 0; padding: 0 18px 18px; display: grid; gap: 10px; }
 .active-work-list > li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 0.7fr); gap: 16px; align-items: start; border-top: 1px solid var(--line); padding-top: 12px; }
 .active-work-list p { color: var(--muted); margin: 5px 0 0; text-transform: capitalize; }

@@ -475,6 +475,9 @@ it("shows repository active work without starting or polling provider work", asy
   const section = await screen.findByRole("region", { name: "Active work" });
   expect(within(section).getByRole("link", { name: "PR #87: Update order status" })).toBeTruthy();
   expect(within(section).getByText(/Memory Lab comparison · running · running memory review/i)).toBeTruthy();
+  const lastChecked = within(section).getByText(/Last checked/i).querySelector("time");
+  expect(lastChecked).toBeTruthy();
+  expect(Number.isFinite(Date.parse(lastChecked?.getAttribute("datetime") ?? ""))).toBe(true);
   expect(within(section).getByText(/has not reported progress for at least 3 minutes/i)).toBeTruthy();
   fireEvent.click(within(section).getByText("Active job details"));
   expect(within(section).getByText("job-cmp")).toBeTruthy();

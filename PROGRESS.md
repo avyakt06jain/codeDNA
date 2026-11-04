@@ -56,10 +56,11 @@
 - Transient overview-summary failures now retry at most three times after 1/2/4 seconds, keep existing rows visible while reconnecting, and stop without polling a job result or creating work.
 - After overview-summary recovery is exhausted, an explicit `Check active work again` button starts a fresh bounded read-only cycle and disappears on success.
 - Manual summary retry now restores focus to the resulting Active work heading, the overview heading for an empty result, or the recreated retry action after another failure.
+- Active work now displays a localized, machine-readable `Last checked` time set only after a successful repository-summary response.
 
 ## In Progress
 
-- Post-MVP work continues with visible freshness for the repository active-work snapshot.
+- Post-MVP work continues with an explicit observed-empty state for repository-level work.
 
 ## Blocked
 
@@ -83,9 +84,20 @@
 
 ## Next Action
 
-Show when the repository active-work summary was last checked successfully so judges can assess snapshot freshness.
+Show a compact read-only `No active work` state with its successful check time so an empty overview is also demonstrably observed.
 
 ## Session Log
+
+### 2026-11-04 — Active-summary freshness
+
+- Goal: Let judges distinguish a recently observed job summary from a visually static panel.
+- Implemented: `Last checked` uses a parseable `<time>` and localized display value set only after successful repository-summary reads; failed transient attempts retain the previous successful instant.
+- Focused frontend check: `npm test -- --run src/ui.test.tsx` → **29 passed**, including a parseable timestamp assertion on visible Active work.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **40 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 318.32 kB JavaScript and 14.61 kB CSS before gzip.
+- Provider safety: timestamping is client-side and adds no API or provider calls.
+- Live app: loopback returned API `ok` and UI HTTP 200 after hot reload; Hindsight remained truthfully `unavailable` and no provider startup was attempted.
+- Next: make the successfully observed empty state visible with the same freshness context.
 
 ### 2026-11-04 — Manual summary-retry focus recovery
 
