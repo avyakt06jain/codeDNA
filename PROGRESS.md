@@ -58,10 +58,11 @@
 - Manual summary retry now restores focus to the resulting Active work heading, the overview heading for an empty result, or the recreated retry action after another failure.
 - Active work now displays a localized, machine-readable `Last checked` time set only after a successful repository-summary response.
 - Successful empty summaries now render a compact `No active work` card with its check time rather than leaving monitoring state implicit.
+- `No active work` now offers a summary-only refresh that can discover newly queued work from another tab, focus it, and resume normal read-only monitoring.
 
 ## In Progress
 
-- Post-MVP work continues with manual discovery of work started after an empty summary.
+- Post-MVP work continues with visibility-aware repository-summary polling.
 
 ## Blocked
 
@@ -85,9 +86,20 @@
 
 ## Next Action
 
-Add an explicit summary-only refresh action to `No active work` so work started in another tab can be discovered without reloading.
+Pause repository active-summary polling while the browser document is hidden and resume with one read-only check when it becomes visible.
 
 ## Session Log
+
+### 2026-11-04 — Empty-summary work discovery
+
+- Goal: Discover review/comparison work started in another tab after the overview previously observed no active rows.
+- Implemented: `Check for active work` reuses the summary-only bounded cycle, restores focus to newly visible Active work, and resumes ordinary five-second summary monitoring.
+- Focused frontend check: the first call-count assertion expected exactly two reads, but restored active work correctly began subsequent monitoring; the assertion was narrowed to require the explicit discovery reads. Final `npm test -- --run src/ui.test.tsx` → **30 passed**, with no job-result GET or POST.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **41 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 318.88 kB JavaScript and 14.77 kB CSS before gzip.
+- Provider safety: the action calls only the SQLite-backed repository active-summary endpoint; no Hindsight/Gemini request was made.
+- Live app: loopback returned API `ok` and UI HTTP 200 after hot reload; Hindsight remained truthfully `unavailable` and no provider startup was attempted.
+- Next: suspend read-only polling while the overview tab is hidden.
 
 ### 2026-11-04 — Observed empty active-work state
 

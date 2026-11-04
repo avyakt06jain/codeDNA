@@ -189,6 +189,7 @@ textarea { width: 100%; resize: vertical; }
 .active-work-empty { margin-bottom: 16px; padding: 16px 18px; }
 .active-work-empty h2, .active-work-empty p { margin: 0; }
 .active-work-empty p + p { margin-top: 5px; }
+.active-work-empty button { margin-top: 10px; }
 .active-work .panel-head p { margin: 4px 0 0; }
 .active-work-checked { font-size: 12px; }
 .active-work-list { list-style: none; margin: 0; padding: 0 18px 18px; display: grid; gap: 10px; }

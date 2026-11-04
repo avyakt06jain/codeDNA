@@ -36,6 +36,7 @@ An HTTP `404` has separate terminal meaning: the saved active-job locator no lon
 - Because the retry button disappears during recovery, focus moves deterministically after resolution: to Active work when rows return, to the overview heading when the result is empty, or to the recreated retry action after another terminal failure.
 - Every successful repository active-summary response records a client-side `Last checked` instant. Active work renders it as a localized, machine-readable `<time>`; transient failures do not advance the value.
 - A successful empty response renders `No active work` with the same check instant and explicit queued/running review/comparison scope. It does not claim that a provider was contacted.
+- `Check for active work` starts a summary-only bounded cycle from that empty state. If another tab queued work, the panel changes to Active work, focus moves to its heading, and ordinary read-only monitoring resumes without a creation POST.
 - Active work does not resume after API-process termination because the local MVP uses in-process FastAPI background tasks, not an external worker queue.
 - The shared Hindsight server is API-owned, while each worker creates its own SDK client to avoid sharing event-loop-bound client state across threads.
 - The next API startup atomically marks every leftover `queued`/`running` job `failed` with `job_interrupted_by_restart`. It does not replay work that may already have called an external provider or partially persisted a run.

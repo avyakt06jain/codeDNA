@@ -109,6 +109,7 @@ function installFetch(options?: {
   activeReviewJob?: boolean;
   activeComparisonJob?: boolean;
   repositoryActiveJobs?: boolean;
+  repositoryActiveJobsStartAfter?: number;
   repositoryActiveJobsCompleteAfter?: number;
   repositoryActiveJobFailures?: number;
   reusedReviewStart?: boolean;
@@ -148,6 +149,7 @@ function installFetch(options?: {
         return json({ detail: "temporary outage" }, 503);
       }
       const active = options?.repositoryActiveJobs
+        && repositoryActiveJobReads > (options.repositoryActiveJobsStartAfter ?? 0)
         && (options.repositoryActiveJobsCompleteAfter === undefined
           || repositoryActiveJobReads <= options.repositoryActiveJobsCompleteAfter);
       return json(active ? [{
@@ -488,6 +490,19 @@ it("shows repository active work without starting or polling provider work", asy
   expect(within(section).getByText("job-cmp")).toBeTruthy();
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(0);
+});
+
+it("discovers work started after an observed empty summary without reloading", async () => {
+  const fetchMock = installFetch({ repositoryActiveJobs: true, repositoryActiveJobsStartAfter: 1 });
+  renderAt("/");
+  const refresh = await screen.findByRole("button", { name: "Check for active work" });
+  refresh.focus();
+  fireEvent.click(refresh);
+  const activeHeading = await screen.findByRole("heading", { name: "Active work" });
+  await waitFor(() => expect(document.activeElement).toBe(activeHeading));
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/repositories/repo-acme-commerce/review-jobs/active")).length).toBeGreaterThanOrEqual(2);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/"))).toHaveLength(0);
 });
 
 it("refreshes the overview only while active work remains", async () => {

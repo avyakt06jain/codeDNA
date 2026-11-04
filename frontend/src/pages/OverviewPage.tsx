@@ -132,6 +132,10 @@ export function OverviewPage() {
 
   const name = summary?.display_name || repo?.display_name || repoId;
   const recent = recentPullRequests(prs);
+  const checkActiveWorkAgain = () => {
+    manualRetryPending.current = true;
+    setActiveJobsRetryKey((value) => value + 1);
+  };
 
   return (
     <div className="page">
@@ -171,10 +175,7 @@ export function OverviewPage() {
               ref={activeWorkRetryRef}
               className="secondary"
               type="button"
-              onClick={() => {
-                manualRetryPending.current = true;
-                setActiveJobsRetryKey((value) => value + 1);
-              }}
+              onClick={checkActiveWorkAgain}
             >
               Check active work again
             </button>
@@ -189,6 +190,7 @@ export function OverviewPage() {
           <p className="quiet active-work-checked">
             Last checked <time dateTime={activeJobsCheckedAt}>{formatWhen(activeJobsCheckedAt) ?? activeJobsCheckedAt}</time>
           </p>
+          <button className="secondary" type="button" onClick={checkActiveWorkAgain}>Check for active work</button>
         </section>
       ) : null}
       {!loading && activeJobs.length > 0 ? (
