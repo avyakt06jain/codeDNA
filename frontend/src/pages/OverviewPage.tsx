@@ -79,17 +79,46 @@ export function OverviewPage() {
     let cancelled = false;
     let timer = 0;
     let consecutiveFailures = 0;
+    let waitingForVisibility = false;
+    let visibilityResumeEnabled = true;
     setActiveJobs([]);
     setActiveJobsError("");
     setActiveJobsCheckedAt(undefined);
     setActiveWorkAnnouncement("");
     hadActiveJobs.current = false;
 
-    const refresh = async () => {
+    function scheduleRefresh(delay: number) {
+      window.clearTimeout(timer);
+      timer = 0;
+      if (document.visibilityState === "hidden") {
+        waitingForVisibility = true;
+        return;
+      }
+      waitingForVisibility = false;
+      timer = window.setTimeout(() => {
+        timer = 0;
+        void refresh();
+      }, delay);
+    }
+
+    function handleVisibilityChange() {
+      if (cancelled || !visibilityResumeEnabled) return;
+      if (document.visibilityState === "hidden") {
+        window.clearTimeout(timer);
+        timer = 0;
+        waitingForVisibility = true;
+      } else if (waitingForVisibility) {
+        waitingForVisibility = false;
+        void refresh();
+      }
+    }
+
+    async function refresh() {
       try {
         const rows = await api.repositoryActiveJobs(repoId);
         if (cancelled) return;
         consecutiveFailures = 0;
+        visibilityResumeEnabled = true;
         setActiveJobs(rows);
         setActiveJobsError("");
         setActiveJobsCheckedAt(new Date().toISOString());
@@ -100,7 +129,7 @@ export function OverviewPage() {
         if (rows.length > 0) {
           hadActiveJobs.current = true;
           setActiveWorkAnnouncement("");
-          timer = window.setTimeout(() => void refresh(), ACTIVE_WORK_REFRESH_MS);
+          scheduleRefresh(ACTIVE_WORK_REFRESH_MS);
         } else if (hadActiveJobs.current) {
           hadActiveJobs.current = false;
           setActiveWorkAnnouncement("Active work is no longer running. Open the pull request to inspect its saved result or failure.");
@@ -111,22 +140,26 @@ export function OverviewPage() {
           const delay = ACTIVE_WORK_RETRY_DELAYS_MS[consecutiveFailures];
           consecutiveFailures += 1;
           setActiveJobsError("Active work status was interrupted. Retrying the read-only summary…");
-          timer = window.setTimeout(() => void refresh(), delay);
+          scheduleRefresh(delay);
           return;
         }
         setActiveJobs([]);
         setActiveJobsError("Active work is unavailable.");
+        visibilityResumeEnabled = false;
+        waitingForVisibility = false;
         if (manualRetryPending.current) {
           manualRetryPending.current = false;
           setPendingFocus("retry");
         }
       }
-    };
+    }
 
-    void refresh();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    scheduleRefresh(0);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [repoId, activeJobsRetryKey]);
 

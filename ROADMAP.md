@@ -134,7 +134,8 @@
 - **Verified:** Active work shows a parseable, localized `Last checked` time from the latest successful repository-summary response; transient failures do not mislabel a failed attempt as fresh.
 - **Verified:** A successful empty repository-summary response renders a compact `No active work` state with the same parseable check time, without implying that provider work was run.
 - **Verified:** `Check for active work` refreshes an observed-empty summary, discovers work queued elsewhere, restores focus to Active work, and issues no job-result GET or creation POST.
-- **Next:** Pause repository active-summary polling while the browser document is hidden and resume with one read-only check when it becomes visible.
+- **Verified:** Repository summary timers pause while the document is hidden; an initially hidden overview performs no summary GET and visibility restoration triggers one immediate read-only check.
+- **Next:** Expose the two verified held-out evaluation cases in Memory Lab so demo coverage is inspectable without reading project docs.
 
 ## Documentation and version-control policy
 

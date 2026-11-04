@@ -59,10 +59,11 @@
 - Active work now displays a localized, machine-readable `Last checked` time set only after a successful repository-summary response.
 - Successful empty summaries now render a compact `No active work` card with its check time rather than leaving monitoring state implicit.
 - `No active work` now offers a summary-only refresh that can discover newly queued work from another tab, focus it, and resume normal read-only monitoring.
+- Repository summary timers now pause while the document is hidden and resume with one immediate read-only check when visibility returns.
 
 ## In Progress
 
-- Post-MVP work continues with visibility-aware repository-summary polling.
+- Post-MVP work continues with inspectable held-out evaluation coverage in Memory Lab.
 
 ## Blocked
 
@@ -86,9 +87,20 @@
 
 ## Next Action
 
-Pause repository active-summary polling while the browser document is hidden and resume with one read-only check when it becomes visible.
+Expose the two verified held-out evaluation cases in Memory Lab so demo coverage is inspectable without reading project docs.
 
 ## Session Log
+
+### 2026-11-04 — Visibility-aware summary polling
+
+- Goal: Avoid read-only background traffic while the overview is not visible, then promptly reconcile when the user returns.
+- Implemented: hidden documents cancel pending summary timers; initial/scheduled reads wait for visibility; one immediate summary check runs on return before normal empty/active rules resume; listeners are removed on cleanup.
+- Focused frontend check: the first test attempted to hide after a 10 ms test poll was already due and failed its call-count assumption; it was revised to start hidden. Final `npm test -- --run src/ui.test.tsx` → **31 passed**, proving zero hidden summary GETs, one visible-resume GET, and no POST.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **42 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 319.18 kB JavaScript and 14.77 kB CSS before gzip.
+- Provider safety: visibility handling only suppresses/resumes the SQLite-backed summary GET; no Hindsight/Gemini request was made.
+- Live app: loopback returned API `ok` and UI HTTP 200 after hot reload; Hindsight remained truthfully `unavailable` and no provider startup was attempted.
+- Next: make the two verified held-out Memory Lab cases visible in-product.
 
 ### 2026-11-04 — Empty-summary work discovery
 

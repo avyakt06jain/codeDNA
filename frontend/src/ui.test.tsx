@@ -264,6 +264,7 @@ function feedbackBody(fetchMock: ReturnType<typeof installFetch>) {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   window.sessionStorage.clear();
 });
 
@@ -520,6 +521,20 @@ it("refreshes the overview only while active work remains", async () => {
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/repositories/repo-acme-commerce/review-jobs/active"))).toHaveLength(2);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(0);
+});
+
+it("pauses active-summary polling while hidden and checks once when visible", async () => {
+  let visibilityState: DocumentVisibilityState = "hidden";
+  vi.spyOn(document, "visibilityState", "get").mockImplementation(() => visibilityState);
+  const fetchMock = installFetch();
+  renderAt("/");
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/repositories/repo-acme-commerce/review-jobs/active"))).toHaveLength(0);
+  visibilityState = "visible";
+  document.dispatchEvent(new Event("visibilitychange"));
+  await waitFor(() => expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/repositories/repo-acme-commerce/review-jobs/active"))).toHaveLength(1));
+  expect(await screen.findByRole("region", { name: "No active work" })).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
 it("retries a transient overview-summary failure without creating work", async () => {
