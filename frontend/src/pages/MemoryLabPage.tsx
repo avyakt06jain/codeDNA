@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { api, MissingJobError, PollingUnavailableError, TerminalJobError, type Comparison, type EvaluationCase, type JobTiming, type PullRequestSummary, type Review } from "../api";
+import { api, isTransientRequestError, MissingJobError, PollingUnavailableError, TerminalJobError, type Comparison, type EvaluationCase, type JobTiming, type PullRequestSummary, type Review } from "../api";
 import { clearActiveJob, loadActiveJob, saveActiveJob } from "../activeJobs";
 import { ActiveJobDetails } from "../components/ActiveJobDetails";
 import { FindingArticle } from "../components/FindingArticle";
 import { EmptyNote, ErrorNote, LiveStatus, LoadingNote } from "../components/Status";
 import { comparisonStageLabel, formatSeconds, formatWhen, humanize, preferredPullRequestId, traceSteps } from "../text";
 import { useWorkspace } from "../workspace";
+
+const CATALOG_RETRY_DELAYS_MS = import.meta.env.MODE === "test" ? [1, 2, 4] as const : [1000, 2000, 4000] as const;
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
 
 function RunColumn({ title, note, review }: { title: string; note: string; review: Review }) {
   return (
@@ -34,10 +40,14 @@ export function MemoryLabPage() {
   const requestedCaseId = searchParams.get("case") ?? "";
   const { hindsight } = useWorkspace();
   const alive = useRef(true);
+  const casesHeading = useRef<HTMLHeadingElement>(null);
+  const casesRetryButton = useRef<HTMLButtonElement>(null);
+  const manualCasesRetry = useRef(false);
   const [prs, setPrs] = useState<PullRequestSummary[]>([]);
   const [evaluationCases, setEvaluationCases] = useState<EvaluationCase[]>([]);
   const [casesLoading, setCasesLoading] = useState(true);
   const [casesError, setCasesError] = useState("");
+  const [casesRetryKey, setCasesRetryKey] = useState(0);
   const [prId, setPrId] = useState("");
   const [loading, setLoading] = useState(true);
   const [restoring, setRestoring] = useState(false);
@@ -90,23 +100,43 @@ export function MemoryLabPage() {
   useEffect(() => {
     let cancelled = false;
     setCasesLoading(true);
-    api.evaluationCases()
-      .then((rows) => {
-        if (!cancelled) {
-          setEvaluationCases(rows);
-          setCasesError("");
+    setCasesError("");
+    void (async () => {
+      let failure: unknown;
+      for (let attempt = 0; attempt <= CATALOG_RETRY_DELAYS_MS.length; attempt += 1) {
+        try {
+          const rows = await api.evaluationCases();
+          if (!cancelled) {
+            setEvaluationCases(rows);
+            setCasesError("");
+          }
+          return;
+        } catch (reason) {
+          failure = reason;
+          if (!isTransientRequestError(reason) || attempt === CATALOG_RETRY_DELAYS_MS.length) break;
+          await wait(CATALOG_RETRY_DELAYS_MS[attempt]);
         }
-      })
-      .catch((reason: Error) => {
-        if (!cancelled) setCasesError(reason.message);
-      })
-      .finally(() => {
-        if (!cancelled) setCasesLoading(false);
-      });
+      }
+      if (!cancelled) {
+        setEvaluationCases([]);
+        setCasesError(failure instanceof Error ? failure.message : "Fixture catalog unavailable.");
+      }
+    })().finally(() => {
+      if (!cancelled) setCasesLoading(false);
+    });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [casesRetryKey]);
+
+  useEffect(() => {
+    if (!manualCasesRetry.current || casesLoading) return;
+    manualCasesRetry.current = false;
+    window.requestAnimationFrame(() => {
+      if (casesError) casesRetryButton.current?.focus();
+      else casesHeading.current?.focus();
+    });
+  }, [casesError, casesLoading]);
 
   useEffect(() => {
     let cancelled = false;
@@ -328,13 +358,23 @@ export function MemoryLabPage() {
       <section className="evaluation-cases" aria-labelledby="evaluation-cases-title">
         <div className="evaluation-cases-head">
           <div>
-            <h2 id="evaluation-cases-title">Verified evaluation fixtures</h2>
+            <h2 id="evaluation-cases-title" ref={casesHeading} tabIndex={-1}>Verified evaluation fixtures</h2>
             <p>Two synthetic held-out cases have recorded live Hindsight/Gemini proofs. These are case counts, not an accuracy score.</p>
           </div>
           <span>{evaluationCases.length} {evaluationCases.length === 1 ? "case" : "cases"}</span>
         </div>
         {casesLoading ? <p className="hint">Loading fixture catalog…</p> : null}
-        {casesError ? <p className="hint">Fixture catalog unavailable: {casesError}</p> : null}
+        {casesError ? (
+          <div className="catalog-recovery">
+            <ErrorNote>Fixture catalog unavailable: {casesError}</ErrorNote>
+            <button ref={casesRetryButton} type="button" className="secondary" disabled={casesLoading} onClick={() => {
+              manualCasesRetry.current = true;
+              setCasesRetryKey((value) => value + 1);
+            }}>
+              Retry fixture catalog
+            </button>
+          </div>
+        ) : null}
         {!casesLoading && !casesError && evaluationCases.length === 0 ? <p className="hint">No authoritative evaluation fixtures are available.</p> : null}
         <ul>
           {evaluationCases.map((item) => {

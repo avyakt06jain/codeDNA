@@ -153,12 +153,14 @@ function installFetch(options?: {
   reusedReviewStart?: boolean;
   reusedComparisonStart?: boolean;
   pollDelayMs?: number;
+  evaluationCaseFailures?: number;
 }) {
   const hindsight = options?.hindsight ?? "ready";
   let reviewPollFailures = options?.reviewPollFailures ?? 0;
   let comparisonPollFailures = options?.comparisonPollFailures ?? 0;
   let repositoryActiveJobReads = 0;
   let repositoryActiveJobFailures = options?.repositoryActiveJobFailures ?? 0;
+  let evaluationCaseFailures = options?.evaluationCaseFailures ?? 0;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const url = new URL(raw, "http://localhost");
@@ -166,7 +168,13 @@ function installFetch(options?: {
     const method = (init?.method ?? "GET").toUpperCase();
     if (path === "/api/health") return json({ status: "ok", memory: "configured", hindsight, interrupted_jobs: options?.interruptedJobs ?? 0 });
     if (path === "/api/repositories") return json(repositories);
-    if (path === "/api/evaluation-cases") return json(evaluationCases);
+    if (path === "/api/evaluation-cases") {
+      if (evaluationCaseFailures > 0) {
+        evaluationCaseFailures -= 1;
+        return json({ detail: "temporary catalog outage" }, 503);
+      }
+      return json(evaluationCases);
+    }
     if (path.endsWith("/summary")) {
       return json({
         repository_id: "repo-acme-commerce",
@@ -729,6 +737,39 @@ it("opens a recorded fixture on its held-out candidate without starting work", a
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
+it("recovers a transient fixture-catalog outage without starting work", async () => {
+  const fetchMock = installFetch({ evaluationCaseFailures: 1 });
+  renderAt("/repos/repo-acme-commerce/lab");
+  const fixtures = await screen.findByRole("region", { name: "Verified evaluation fixtures" });
+  expect(await within(fixtures).findByText("2 cases")).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/evaluation-cases"))).toHaveLength(2);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
+it("retries an exhausted fixture catalog through GET only", async () => {
+  const fetchMock = installFetch({ evaluationCaseFailures: 4 });
+  renderAt("/repos/repo-acme-commerce/lab");
+  const retry = await screen.findByRole("button", { name: "Retry fixture catalog" });
+  expect(screen.getByRole("alert").textContent).toMatch(/Fixture catalog unavailable/i);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/evaluation-cases"))).toHaveLength(4);
+  fireEvent.click(retry);
+  const fixtures = screen.getByRole("region", { name: "Verified evaluation fixtures" });
+  expect(await within(fixtures).findByText("2 cases")).toBeTruthy();
+  await waitFor(() => expect(document.activeElement).toBe(within(fixtures).getByRole("heading", { name: "Verified evaluation fixtures" })));
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/evaluation-cases"))).toHaveLength(5);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
+it("returns focus to fixture-catalog retry after another bounded failure", async () => {
+  const fetchMock = installFetch({ evaluationCaseFailures: 8 });
+  renderAt("/repos/repo-acme-commerce/lab");
+  fireEvent.click(await screen.findByRole("button", { name: "Retry fixture catalog" }));
+  const retry = await screen.findByRole("button", { name: "Retry fixture catalog" });
+  await waitFor(() => expect(document.activeElement).toBe(retry));
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/evaluation-cases"))).toHaveLength(8);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
 it("restores the latest completed comparison without starting a new job", async () => {
   const restored = {
     evaluation: {
@@ -814,7 +855,7 @@ it("announces when starting a comparison reuses existing provider work", async (
     memory: { run_id: "run-reused-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-reused-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
   };
-  const fetchMock = installFetch({ comparison, reusedComparisonStart: true, pollDelayMs: 100 });
+  const fetchMock = installFetch({ comparison, reusedComparisonStart: true, pollDelayMs: 500 });
   renderAt("/repos/repo-acme-commerce/lab");
   await screen.findByRole("option", { name: /Update order status/ });
   const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;

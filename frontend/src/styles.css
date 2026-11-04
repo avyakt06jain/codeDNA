@@ -231,6 +231,8 @@ textarea { width: 100%; resize: vertical; }
 .evaluation-cases li > div { display: grid; gap: 3px; min-width: 0; }
 .evaluation-cases li span { color: var(--muted); font-size: 12px; }
 .evaluation-cases .secondary { flex: none; text-decoration: none; }
+.catalog-recovery { margin-bottom: 10px; }
+.catalog-recovery .note { margin-bottom: 8px; }
 .lab-column .panel-head p { margin: 4px 0 0; color: var(--muted); }
 .pad-x { padding: 0 18px; }
 .trace { list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 0; margin: 16px 0; }

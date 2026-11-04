@@ -61,10 +61,11 @@
 - `No active work` now offers a summary-only refresh that can discover newly queued work from another tab, focus it, and resume normal read-only monitoring.
 - Repository summary timers now pause while the document is hidden and resume with one immediate read-only check when visibility returns.
 - Memory Lab now reads both held-out cases from a backend-owned SQLite contract, including repository/source/candidate/active-decision metadata, latest stored guardrail results, and direct candidate-selection links.
+- Evaluation-catalog reads now recover from transient failures with bounded retries and an explicit GET-only retry action that preserves keyboard position.
 
 ## In Progress
 
-- Post-MVP work continues with recoverable evaluation-catalog reads in Memory Lab.
+- Post-MVP work continues with cross-tab refresh of successful evaluation-catalog results.
 
 ## Blocked
 
@@ -88,9 +89,20 @@
 
 ## Next Action
 
-Add a bounded, explicit read-only retry for Memory Lab evaluation-catalog outages without starting comparison/provider work.
+Add an explicit read-only refresh for a successfully loaded Memory Lab fixture catalog so another tab's completed comparison can be observed without reloading.
 
 ## Session Log
+
+### 2026-11-05 — Recoverable evaluation-catalog reads
+
+- Goal: Keep Memory Lab fixture navigation usable through temporary API outages without creating provider work.
+- Implemented: transient-only 1/2/4-second catalog retries, terminal error state, explicit `Retry fixture catalog`, fresh bounded retry cycles, cleanup-safe state updates, and focus restoration to the fixture heading after manual recovery or the recreated retry button after repeated failure.
+- Focused check: `npm test -- --run src/ui.test.tsx` → **36 passed**. New cases prove one transient failure recovers on the second GET, four failures expose a retry whose fifth GET succeeds, and repeated exhaustion returns focus to the recreated retry control; all paths issue zero POSTs. One rerun exposed an existing reattachment announcement that could complete inside its 100 ms mock window; increasing only that test's mocked status delay to 500 ms made its intermediate-state assertion deterministic.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **47 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 323.56 kB JavaScript and 15.89 kB CSS before gzip.
+- Live app: API health returned `ok`, the catalog returned two cases, Memory Lab returned HTTP 200, and Hindsight remained truthfully `unavailable`.
+- Provider safety: automatic and manual recovery call only `GET /api/evaluation-cases`; tests assert zero comparison POSTs.
+- Next: let users refresh a healthy catalog to observe stored comparisons completed in another tab.
 
 ### 2026-11-04 — GitHub synchronization recovery
 

@@ -103,7 +103,7 @@ Open:
 
 The repository overview includes a read-only Active work panel when queued or running reviews/comparisons exist, or a timestamped `No active work` card after a successful empty check. `Check for active work` can discover work queued in another tab without reloading. Active rows link to their PR and show sanitized job diagnostics. While visible and rows remain, the summary refreshes every five seconds; hidden tabs pause summary reads and reconcile once when visible again. Transient summary failures receive bounded 1/2/4-second retries, followed by an explicit summary-only retry action if needed. Completion is announced conservatively, and keyboard focus follows manual recovery/discovery. The overview never starts work or polls individual job results.
 
-Memory Lab lists both synthetic held-out cases from `GET /api/evaluation-cases` before the run controls. Repository, source PR, candidate PR, active decision, and the newest stored guardrail result are resolved from SQLite; opening one selects that repository's fetched candidate and does not start a comparison.
+Memory Lab lists both synthetic held-out cases from `GET /api/evaluation-cases` before the run controls. Repository, source PR, candidate PR, active decision, and the newest stored guardrail result are resolved from SQLite; opening one selects that repository's fetched candidate and does not start a comparison. Temporary catalog failures receive bounded 1/2/4-second GET retries, followed by an explicit GET-only retry action that restores keyboard focus after recovery.
 
 See [docs/DEMO.md](docs/DEMO.md) for the verified presentation path.
 
@@ -119,7 +119,7 @@ npm run build
 Latest results:
 
 - Backend: **33 passed**
-- Frontend: **44 passed**
+- Frontend: **47 passed**
 - Production frontend build: **passed**
 - Live PR #87 memory review: active `DEC-0103` only
 - Memory Lab: **6/6 guardrails passed** on each of two repository-isolated synthetic held-out cases
