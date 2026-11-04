@@ -69,6 +69,7 @@
 ## Blocked
 
 - No implementation blocker. The currently restarted API reports Hindsight unavailable after Gemini returned `503 UNAVAILABLE` during provider verification; saved reviews/comparisons and citation inspection remain usable, while new memory calls require provider recovery and an API restart.
+- GitHub synchronization is temporarily blocked: local commit `6b1d99a` is preserved, but two unchanged `git push origin main` attempts returned `Permission denied (publickey)`; no amend or force-push was used.
 
 ## Known Limitations
 
@@ -88,7 +89,7 @@
 
 ## Next Action
 
-Add a bounded, explicit read-only retry for Memory Lab evaluation-catalog outages without starting comparison/provider work.
+Restore GitHub SSH authentication and push local commit `6b1d99a` without amending or force-pushing; then add a bounded, explicit read-only retry for Memory Lab evaluation-catalog outages.
 
 ## Session Log
 
@@ -102,6 +103,7 @@ Add a bounded, explicit read-only retry for Memory Lab evaluation-catalog outage
 - Live correction: the first restart from the repository root **FAILED** with `ModuleNotFoundError: codedna_memory`; the exact prior listener was already stopped, so the API was relaunched from `backend` with the verified `.venv` and no Hindsight autostart.
 - Live verification: API health returned `ok`, Hindsight remained truthfully `unavailable`, Memory Lab returned HTTP 200, and the SQLite-backed catalog returned exactly PR #120/`DEC-0103` and PR #29/`DEC-0211`, each with a recomputed 6/6 latest stored result.
 - Provider safety: catalog fetch/navigation is read-only and neither starts a comparison nor contacts Hindsight/Gemini.
+- Version control: local commit `6b1d99a` was created successfully. Two unchanged `git push origin main` attempts **FAILED** with `git@github.com: Permission denied (publickey). fatal: Could not read from remote repository.`; `ssh-add -l` also returned `Error connecting to agent: Permission denied`, and no Windows `ssh-agent` service is installed. The commit remains intact and local `main` is one commit ahead of `origin/main`.
 - Next: make temporary catalog-read failures explicitly retryable through the same GET-only boundary.
 
 ### 2026-11-04 — Inspectable Memory Lab fixture catalog
