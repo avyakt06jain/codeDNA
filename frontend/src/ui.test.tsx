@@ -786,6 +786,9 @@ it("preserves the last fixture catalog when refresh recovery is exhausted", asyn
   expect(await within(fixtures).findByRole("button", { name: "Retry fixture catalog" })).toBeTruthy();
   expect(within(fixtures).getByText("Source PR #103 → held-out PR #120")).toBeTruthy();
   expect(within(fixtures).getByText(/Last checked/i).querySelector("time")?.getAttribute("datetime")).toBe(checkedBefore);
+  const stale = within(fixtures).getByText(/Showing last-known-good fixture data/);
+  expect(stale.textContent).toMatch(/failed refresh did not replace these rows/i);
+  expect(stale.querySelector("time")?.getAttribute("datetime")).toBe(checkedBefore);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/evaluation-cases"))).toHaveLength(5);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
@@ -839,6 +842,7 @@ it("retries an exhausted fixture catalog through GET only", async () => {
   renderAt("/repos/repo-acme-commerce/lab");
   const retry = await screen.findByRole("button", { name: "Retry fixture catalog" });
   expect(screen.getByRole("alert").textContent).toMatch(/Fixture catalog unavailable/i);
+  expect(screen.queryByText(/Showing last-known-good fixture data/)).toBeNull();
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/evaluation-cases"))).toHaveLength(4);
   fireEvent.click(retry);
   const fixtures = screen.getByRole("region", { name: "Verified evaluation fixtures" });

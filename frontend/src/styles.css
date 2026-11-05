@@ -234,6 +234,7 @@ textarea { width: 100%; resize: vertical; }
 .evaluation-cases .secondary { flex: none; text-decoration: none; }
 .catalog-recovery { margin-bottom: 10px; }
 .catalog-recovery .note { margin-bottom: 8px; }
+.catalog-stale { margin: 0 0 8px; color: #7a4b00; font-size: 13px; }
 .catalog-refresh { margin-top: 10px; }
 .lab-column .panel-head p { margin: 4px 0 0; color: var(--muted); }
 .pad-x { padding: 0 18px; }

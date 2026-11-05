@@ -143,7 +143,8 @@
 - **Verified:** The persistent Memory Lab live region announces only material automatic changes to the selected fixture's stored result, including repository and exact passed/total counts; unchanged refreshes preserve the single comparison-complete announcement.
 - **Verified:** The fixture catalog shows a localized, machine-readable `Last checked` time from its latest successful GET; failed refreshes preserve the prior timestamp instead of implying freshness.
 - **Verified:** The fixture region exposes `aria-busy` during initial loading and refresh, distinguishes visible loading/refreshing text, and keeps trusted rows plus their prior check time available throughout refresh.
-- **Next:** Label retained fixture rows explicitly as last-known-good when a refresh exhausts recovery, so stale-but-valid data cannot be mistaken for a successful latest read.
+- **Verified:** Exhausted refresh recovery labels retained rows as last-known-good with their preserved check time and does not show that label for an initial failure with no prior data.
+- **Next:** Surface each fixture's sanitized latest comparison job ID beside its stored result so judges can correlate catalog evidence with persisted background work.
 
 ## Documentation and version-control policy
 

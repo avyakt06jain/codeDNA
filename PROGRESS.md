@@ -67,10 +67,11 @@
 - Memory Lab's persistent live region announces a selected fixture's automatic stored-result change only when its job, outcome, count, or timestamp changed; unchanged refreshes do not create a second announcement.
 - The fixture catalog now displays a parseable localized `Last checked` time set only by a successful response; failed refreshes retain the previous successful observation time.
 - The fixture region now exposes initial and refresh activity with `aria-busy`; refresh keeps trusted rows/check time present and uses distinct visible refreshing text.
+- Exhausted catalog refreshes explicitly label retained rows as last-known-good with their successful check time; initial failures with no trusted data do not claim a fallback.
 
 ## In Progress
 
-- Post-MVP work continues by labeling stale-but-valid fixture data explicitly after exhausted refresh recovery.
+- Post-MVP work continues by correlating stored fixture results with their sanitized persisted comparison jobs.
 
 ## Blocked
 
@@ -94,9 +95,20 @@
 
 ## Next Action
 
-When refresh recovery is exhausted, label retained fixture rows as last-known-good alongside the preserved successful check time.
+Show each fixture result's sanitized latest comparison job ID so catalog evidence can be correlated with persisted background work.
 
 ## Session Log
+
+### 2026-11-05 — Explicit last-known-good fixture state
+
+- Goal: Prevent retained fixture rows from being mistaken for a successful latest read after catalog refresh recovery is exhausted.
+- Implemented: a failed refresh with prior data now displays `Showing last-known-good fixture data`, repeats the preserved check time as a machine-readable `time`, and states that the failed refresh did not replace the rows. Initial-load failure does not show the fallback label because no trusted catalog exists.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "preserves the last fixture catalog|retries an exhausted fixture catalog"` → **2 passed, 38 skipped**.
+- Regression: backend `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**. The first full frontend run had one unrelated overview empty-state timing miss; immediate `npm test -- --run` rerun → **51 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 325.06 kB JavaScript and 16.03 kB CSS before gzip.
+- Live app: API health returned `ok`, Hindsight remained truthfully `unavailable`, the catalog returned two cases, and Memory Lab returned HTTP 200.
+- Provider safety: the stale label is derived entirely from retained successful browser state and adds no request or provider work.
+- Next: display each fixture's sanitized latest comparison job ID for correlation with persisted background work.
 
 ### 2026-11-05 — Accessible fixture-catalog busy state
 

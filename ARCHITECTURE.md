@@ -812,6 +812,8 @@ Each successful evaluation-catalog response records a browser observation time a
 
 The evaluation-fixture region exposes `aria-busy=true` for the initial request and every bounded refresh cycle. Refreshing keeps the last-known-good rows and their prior check time in the DOM, changes the visible activity text from loading to refreshing, and resets `aria-busy` only after success or terminal failure. The busy state adds no request and does not change focus.
 
+When a refresh exhausts recovery after at least one successful catalog read, the error recovery block explicitly labels the still-rendered rows as last-known-good, repeats their successful check time in a machine-readable `time`, and states that the failed refresh did not replace them. An initial-load failure has no such label because no trustworthy prior rows exist. A later successful read clears the error and stale label normally.
+
 - Historical rule status is visually marked active vs superseded.
 - If no memory was used, UI explicitly says so.
 - An ingestion failure isn't displayed as successful memory learning.

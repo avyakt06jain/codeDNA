@@ -420,6 +420,11 @@ export function MemoryLabPage() {
         {casesError ? (
           <div className="catalog-recovery">
             <ErrorNote>Fixture catalog unavailable: {casesError}</ErrorNote>
+            {evaluationCases.length > 0 && casesCheckedAt ? (
+              <p className="catalog-stale">
+                Showing last-known-good fixture data from <time dateTime={casesCheckedAt}>{formatWhen(casesCheckedAt) ?? casesCheckedAt}</time>. The failed refresh did not replace these rows.
+              </p>
+            ) : null}
             <button ref={casesRetryButton} type="button" className="secondary" disabled={casesLoading} onClick={reloadCatalog}>
               Retry fixture catalog
             </button>
