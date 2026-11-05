@@ -184,6 +184,7 @@ function installFetch(options?: {
           ...item,
           latest_evaluation: {
             ...item.latest_evaluation,
+            job_id: "job-acme-new-proof",
             passed: false,
             passed_checks: 5,
             updated_at: "2026-11-05T00:00:00Z",
@@ -738,6 +739,8 @@ it("makes both recorded held-out evaluation fixtures inspectable in Memory Lab",
   expect(within(fixtures).getByText("Source PR #11 → held-out PR #29")).toBeTruthy();
   expect(within(fixtures).getByText("DEC-0211 · active")).toBeTruthy();
   expect(within(fixtures).getAllByText(/6\/6 guardrails passed in latest stored run/)).toHaveLength(2);
+  expect(within(fixtures).getByText("job-acme-proof").tagName).toBe("CODE");
+  expect(within(fixtures).getByText("job-analytics-proof").tagName).toBe("CODE");
   const lastChecked = within(fixtures).getByText(/Last checked/i).querySelector("time");
   expect(Number.isFinite(Date.parse(lastChecked?.getAttribute("datetime") ?? ""))).toBe(true);
   const links = within(fixtures).getAllByRole("link", { name: "Open case" }) as HTMLAnchorElement[];
@@ -770,6 +773,7 @@ it("refreshes a healthy fixture catalog through GET only", async () => {
   expect(within(fixtures).getByText(/Last checked/i).querySelector("time")?.getAttribute("datetime")).toBe(checkedBefore);
   expect(within(fixtures).getByText("Refreshing fixture catalog…")).toBeTruthy();
   expect(await within(fixtures).findByText(/5\/6 guardrails passed in latest stored run/)).toBeTruthy();
+  expect(within(fixtures).getByText("job-acme-new-proof").tagName).toBe("CODE");
   expect(fixtures.getAttribute("aria-busy")).toBe("false");
   await waitFor(() => expect(document.activeElement).toBe(within(fixtures).getByRole("heading", { name: "Verified evaluation fixtures" })));
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/evaluation-cases"))).toHaveLength(2);

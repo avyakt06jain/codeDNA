@@ -144,7 +144,8 @@
 - **Verified:** The fixture catalog shows a localized, machine-readable `Last checked` time from its latest successful GET; failed refreshes preserve the prior timestamp instead of implying freshness.
 - **Verified:** The fixture region exposes `aria-busy` during initial loading and refresh, distinguishes visible loading/refreshing text, and keeps trusted rows plus their prior check time available throughout refresh.
 - **Verified:** Exhausted refresh recovery labels retained rows as last-known-good with their preserved check time and does not show that label for an initial failure with no prior data.
-- **Next:** Surface each fixture's sanitized latest comparison job ID beside its stored result so judges can correlate catalog evidence with persisted background work.
+- **Verified:** Each stored fixture result shows its validated opaque comparison job ID, and a refresh replaces that correlation handle with the newer SQLite result without extra status/provider requests.
+- **Next:** Render each stored comparison update time as a semantic HTML `time` so result age is machine-readable as well as localized.
 
 ## Documentation and version-control policy
 

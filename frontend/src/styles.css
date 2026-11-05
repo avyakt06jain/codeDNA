@@ -231,6 +231,7 @@ textarea { width: 100%; resize: vertical; }
 .evaluation-cases li.active { border-color: #8fd2ae; background: #f4fbf7; }
 .evaluation-cases li > div { display: grid; gap: 3px; min-width: 0; }
 .evaluation-cases li span { color: var(--muted); font-size: 12px; }
+.evaluation-cases code { color: var(--ink); overflow-wrap: anywhere; }
 .evaluation-cases .secondary { flex: none; text-decoration: none; }
 .catalog-recovery { margin-bottom: 10px; }
 .catalog-recovery .note { margin-bottom: 8px; }

@@ -814,6 +814,8 @@ The evaluation-fixture region exposes `aria-busy=true` for the initial request a
 
 When a refresh exhausts recovery after at least one successful catalog read, the error recovery block explicitly labels the still-rendered rows as last-known-good, repeats their successful check time in a machine-readable `time`, and states that the failed refresh did not replace them. An initial-load failure has no such label because no trustworthy prior rows exist. A later successful read clears the error and stale label normally.
 
+Every fixture with a valid latest evaluation renders the already-sanitized opaque comparison `job_id` beside its stored guardrail result in code styling. The frontend accepts only IDs that pass its bounded `job-...` validator, displays no provider payload, and makes no job-status request; the identifier is an audit correlation handle for the SQLite-backed result. A fixture without a completed comparison renders neither a result nor a job ID.
+
 - Historical rule status is visually marked active vs superseded.
 - If no memory was used, UI explicitly says so.
 - An ingestion failure isn't displayed as successful memory learning.

@@ -68,10 +68,11 @@
 - The fixture catalog now displays a parseable localized `Last checked` time set only by a successful response; failed refreshes retain the previous successful observation time.
 - The fixture region now exposes initial and refresh activity with `aria-busy`; refresh keeps trusted rows/check time present and uses distinct visible refreshing text.
 - Exhausted catalog refreshes explicitly label retained rows as last-known-good with their successful check time; initial failures with no trusted data do not claim a fallback.
+- Each fixture's latest stored result now shows its frontend-validated opaque comparison job ID for correlation with persisted background work.
 
 ## In Progress
 
-- Post-MVP work continues by correlating stored fixture results with their sanitized persisted comparison jobs.
+- Post-MVP work continues by making each stored comparison's result time semantically inspectable.
 
 ## Blocked
 
@@ -95,9 +96,20 @@
 
 ## Next Action
 
-Show each fixture result's sanitized latest comparison job ID so catalog evidence can be correlated with persisted background work.
+Render every stored comparison update time as a parseable HTML `time` while preserving the current localized display.
 
 ## Session Log
+
+### 2026-11-05 — Fixture-to-job correlation
+
+- Goal: Let judges correlate each catalog guardrail result with the persisted comparison job that produced it.
+- Implemented: Memory Lab renders the existing frontend-validated opaque `job_id` beside each latest stored result in code styling. Refresh replaces the ID when SQLite returns a newer result; fixtures without a completed comparison show no job ID.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "recorded held-out|refreshes a healthy fixture catalog"` → **2 passed, 38 skipped**; the run completed after a long host pause and verified both initial IDs plus replacement by `job-acme-new-proof`.
+- Regression: backend `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**. The first combined frontend run was disrupted by another multi-minute host pause and produced unrelated timer/worker failures; immediate `npm test -- --run` rerun → **51 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 325.17 kB JavaScript and 16.10 kB CSS before gzip.
+- Live app: API health returned `ok`, Hindsight remained truthfully `unavailable`, the catalog returned two cases, and Memory Lab returned HTTP 200.
+- Provider safety: job IDs already arrive in the read-only catalog, pass the existing bounded validator, and add no job-status or provider request.
+- Next: make each stored comparison update time machine-readable with semantic `time` markup.
 
 ### 2026-11-05 — Explicit last-known-good fixture state
 

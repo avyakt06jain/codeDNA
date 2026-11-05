@@ -446,6 +446,7 @@ export function MemoryLabPage() {
                       ? `${recorded.passed_checks}/${recorded.total_checks} guardrails passed in latest stored run${recorded.updated_at ? ` · ${formatWhen(recorded.updated_at)}` : ""}`
                       : "No completed comparison recorded in this database"}
                   </span>
+                  {recorded ? <span>Stored comparison job <code>{recorded.job_id}</code></span> : null}
                 </div>
                 <Link
                   className="secondary"
