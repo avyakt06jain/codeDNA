@@ -30,7 +30,8 @@ function catalogUpdateAnnouncement(previous: EvaluationCase[], next: EvaluationC
   const after = next.find((item) => item.candidate_pr_id === candidatePrId);
   if (!after || !catalogResultChanged(before, after)) return "";
   if (!after.latest_evaluation) return `Fixture catalog updated for ${after.repository_name}: no completed comparison is recorded.`;
-  return `Fixture catalog updated for ${after.repository_name}: ${after.latest_evaluation.passed_checks} of ${after.latest_evaluation.total_checks} guardrails passed in the latest stored run.`;
+  const outcome = after.latest_evaluation.passed ? "Passed" : "Needs attention";
+  return `Fixture catalog updated for ${after.repository_name}: ${outcome} — ${after.latest_evaluation.passed_checks} of ${after.latest_evaluation.total_checks} guardrails passed in the latest stored run.`;
 }
 
 function RunColumn({ title, note, review }: { title: string; note: string; review: Review }) {

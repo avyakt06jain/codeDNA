@@ -147,7 +147,8 @@
 - **Verified:** Each stored fixture result shows its validated opaque comparison job ID, and a refresh replaces that correlation handle with the newer SQLite result without extra status/provider requests.
 - **Verified:** Stored comparison update times retain localized text inside semantic HTML `time` elements whose `dateTime` values are canonical validated UTC; malformed times remain omitted.
 - **Verified:** Every stored fixture result states `Passed` or `Needs attention` from the validated API Boolean beside its guardrail count, so outcome is not conveyed by color or arithmetic alone.
-- **Next:** Include that explicit outcome in automatic fixture-result announcements so a changed failing result is unambiguous to screen-reader users as well as in the visible catalog.
+- **Verified:** Automatic fixture-result announcements state `Passed` or `Needs attention` before the exact guardrail count, while unchanged refreshes still avoid duplicate completion announcements.
+- **Next:** Give each repeated `Open case` link a repository- and candidate-specific accessible name while retaining its concise visible label.
 
 ## Documentation and version-control policy
 

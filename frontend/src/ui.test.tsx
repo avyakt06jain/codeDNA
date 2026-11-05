@@ -816,7 +816,7 @@ it("refreshes the fixture catalog after its comparison completes", async () => {
   fireEvent.click(run);
   expect(await screen.findByText("Guardrails passed")).toBeTruthy();
   expect(await screen.findByText(/5\/6 guardrails passed in latest stored run/)).toBeTruthy();
-  expect(screen.getByText(/Fixture catalog updated for Acme Commerce: 5 of 6 guardrails passed/).getAttribute("role")).toBe("status");
+  expect(screen.getByText(/Fixture catalog updated for Acme Commerce: Needs attention — 5 of 6 guardrails passed/).getAttribute("role")).toBe("status");
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/evaluation-cases"))).toHaveLength(2);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
   expect(fetchMock.mock.calls.some((entry) => String(entry[0]).includes("/api/prs/pr-acme-120/comparison"))).toBe(true);

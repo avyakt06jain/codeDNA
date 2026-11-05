@@ -4,7 +4,7 @@
 
 ## Current State
 
-- Date: 2026-11-05
+- Date: 2026-11-06
 - Phase: G0–G5 MVP gates complete; the evolved judge demo was exercised against a restarted local API.
 - Implementation: The retain → recall → validate → review → feedback → supersede → ablate loop is verified locally against real Hindsight and Gemini. `CODEDNA_DEMO_SCENE=evolved` leaves `DEC-0103` active and `DEC-0042` superseded.
 - Git: `main` is initialized, connected to GitHub, and verified checkpoints are pushed without rewriting published history.
@@ -71,10 +71,11 @@
 - Each fixture's latest stored result now shows its frontend-validated opaque comparison job ID for correlation with persisted background work.
 - Each stored comparison update time now uses semantic `time` markup with the API client's normalized ISO UTC value while retaining localized display text.
 - Each stored fixture result now states `Passed` or `Needs attention` from its validated pass Boolean beside the guardrail count.
+- Automatic stored-result announcements now include the explicit outcome before the exact guardrail count.
 
 ## In Progress
 
-- Post-MVP work continues by making automatic fixture-result announcements state the explicit outcome.
+- Post-MVP work continues by disambiguating repeated fixture navigation links for assistive technology.
 
 ## Blocked
 
@@ -98,9 +99,20 @@
 
 ## Next Action
 
-Include `Passed` or `Needs attention` in the automatic stored-result change announcement without adding provider work or duplicate live-region messages.
+Give each `Open case` link a repository- and candidate-specific accessible name without changing its concise visible label or starting work.
 
 ## Session Log
+
+### 2026-11-06 — Explicit outcomes in catalog announcements
+
+- Goal: Make a changed stored result's pass/fail state unambiguous in the existing polite live region.
+- Implemented: automatic catalog-refresh announcements now say `Passed` or `Needs attention` from the validated result Boolean before the exact passed/total guardrail count. Unchanged responses still preserve the single comparison-complete announcement.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "refreshes the fixture catalog after|does not announce an unchanged"` → **2 passed, 38 skipped**.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **51 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 325.46 kB JavaScript and 16.10 kB CSS before gzip.
+- Live app: the prior local listeners were no longer present, so the API and Vite were restarted in hidden local processes with `CODEDNA_DEMO_SCENE=evolved` and `CODEDNA_HINDSIGHT_AUTOSTART=0`. Health returned `ok`, Hindsight truthfully returned `unavailable`, the catalog returned two cases, and Memory Lab returned HTTP 200.
+- Provider safety: the announcement is derived from the existing sanitized catalog response and adds no request or Hindsight/Gemini work.
+- Next: make repeated fixture navigation links uniquely named for assistive technology.
 
 ### 2026-11-05 — Explicit stored comparison outcomes
 
