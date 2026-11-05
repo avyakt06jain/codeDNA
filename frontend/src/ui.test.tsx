@@ -736,6 +736,8 @@ it("makes both recorded held-out evaluation fixtures inspectable in Memory Lab",
   expect(within(fixtures).getByText("Source PR #11 → held-out PR #29")).toBeTruthy();
   expect(within(fixtures).getByText("DEC-0211 · active")).toBeTruthy();
   expect(within(fixtures).getAllByText(/6\/6 guardrails passed in latest stored run/)).toHaveLength(2);
+  const lastChecked = within(fixtures).getByText(/Last checked/i).querySelector("time");
+  expect(Number.isFinite(Date.parse(lastChecked?.getAttribute("datetime") ?? ""))).toBe(true);
   const links = within(fixtures).getAllByRole("link", { name: "Open case" }) as HTMLAnchorElement[];
   expect(links.map((link) => link.getAttribute("href"))).toEqual([
     "/repos/repo-acme-commerce/lab?case=pr-acme-120",
@@ -769,9 +771,11 @@ it("preserves the last fixture catalog when refresh recovery is exhausted", asyn
   renderAt("/repos/repo-acme-commerce/lab");
   const fixtures = await screen.findByRole("region", { name: "Verified evaluation fixtures" });
   expect(await within(fixtures).findByText("Source PR #103 → held-out PR #120")).toBeTruthy();
+  const checkedBefore = within(fixtures).getByText(/Last checked/i).querySelector("time")?.getAttribute("datetime");
   fireEvent.click(within(fixtures).getByRole("button", { name: "Refresh fixture catalog" }));
   expect(await within(fixtures).findByRole("button", { name: "Retry fixture catalog" })).toBeTruthy();
   expect(within(fixtures).getByText("Source PR #103 → held-out PR #120")).toBeTruthy();
+  expect(within(fixtures).getByText(/Last checked/i).querySelector("time")?.getAttribute("datetime")).toBe(checkedBefore);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/evaluation-cases"))).toHaveLength(5);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });

@@ -65,10 +65,11 @@
 - A successfully loaded fixture catalog can now be refreshed through the same GET-only boundary; failed refreshes retain last-known-good case navigation.
 - A completed local comparison now refreshes the fixture catalog automatically through one GET-only recovery cycle, without moving focus or creating more provider work.
 - Memory Lab's persistent live region announces a selected fixture's automatic stored-result change only when its job, outcome, count, or timestamp changed; unchanged refreshes do not create a second announcement.
+- The fixture catalog now displays a parseable localized `Last checked` time set only by a successful response; failed refreshes retain the previous successful observation time.
 
 ## In Progress
 
-- Post-MVP work continues by making fixture-catalog freshness visible and inspectable.
+- Post-MVP work continues by exposing fixture-catalog loading state accessibly without discarding trusted rows.
 
 ## Blocked
 
@@ -92,9 +93,20 @@
 
 ## Next Action
 
-Add a visible, machine-readable fixture-catalog `Last checked` time that advances only after a successful catalog response.
+Mark the fixture region busy during initial load and refresh while preserving last-known-good fixtures and the prior successful check time.
 
 ## Session Log
+
+### 2026-11-05 — Inspectable fixture-catalog freshness
+
+- Goal: Let judges distinguish a freshly read SQLite catalog from an older page view without implying that Hindsight or Gemini was contacted.
+- Implemented: every successful catalog GET records an ISO observation time and renders a localized `Last checked` HTML `time`. Failed bounded refreshes preserve the previous time alongside last-known-good fixture rows.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "recorded held-out|preserves the last fixture catalog"` → **2 passed, 38 skipped**. Coverage verifies a parseable timestamp after success and exact timestamp preservation after four failed refresh attempts.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **51 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 324.79 kB JavaScript and 15.97 kB CSS before gzip.
+- Live app: API health returned `ok`, Hindsight remained truthfully `unavailable`, the catalog returned two cases, and Memory Lab returned HTTP 200.
+- Provider safety: the timestamp is browser-side observation metadata for the existing catalog GET and does not imply provider availability or add a request.
+- Next: expose catalog load/refresh activity through `aria-busy` while keeping trusted rows and their prior timestamp present.
 
 ### 2026-11-05 — Material catalog-result announcement
 

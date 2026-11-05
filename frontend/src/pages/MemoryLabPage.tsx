@@ -69,6 +69,7 @@ export function MemoryLabPage() {
   const [casesLoading, setCasesLoading] = useState(true);
   const [casesError, setCasesError] = useState("");
   const [casesRetryKey, setCasesRetryKey] = useState(0);
+  const [casesCheckedAt, setCasesCheckedAt] = useState("");
   const [catalogAnnouncement, setCatalogAnnouncement] = useState("");
   const [prId, setPrId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -133,6 +134,7 @@ export function MemoryLabPage() {
             evaluationCasesRef.current = rows;
             setEvaluationCases(rows);
             setCasesError("");
+            setCasesCheckedAt(new Date().toISOString());
             if (automaticCatalogRefresh.current) {
               setCatalogAnnouncement(catalogUpdateAnnouncement(previous, rows, prId));
               automaticCatalogRefresh.current = false;
@@ -406,6 +408,11 @@ export function MemoryLabPage() {
           <div>
             <h2 id="evaluation-cases-title" ref={casesHeading} tabIndex={-1}>Verified evaluation fixtures</h2>
             <p>Two synthetic held-out cases have recorded live Hindsight/Gemini proofs. These are case counts, not an accuracy score.</p>
+            {casesCheckedAt ? (
+              <p className="catalog-checked">
+                Last checked <time dateTime={casesCheckedAt}>{formatWhen(casesCheckedAt) ?? casesCheckedAt}</time>
+              </p>
+            ) : null}
           </div>
           <span>{evaluationCases.length} {evaluationCases.length === 1 ? "case" : "cases"}</span>
         </div>
