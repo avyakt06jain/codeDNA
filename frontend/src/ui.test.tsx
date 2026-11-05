@@ -156,6 +156,7 @@ function installFetch(options?: {
   evaluationCaseFailures?: number;
   evaluationCaseFailuresAfter?: number;
   evaluationCaseUpdateAfter?: number;
+  evaluationCaseDelayMs?: number;
 }) {
   const hindsight = options?.hindsight ?? "ready";
   let reviewPollFailures = options?.reviewPollFailures ?? 0;
@@ -173,6 +174,7 @@ function installFetch(options?: {
     if (path === "/api/repositories") return json(repositories);
     if (path === "/api/evaluation-cases") {
       evaluationCaseReads += 1;
+      if (options?.evaluationCaseDelayMs) await new Promise((resolve) => setTimeout(resolve, options.evaluationCaseDelayMs));
       if (evaluationCaseFailures > 0 && evaluationCaseReads > (options?.evaluationCaseFailuresAfter ?? 0)) {
         evaluationCaseFailures -= 1;
         return json({ detail: "temporary catalog outage" }, 503);
@@ -755,12 +757,20 @@ it("opens a recorded fixture on its held-out candidate without starting work", a
 });
 
 it("refreshes a healthy fixture catalog through GET only", async () => {
-  const fetchMock = installFetch({ evaluationCaseUpdateAfter: 2 });
+  const fetchMock = installFetch({ evaluationCaseUpdateAfter: 2, evaluationCaseDelayMs: 50 });
   renderAt("/repos/repo-acme-commerce/lab");
-  const fixtures = await screen.findByRole("region", { name: "Verified evaluation fixtures" });
+  const fixtures = screen.getByRole("region", { name: "Verified evaluation fixtures" });
+  expect(fixtures.getAttribute("aria-busy")).toBe("true");
   expect(await within(fixtures).findAllByText(/6\/6 guardrails passed in latest stored run/)).toHaveLength(2);
+  expect(fixtures.getAttribute("aria-busy")).toBe("false");
+  const checkedBefore = within(fixtures).getByText(/Last checked/i).querySelector("time")?.getAttribute("datetime");
   fireEvent.click(within(fixtures).getByRole("button", { name: "Refresh fixture catalog" }));
+  expect(fixtures.getAttribute("aria-busy")).toBe("true");
+  expect(within(fixtures).getByText("Source PR #103 → held-out PR #120")).toBeTruthy();
+  expect(within(fixtures).getByText(/Last checked/i).querySelector("time")?.getAttribute("datetime")).toBe(checkedBefore);
+  expect(within(fixtures).getByText("Refreshing fixture catalog…")).toBeTruthy();
   expect(await within(fixtures).findByText(/5\/6 guardrails passed in latest stored run/)).toBeTruthy();
+  expect(fixtures.getAttribute("aria-busy")).toBe("false");
   await waitFor(() => expect(document.activeElement).toBe(within(fixtures).getByRole("heading", { name: "Verified evaluation fixtures" })));
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/evaluation-cases"))).toHaveLength(2);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);

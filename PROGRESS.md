@@ -66,10 +66,11 @@
 - A completed local comparison now refreshes the fixture catalog automatically through one GET-only recovery cycle, without moving focus or creating more provider work.
 - Memory Lab's persistent live region announces a selected fixture's automatic stored-result change only when its job, outcome, count, or timestamp changed; unchanged refreshes do not create a second announcement.
 - The fixture catalog now displays a parseable localized `Last checked` time set only by a successful response; failed refreshes retain the previous successful observation time.
+- The fixture region now exposes initial and refresh activity with `aria-busy`; refresh keeps trusted rows/check time present and uses distinct visible refreshing text.
 
 ## In Progress
 
-- Post-MVP work continues by exposing fixture-catalog loading state accessibly without discarding trusted rows.
+- Post-MVP work continues by labeling stale-but-valid fixture data explicitly after exhausted refresh recovery.
 
 ## Blocked
 
@@ -93,9 +94,20 @@
 
 ## Next Action
 
-Mark the fixture region busy during initial load and refresh while preserving last-known-good fixtures and the prior successful check time.
+When refresh recovery is exhausted, label retained fixture rows as last-known-good alongside the preserved successful check time.
 
 ## Session Log
+
+### 2026-11-05 — Accessible fixture-catalog busy state
+
+- Goal: Expose catalog loading/refresh activity without hiding previously verified fixture data or implying a new successful read.
+- Implemented: the evaluation-fixture region now sets `aria-busy` for initial and refresh cycles. Initial activity says `Loading fixture catalog`; later cycles say `Refreshing fixture catalog` while existing rows and `Last checked` remain present. Busy resets on success or exhausted failure.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "refreshes a healthy fixture catalog"` → **1 passed, 39 skipped**. The case verifies initial/refresh busy transitions, retained rows/time during refresh, updated result, focus restoration, two GETs, and zero POSTs.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **51 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 324.84 kB JavaScript and 15.97 kB CSS before gzip.
+- Live app: API health returned `ok`, Hindsight remained truthfully `unavailable`, the catalog returned two cases, and Memory Lab returned HTTP 200.
+- Provider safety: `aria-busy` and activity wording are presentation state over the existing bounded catalog GET cycle and add no request or provider work.
+- Next: explicitly label retained rows as last-known-good after refresh recovery is exhausted.
 
 ### 2026-11-05 — Inspectable fixture-catalog freshness
 

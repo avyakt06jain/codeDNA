@@ -810,6 +810,8 @@ The page's existing polite, atomic live region announces an automatic catalog re
 
 Each successful evaluation-catalog response records a browser observation time and renders it as a localized HTML `time` element with a parseable ISO `dateTime`. Retry attempts and failed manual or automatic refreshes never advance that value, so the visible `Last checked` label describes the last SQLite-backed response the page actually received rather than request activity or provider health.
 
+The evaluation-fixture region exposes `aria-busy=true` for the initial request and every bounded refresh cycle. Refreshing keeps the last-known-good rows and their prior check time in the DOM, changes the visible activity text from loading to refreshing, and resets `aria-busy` only after success or terminal failure. The busy state adds no request and does not change focus.
+
 - Historical rule status is visually marked active vs superseded.
 - If no memory was used, UI explicitly says so.
 - An ingestion failure isn't displayed as successful memory learning.

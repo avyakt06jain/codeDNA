@@ -403,7 +403,7 @@ export function MemoryLabPage() {
           <p>Same change. Same model. Memory is the only variable.</p>
         </div>
       </header>
-      <section className="evaluation-cases" aria-labelledby="evaluation-cases-title">
+      <section className="evaluation-cases" aria-labelledby="evaluation-cases-title" aria-busy={casesLoading}>
         <div className="evaluation-cases-head">
           <div>
             <h2 id="evaluation-cases-title" ref={casesHeading} tabIndex={-1}>Verified evaluation fixtures</h2>
@@ -416,7 +416,7 @@ export function MemoryLabPage() {
           </div>
           <span>{evaluationCases.length} {evaluationCases.length === 1 ? "case" : "cases"}</span>
         </div>
-        {casesLoading ? <p className="hint">Loading fixture catalog…</p> : null}
+        {casesLoading ? <p className="hint">{evaluationCases.length > 0 ? "Refreshing fixture catalog…" : "Loading fixture catalog…"}</p> : null}
         {casesError ? (
           <div className="catalog-recovery">
             <ErrorNote>Fixture catalog unavailable: {casesError}</ErrorNote>

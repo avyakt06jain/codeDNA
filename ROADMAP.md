@@ -142,7 +142,8 @@
 - **Verified:** Every successfully completed local comparison triggers one GET-only catalog refresh, immediately reflecting its stored guardrail result without moving focus or creating additional provider work.
 - **Verified:** The persistent Memory Lab live region announces only material automatic changes to the selected fixture's stored result, including repository and exact passed/total counts; unchanged refreshes preserve the single comparison-complete announcement.
 - **Verified:** The fixture catalog shows a localized, machine-readable `Last checked` time from its latest successful GET; failed refreshes preserve the prior timestamp instead of implying freshness.
-- **Next:** Expose catalog loading and refresh state through `aria-busy` while keeping last-known-good fixtures and their check time available.
+- **Verified:** The fixture region exposes `aria-busy` during initial loading and refresh, distinguishes visible loading/refreshing text, and keeps trusted rows plus their prior check time available throughout refresh.
+- **Next:** Label retained fixture rows explicitly as last-known-good when a refresh exhausts recovery, so stale-but-valid data cannot be mistaken for a successful latest read.
 
 ## Documentation and version-control policy
 
