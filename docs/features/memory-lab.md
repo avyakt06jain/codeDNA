@@ -40,6 +40,8 @@ If refresh recovery is exhausted after a successful read, the recovery block exp
 
 Each valid latest result also displays its sanitized opaque comparison job ID. The API client accepts only the bounded `job-...` format already used by background-job recovery, and the catalog view does not poll that job or expose its result payload. A later successful catalog read replaces the ID together with the stored counts/time; no-result fixtures show no identifier.
 
+A valid optional result update time is normalized to canonical ISO UTC by the API client and rendered in semantic HTML `time` while its visible value remains localized. Invalid values are omitted rather than guessed. This persisted-job time is distinct from the browser's catalog `Last checked` observation time.
+
 The browser polls explicit `starting_hindsight`, `recalling_and_reviewing`, and `reviewing_baseline` stages. Reloading the browser does not erase the stored job or completed runs; API-process termination can still interrupt active in-process execution.
 
 On selection or browser refresh, the UI first checks for a validated active comparison job ID in the current tab's session storage. If present, it resumes the existing `GET /api/review-jobs/{job_id}` polling loop and does not post a replacement job. Without a local locator, it discovers the newest queued/running comparison for the same stored PR and resumes that job when present. Only then does it read `/api/prs/{pr_id}/comparisons/latest`; the backend returns a completed comparison with two persisted runs that both belong to the requested PR, then recomputes the same deterministic guardrails. An empty response renders the normal no-comparison state. None of these recovery paths calls Hindsight/Gemini by itself.

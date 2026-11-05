@@ -816,6 +816,8 @@ When a refresh exhausts recovery after at least one successful catalog read, the
 
 Every fixture with a valid latest evaluation renders the already-sanitized opaque comparison `job_id` beside its stored guardrail result in code styling. The frontend accepts only IDs that pass its bounded `job-...` validator, displays no provider payload, and makes no job-status request; the identifier is an audit correlation handle for the SQLite-backed result. A fixture without a completed comparison renders neither a result nor a job ID.
 
+The optional stored comparison `updated_at` is normalized by the API client to canonical ISO UTC before display. When present, Memory Lab preserves the localized text but wraps it in semantic HTML `time` with that normalized `dateTime`; malformed timestamps remain omitted by the existing fail-closed normalizer. Catalog observation time and stored comparison update time remain separately labeled concepts.
+
 - Historical rule status is visually marked active vs superseded.
 - If no memory was used, UI explicitly says so.
 - An ingestion failure isn't displayed as successful memory learning.

@@ -145,7 +145,8 @@
 - **Verified:** The fixture region exposes `aria-busy` during initial loading and refresh, distinguishes visible loading/refreshing text, and keeps trusted rows plus their prior check time available throughout refresh.
 - **Verified:** Exhausted refresh recovery labels retained rows as last-known-good with their preserved check time and does not show that label for an initial failure with no prior data.
 - **Verified:** Each stored fixture result shows its validated opaque comparison job ID, and a refresh replaces that correlation handle with the newer SQLite result without extra status/provider requests.
-- **Next:** Render each stored comparison update time as a semantic HTML `time` so result age is machine-readable as well as localized.
+- **Verified:** Stored comparison update times retain localized text inside semantic HTML `time` elements whose `dateTime` values are canonical validated UTC; malformed times remain omitted.
+- **Next:** Render the stored comparison's explicit pass/fail outcome in text, not only its guardrail count, so status is unambiguous without relying on color or arithmetic.
 
 ## Documentation and version-control policy
 

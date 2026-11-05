@@ -69,10 +69,11 @@
 - The fixture region now exposes initial and refresh activity with `aria-busy`; refresh keeps trusted rows/check time present and uses distinct visible refreshing text.
 - Exhausted catalog refreshes explicitly label retained rows as last-known-good with their successful check time; initial failures with no trusted data do not claim a fallback.
 - Each fixture's latest stored result now shows its frontend-validated opaque comparison job ID for correlation with persisted background work.
+- Each stored comparison update time now uses semantic `time` markup with the API client's normalized ISO UTC value while retaining localized display text.
 
 ## In Progress
 
-- Post-MVP work continues by making each stored comparison's result time semantically inspectable.
+- Post-MVP work continues by making stored fixture pass/fail outcomes explicit in text.
 
 ## Blocked
 
@@ -96,9 +97,21 @@
 
 ## Next Action
 
-Render every stored comparison update time as a parseable HTML `time` while preserving the current localized display.
+Show each fixture's explicit stored outcome (`passed` or `needs attention`) alongside its guardrail count without relying on color alone.
 
 ## Session Log
+
+### 2026-11-05 — Semantic stored-comparison times
+
+- Goal: Make each fixture result's persisted update time machine-readable without changing its localized judge-facing text.
+- Implemented: stored comparison `updated_at` values now render inside HTML `time` elements using the API client's canonical validated ISO UTC value. Missing or malformed values remain omitted by existing normalization.
+- Initial focused check: **FAILED** because the expected test selectors used source timestamps without the normalizer's `.000Z`; assertions were corrected to the actual canonical contract without changing production behavior.
+- Focused rerun: `npm test -- --run src/ui.test.tsx -t "recorded held-out|refreshes a healthy fixture catalog"` → **2 passed, 38 skipped**.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **51 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 325.30 kB JavaScript and 16.10 kB CSS before gzip.
+- Live app: API health returned `ok`, Hindsight remained truthfully `unavailable`, the catalog returned two cases, and Memory Lab returned HTTP 200.
+- Provider safety: this is semantic markup over already validated catalog metadata and adds no network or provider work.
+- Next: state each stored evaluation's pass/fail outcome explicitly beside its guardrail count.
 
 ### 2026-11-05 — Fixture-to-job correlation
 
