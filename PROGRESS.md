@@ -64,10 +64,11 @@
 - Evaluation-catalog reads now recover from transient failures with bounded retries and an explicit GET-only retry action that preserves keyboard position.
 - A successfully loaded fixture catalog can now be refreshed through the same GET-only boundary; failed refreshes retain last-known-good case navigation.
 - A completed local comparison now refreshes the fixture catalog automatically through one GET-only recovery cycle, without moving focus or creating more provider work.
+- Memory Lab's persistent live region announces a selected fixture's automatic stored-result change only when its job, outcome, count, or timestamp changed; unchanged refreshes do not create a second announcement.
 
 ## In Progress
 
-- Post-MVP work continues by making automatic catalog-result changes accessible without redundant announcements.
+- Post-MVP work continues by making fixture-catalog freshness visible and inspectable.
 
 ## Blocked
 
@@ -91,9 +92,21 @@
 
 ## Next Action
 
-Announce only material automatic fixture-result changes to assistive technology, without duplicating the comparison-complete status.
+Add a visible, machine-readable fixture-catalog `Last checked` time that advances only after a successful catalog response.
 
 ## Session Log
+
+### 2026-11-05 — Material catalog-result announcement
+
+- Goal: Make an automatic fixture-result update perceivable to assistive technology without repeating completion status or announcing unchanged data.
+- Implemented: the existing persistent polite/atomic Memory Lab region now compares the selected fixture's stored job ID, pass state, counts, and update time. A material change announces the repository and exact passed/total guardrail count; an unchanged refresh leaves `Comparison complete` intact. Manual refresh and failure focus/error behavior remain unchanged.
+- Focused checks: `npm test -- --run src/ui.test.tsx -t "fixture result|after its comparison"` → **2 passed, 38 skipped**; `npm test -- --run src/ui.test.tsx` → **40 passed**.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **51 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 324.60 kB JavaScript and 15.92 kB CSS before gzip.
+- Initial check: the first focused run exposed ambiguous test selection between the global memory status and page live region; the assertion was narrowed to the announcement text. One unrelated catalog-focus timing case also missed its window in that run and passed on the immediate full-file rerun.
+- Live app: API health returned `ok`, Hindsight remained truthfully `unavailable`, the catalog returned two cases, and Memory Lab returned HTTP 200.
+- Provider safety: announcement logic compares already fetched sanitized records in the browser and adds no request of any kind.
+- Next: show a visible catalog `Last checked` time sourced only from successful GET completion.
 
 ### 2026-11-05 — Automatic post-comparison catalog synchronization
 

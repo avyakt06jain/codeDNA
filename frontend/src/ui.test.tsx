@@ -789,9 +789,26 @@ it("refreshes the fixture catalog after its comparison completes", async () => {
   fireEvent.click(run);
   expect(await screen.findByText("Guardrails passed")).toBeTruthy();
   expect(await screen.findByText(/5\/6 guardrails passed in latest stored run/)).toBeTruthy();
+  expect(screen.getByText(/Fixture catalog updated for Acme Commerce: 5 of 6 guardrails passed/).getAttribute("role")).toBe("status");
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/evaluation-cases"))).toHaveLength(2);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
   expect(fetchMock.mock.calls.some((entry) => String(entry[0]).includes("/api/prs/pr-acme-120/comparison"))).toBe(true);
+});
+
+it("does not announce an unchanged fixture result after comparison completion", async () => {
+  const comparison = {
+    evaluation: { passed: true, checks: { same_candidate: true }, counts: { memory_findings: 1 } },
+    memory: { run_id: "run-case-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
+    baseline: { run_id: "run-case-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
+  };
+  const fetchMock = installFetch({ comparison });
+  renderAt("/repos/repo-acme-commerce/lab?case=pr-acme-120");
+  const run = await screen.findByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
+  await vi.waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  expect(await screen.findByText("Guardrails passed")).toBeTruthy();
+  await waitFor(() => expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/evaluation-cases"))).toHaveLength(2));
+  expect(screen.getByText("Comparison complete").getAttribute("role")).toBe("status");
 });
 
 it("recovers a transient fixture-catalog outage without starting work", async () => {

@@ -140,7 +140,8 @@
 - **Verified:** Memory Lab retries transient evaluation-catalog failures after bounded 1/2/4-second delays, exposes a GET-only retry after exhaustion, starts no provider work, and restores keyboard focus after manual recovery.
 - **Verified:** A healthy catalog exposes `Refresh fixture catalog`; success updates stored results and focuses the catalog heading, while exhausted refresh preserves last-known-good cases and issues zero POSTs.
 - **Verified:** Every successfully completed local comparison triggers one GET-only catalog refresh, immediately reflecting its stored guardrail result without moving focus or creating additional provider work.
-- **Next:** Announce a material automatic catalog-result change to assistive technology without duplicating the existing comparison-complete announcement.
+- **Verified:** The persistent Memory Lab live region announces only material automatic changes to the selected fixture's stored result, including repository and exact passed/total counts; unchanged refreshes preserve the single comparison-complete announcement.
+- **Next:** Add a visible, parseable catalog `Last checked` time so judges can distinguish a freshly read SQLite result from an older page view.
 
 ## Documentation and version-control policy
 

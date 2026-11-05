@@ -14,6 +14,25 @@ function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+function catalogResultChanged(previous: EvaluationCase | undefined, next: EvaluationCase | undefined) {
+  const before = previous?.latest_evaluation;
+  const after = next?.latest_evaluation;
+  if (!before || !after) return before !== after;
+  return before.job_id !== after.job_id
+    || before.passed !== after.passed
+    || before.passed_checks !== after.passed_checks
+    || before.total_checks !== after.total_checks
+    || before.updated_at !== after.updated_at;
+}
+
+function catalogUpdateAnnouncement(previous: EvaluationCase[], next: EvaluationCase[], candidatePrId: string) {
+  const before = previous.find((item) => item.candidate_pr_id === candidatePrId);
+  const after = next.find((item) => item.candidate_pr_id === candidatePrId);
+  if (!after || !catalogResultChanged(before, after)) return "";
+  if (!after.latest_evaluation) return `Fixture catalog updated for ${after.repository_name}: no completed comparison is recorded.`;
+  return `Fixture catalog updated for ${after.repository_name}: ${after.latest_evaluation.passed_checks} of ${after.latest_evaluation.total_checks} guardrails passed in the latest stored run.`;
+}
+
 function RunColumn({ title, note, review }: { title: string; note: string; review: Review }) {
   return (
     <section className="card lab-column" aria-label={title}>
@@ -43,11 +62,14 @@ export function MemoryLabPage() {
   const casesHeading = useRef<HTMLHeadingElement>(null);
   const casesRetryButton = useRef<HTMLButtonElement>(null);
   const manualCasesRetry = useRef(false);
+  const automaticCatalogRefresh = useRef(false);
+  const evaluationCasesRef = useRef<EvaluationCase[]>([]);
   const [prs, setPrs] = useState<PullRequestSummary[]>([]);
   const [evaluationCases, setEvaluationCases] = useState<EvaluationCase[]>([]);
   const [casesLoading, setCasesLoading] = useState(true);
   const [casesError, setCasesError] = useState("");
   const [casesRetryKey, setCasesRetryKey] = useState(0);
+  const [catalogAnnouncement, setCatalogAnnouncement] = useState("");
   const [prId, setPrId] = useState("");
   const [loading, setLoading] = useState(true);
   const [restoring, setRestoring] = useState(false);
@@ -107,8 +129,14 @@ export function MemoryLabPage() {
         try {
           const rows = await api.evaluationCases();
           if (!cancelled) {
+            const previous = evaluationCasesRef.current;
+            evaluationCasesRef.current = rows;
             setEvaluationCases(rows);
             setCasesError("");
+            if (automaticCatalogRefresh.current) {
+              setCatalogAnnouncement(catalogUpdateAnnouncement(previous, rows, prId));
+              automaticCatalogRefresh.current = false;
+            }
           }
           return;
         } catch (reason) {
@@ -118,6 +146,7 @@ export function MemoryLabPage() {
         }
       }
       if (!cancelled) {
+        automaticCatalogRefresh.current = false;
         setCasesError(failure instanceof Error ? failure.message : "Fixture catalog unavailable.");
       }
     })().finally(() => {
@@ -244,20 +273,26 @@ export function MemoryLabPage() {
   const selected = prs.some((item) => item.id === prId) ? prId : "";
   const blocked = hindsight !== "ready";
   const steps = traceSteps(comparison?.memory.retrieval?.timings_ms);
-  const liveStatus = stage
+  const liveStatus = stage && stage !== "complete"
     ? comparisonStageLabel(stage)
+    : catalogAnnouncement || (stage
+      ? comparisonStageLabel(stage)
     : restoring
       ? "Restoring the latest completed comparison…"
       : loading
         ? "Loading pull requests…"
-        : "";
+        : "");
 
   function reloadCatalog() {
+    automaticCatalogRefresh.current = false;
+    setCatalogAnnouncement("");
     manualCasesRetry.current = true;
     setCasesRetryKey((value) => value + 1);
   }
 
   function refreshCatalogAfterComparison() {
+    automaticCatalogRefresh.current = true;
+    setCatalogAnnouncement("");
     setCasesRetryKey((value) => value + 1);
   }
 

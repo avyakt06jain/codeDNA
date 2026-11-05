@@ -805,6 +805,8 @@ Catalog loading applies the same narrow transient classification used by job pol
 After a successful load, `Refresh fixture catalog` starts the same bounded GET-only cycle so a comparison completed elsewhere can update the stored result without reloading the page. Success replaces the catalog and returns focus to its heading. Exhaustion keeps the last successful rows navigable while presenting the normal retry alert; it never converts stale-but-valid SQLite data into an empty state and never starts provider work.
 
 Every successful local comparison completion also starts one catalog refresh through that same GET-only recovery boundary. This refresh covers newly created and reattached jobs, does not move keyboard focus, and never creates a second comparison or provider request. If it fails, the existing last-known-good catalog and retry alert remain authoritative.
+
+The page's existing polite, atomic live region announces an automatic catalog refresh only when the selected fixture's stored job identity, pass state, check count, or update time materially changes. The message names the repository and exact passed/total guardrail count without repeating the comparison-complete wording. An unchanged response leaves `Comparison complete` intact; manual refresh continues to communicate through focus restoration, and failures retain assertive error semantics.
 - Historical rule status is visually marked active vs superseded.
 - If no memory was used, UI explicitly says so.
 - An ingestion failure isn't displayed as successful memory learning.

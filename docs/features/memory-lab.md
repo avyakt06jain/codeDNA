@@ -1,6 +1,6 @@
 # Memory Lab
 
-**Status:** Verified on 2026-10-27 through CLI, API, and browser; active-job refresh recovery and accessible progress announcements verified on 2026-10-28.
+**Status:** Verified on 2026-10-27 through CLI, API, and browser; active-job recovery and accessible progress/catalog announcements verified through 2026-11-05.
 
 ## Experiment contract
 
@@ -29,6 +29,8 @@ Catalog network errors and HTTP `408`, `425`, `429`, `500`, `502`, `503`, and `5
 After success, `Refresh fixture catalog` performs the same bounded read-only cycle so stored comparison results created in another tab can appear without a page reload. A successful refresh replaces the catalog and focuses its heading. If recovery is exhausted, the last successful cases remain visible and navigable alongside the retry alert. Tests assert that refresh and recovery issue no POST.
 
 Successful completion of a new, reattached, or manually rechecked comparison automatically starts one cycle through the same catalog loader. It updates the stored result without another action, does not move keyboard focus, and adds no provider work; only the original explicit comparison action posts a job. Automatic failure retains the previous catalog and exposes the normal retry alert.
+
+The same persistent polite/atomic page status announces that automatic refresh only when the selected fixture's latest job ID, pass state, passed/total count, or update timestamp differs from the prior catalog. The announcement names the repository and exact guardrail count. An unchanged response leaves the single `Comparison complete` status in place; manual refresh uses its existing focus movement, and catalog errors remain assertive alerts.
 
 The browser polls explicit `starting_hindsight`, `recalling_and_reviewing`, and `reviewing_baseline` stages. Reloading the browser does not erase the stored job or completed runs; API-process termination can still interrupt active in-process execution.
 
