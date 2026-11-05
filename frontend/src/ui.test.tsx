@@ -738,6 +738,8 @@ it("makes both recorded held-out evaluation fixtures inspectable in Memory Lab",
   expect(within(fixtures).getByText("DEC-0103 · active")).toBeTruthy();
   expect(within(fixtures).getByText("Source PR #11 → held-out PR #29")).toBeTruthy();
   expect(within(fixtures).getByText("DEC-0211 · active")).toBeTruthy();
+  expect(within(fixtures).getAllByText("Passed")).toHaveLength(2);
+  expect(within(fixtures).getAllByText("Passed").every((item) => item.tagName === "STRONG")).toBe(true);
   expect(within(fixtures).getAllByText(/6\/6 guardrails passed in latest stored run/)).toHaveLength(2);
   expect(within(fixtures).getByText("job-acme-proof").tagName).toBe("CODE");
   expect(within(fixtures).getByText("job-analytics-proof").tagName).toBe("CODE");
@@ -775,6 +777,7 @@ it("refreshes a healthy fixture catalog through GET only", async () => {
   expect(within(fixtures).getByText(/Last checked/i).querySelector("time")?.getAttribute("datetime")).toBe(checkedBefore);
   expect(within(fixtures).getByText("Refreshing fixture catalog…")).toBeTruthy();
   expect(await within(fixtures).findByText(/5\/6 guardrails passed in latest stored run/)).toBeTruthy();
+  expect(within(fixtures).getByText("Needs attention").tagName).toBe("STRONG");
   expect(within(fixtures).getByText("job-acme-new-proof").tagName).toBe("CODE");
   expect(fixtures.querySelector('time[datetime="2026-11-05T00:00:00.000Z"]')).toBeTruthy();
   expect(fixtures.getAttribute("aria-busy")).toBe("false");

@@ -70,10 +70,11 @@
 - Exhausted catalog refreshes explicitly label retained rows as last-known-good with their successful check time; initial failures with no trusted data do not claim a fallback.
 - Each fixture's latest stored result now shows its frontend-validated opaque comparison job ID for correlation with persisted background work.
 - Each stored comparison update time now uses semantic `time` markup with the API client's normalized ISO UTC value while retaining localized display text.
+- Each stored fixture result now states `Passed` or `Needs attention` from its validated pass Boolean beside the guardrail count.
 
 ## In Progress
 
-- Post-MVP work continues by making stored fixture pass/fail outcomes explicit in text.
+- Post-MVP work continues by making automatic fixture-result announcements state the explicit outcome.
 
 ## Blocked
 
@@ -97,9 +98,20 @@
 
 ## Next Action
 
-Show each fixture's explicit stored outcome (`passed` or `needs attention`) alongside its guardrail count without relying on color alone.
+Include `Passed` or `Needs attention` in the automatic stored-result change announcement without adding provider work or duplicate live-region messages.
 
 ## Session Log
+
+### 2026-11-05 — Explicit stored comparison outcomes
+
+- Goal: Make a stored evaluation's outcome understandable without color or guardrail-ratio arithmetic.
+- Implemented: each completed fixture now renders a strong textual `Passed` or `Needs attention` label from the API client's validated `passed` Boolean, immediately before its existing passed/total count. Missing results retain the honest no-comparison state.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "recorded held-out|refreshes a healthy fixture catalog"` → **2 passed, 38 skipped**. The cases verify two passing labels and replacement with `Needs attention` after a GET-only catalog refresh.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **51 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 325.37 kB JavaScript and 16.10 kB CSS before gzip.
+- Live app: the prior listeners were absent, so the API and Vite were restarted in hidden local processes with `CODEDNA_DEMO_SCENE=evolved` and `CODEDNA_HINDSIGHT_AUTOSTART=0`. Health returned `ok`, Hindsight truthfully returned `unavailable`, the catalog returned two cases, and Memory Lab returned HTTP 200.
+- Provider safety: the label is derived from already validated catalog data and adds no API, Hindsight, or Gemini request.
+- Next: add the explicit result outcome to the existing automatic catalog-update announcement.
 
 ### 2026-11-05 — Semantic stored-comparison times
 

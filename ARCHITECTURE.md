@@ -818,6 +818,8 @@ Every fixture with a valid latest evaluation renders the already-sanitized opaqu
 
 The optional stored comparison `updated_at` is normalized by the API client to canonical ISO UTC before display. When present, Memory Lab preserves the localized text but wraps it in semantic HTML `time` with that normalized `dateTime`; malformed timestamps remain omitted by the existing fail-closed normalizer. Catalog observation time and stored comparison update time remain separately labeled concepts.
 
+The catalog renders the authoritative stored `passed` Boolean as explicit `Passed` or `Needs attention` text beside the guardrail count. The outcome therefore does not depend on color or require a user to infer status from the ratio; it remains a result for that synthetic case, not an accuracy claim.
+
 - Historical rule status is visually marked active vs superseded.
 - If no memory was used, UI explicitly says so.
 - An ingestion failure isn't displayed as successful memory learning.

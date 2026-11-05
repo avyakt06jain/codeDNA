@@ -443,7 +443,7 @@ export function MemoryLabPage() {
                   <span>{item.decision_id} · {item.decision_status}</span>
                   <span>
                     {recorded
-                      ? <>{recorded.passed_checks}/{recorded.total_checks} guardrails passed in latest stored run{recorded.updated_at ? <> · <time dateTime={recorded.updated_at}>{formatWhen(recorded.updated_at) ?? recorded.updated_at}</time></> : null}</>
+                      ? <><strong>{recorded.passed ? "Passed" : "Needs attention"}</strong> · {recorded.passed_checks}/{recorded.total_checks} guardrails passed in latest stored run{recorded.updated_at ? <> · <time dateTime={recorded.updated_at}>{formatWhen(recorded.updated_at) ?? recorded.updated_at}</time></> : null}</>
                       : "No completed comparison recorded in this database"}
                   </span>
                   {recorded ? <span>Stored comparison job <code>{recorded.job_id}</code></span> : null}
