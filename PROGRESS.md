@@ -73,10 +73,11 @@
 - Each stored fixture result now states `Passed` or `Needs attention` from its validated pass Boolean beside the guardrail count.
 - Automatic stored-result announcements now include the explicit outcome before the exact guardrail count.
 - Repeated fixture navigation links now expose repository- and held-out-PR-specific accessible names while retaining concise visible labels.
+- The selected fixture link now uses the specific `aria-current="page"` state; unselected links omit it.
 
 ## In Progress
 
-- Post-MVP work continues by making the selected fixture's current-page semantics more specific.
+- Post-MVP work continues by stabilizing the existing comparison-reattachment announcement regression.
 
 ## Blocked
 
@@ -100,9 +101,21 @@
 
 ## Next Action
 
-Use `aria-current="page"` for the selected fixture link and preserve the tested repository/candidate-specific accessible name.
+Make the existing comparison-reattachment announcement test deterministic in the full suite without weakening its guarantee that reused provider work is announced before completion.
 
 ## Session Log
+
+### 2026-11-06 — Specific selected-fixture semantics
+
+- Goal: Expose the selected fixture link as the current page rather than as an unspecified current item.
+- Implemented: the active case link now sets `aria-current="page"`; inactive fixture links omit the attribute, and the repository/held-out-PR-specific accessible name remains unchanged.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "opens a recorded fixture"` → **1 passed, 39 skipped**.
+- Backend regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**.
+- Frontend regression: the first full run again had the unrelated existing-comparison reattachment announcement complete before its assertion; its immediate focused rerun passed (**1 passed, 39 skipped**) and `npm test -- --run` then passed **51 tests across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 325.57 kB JavaScript and 16.10 kB CSS before gzip.
+- Live app: API health returned `ok`, Hindsight remained truthfully `unavailable`, the catalog returned two cases, and Memory Lab returned HTTP 200 after Vite hot reload.
+- Provider safety: this semantic attribute change adds no API, Hindsight, or Gemini request.
+- Next: stabilize the repeatedly observed reattachment-announcement timing regression.
 
 ### 2026-11-06 — Unambiguous fixture navigation links
 

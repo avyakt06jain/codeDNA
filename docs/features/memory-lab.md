@@ -44,7 +44,7 @@ A valid optional result update time is normalized to canonical ISO UTC by the AP
 
 Each valid stored result also states `Passed` or `Needs attention` from its validated pass Boolean before the guardrail count. The textual label is intentionally independent of color and prevents users from having to derive the case outcome from the count. It describes only that recorded synthetic evaluation.
 
-Fixture links keep the short visible `Open case` or `Case selected` wording, but each accessible name also includes the repository and held-out PR number. This disambiguates repeated controls while preserving the same read-only route and zero-provider-work behavior.
+Fixture links keep the short visible `Open case` or `Case selected` wording, but each accessible name also includes the repository and held-out PR number. The selected link uses `aria-current="page"`; other case links omit the attribute. This disambiguates repeated controls and exposes current-page semantics while preserving the same read-only route and zero-provider-work behavior.
 
 The browser polls explicit `starting_hindsight`, `recalling_and_reviewing`, and `reviewing_baseline` stages. Reloading the browser does not erase the stored job or completed runs; API-process termination can still interrupt active in-process execution.
 

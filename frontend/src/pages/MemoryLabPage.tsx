@@ -451,7 +451,7 @@ export function MemoryLabPage() {
                 </div>
                 <Link
                   className="secondary"
-                  aria-current={active ? "true" : undefined}
+                  aria-current={active ? "page" : undefined}
                   aria-label={`${active ? "Case selected" : "Open case"}: ${item.repository_name} held-out PR #${item.candidate_pr_number}`}
                   to={`/repos/${item.repository_id}/lab?case=${item.candidate_pr_id}`}
                 >

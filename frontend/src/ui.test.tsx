@@ -762,7 +762,9 @@ it("opens a recorded fixture on its held-out candidate without starting work", a
   renderAt("/repos/repo-acme-commerce/lab?case=pr-acme-120");
   const selector = await screen.findByRole("combobox", { name: "Pull request" }) as HTMLSelectElement;
   await waitFor(() => expect(selector.value).toBe("pr-acme-120"));
-  expect(screen.getByRole("link", { name: "Case selected: Acme Commerce held-out PR #120" }).getAttribute("href")).toBe("/repos/repo-acme-commerce/lab?case=pr-acme-120");
+  const selectedCase = screen.getByRole("link", { name: "Case selected: Acme Commerce held-out PR #120" });
+  expect(selectedCase.getAttribute("href")).toBe("/repos/repo-acme-commerce/lab?case=pr-acme-120");
+  expect(selectedCase.getAttribute("aria-current")).toBe("page");
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
