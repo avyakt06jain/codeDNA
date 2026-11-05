@@ -148,7 +148,8 @@
 - **Verified:** Stored comparison update times retain localized text inside semantic HTML `time` elements whose `dateTime` values are canonical validated UTC; malformed times remain omitted.
 - **Verified:** Every stored fixture result states `Passed` or `Needs attention` from the validated API Boolean beside its guardrail count, so outcome is not conveyed by color or arithmetic alone.
 - **Verified:** Automatic fixture-result announcements state `Passed` or `Needs attention` before the exact guardrail count, while unchanged refreshes still avoid duplicate completion announcements.
-- **Next:** Give each repeated `Open case` link a repository- and candidate-specific accessible name while retaining its concise visible label.
+- **Verified:** Repeated fixture navigation links retain concise visible text but expose repository- and held-out-PR-specific accessible names, including the selected-case state.
+- **Next:** Use the specific `aria-current="page"` token for the selected fixture link so assistive technology receives page-current semantics instead of a generic current state.
 
 ## Documentation and version-control policy
 

@@ -747,7 +747,10 @@ it("makes both recorded held-out evaluation fixtures inspectable in Memory Lab",
   expect(fixtures.querySelector('time[datetime="2026-10-27T13:00:00.000Z"]')).toBeTruthy();
   const lastChecked = within(fixtures).getByText(/Last checked/i).querySelector("time");
   expect(Number.isFinite(Date.parse(lastChecked?.getAttribute("datetime") ?? ""))).toBe(true);
-  const links = within(fixtures).getAllByRole("link", { name: "Open case" }) as HTMLAnchorElement[];
+  const links = [
+    within(fixtures).getByRole("link", { name: "Open case: Acme Commerce held-out PR #120" }),
+    within(fixtures).getByRole("link", { name: "Open case: Analytics Service held-out PR #29" }),
+  ] as HTMLAnchorElement[];
   expect(links.map((link) => link.getAttribute("href"))).toEqual([
     "/repos/repo-acme-commerce/lab?case=pr-acme-120",
     "/repos/repo-analytics-service/lab?case=pr-analytics-29",
@@ -759,7 +762,7 @@ it("opens a recorded fixture on its held-out candidate without starting work", a
   renderAt("/repos/repo-acme-commerce/lab?case=pr-acme-120");
   const selector = await screen.findByRole("combobox", { name: "Pull request" }) as HTMLSelectElement;
   await waitFor(() => expect(selector.value).toBe("pr-acme-120"));
-  expect(screen.getByRole("link", { name: "Case selected" }).getAttribute("href")).toBe("/repos/repo-acme-commerce/lab?case=pr-acme-120");
+  expect(screen.getByRole("link", { name: "Case selected: Acme Commerce held-out PR #120" }).getAttribute("href")).toBe("/repos/repo-acme-commerce/lab?case=pr-acme-120");
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 

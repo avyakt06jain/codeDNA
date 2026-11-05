@@ -820,6 +820,8 @@ The optional stored comparison `updated_at` is normalized by the API client to c
 
 The catalog renders the authoritative stored `passed` Boolean as explicit `Passed` or `Needs attention` text beside the guardrail count. The outcome therefore does not depend on color or require a user to infer status from the ratio; it remains a result for that synthetic case, not an accuracy claim.
 
+Each fixture navigation control retains the concise visible `Open case` or `Case selected` label while exposing a unique accessible name containing the repository and held-out PR number. Repeated controls are therefore distinguishable without changing the backend-owned route or starting work.
+
 - Historical rule status is visually marked active vs superseded.
 - If no memory was used, UI explicitly says so.
 - An ingestion failure isn't displayed as successful memory learning.

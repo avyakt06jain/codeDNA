@@ -44,6 +44,8 @@ A valid optional result update time is normalized to canonical ISO UTC by the AP
 
 Each valid stored result also states `Passed` or `Needs attention` from its validated pass Boolean before the guardrail count. The textual label is intentionally independent of color and prevents users from having to derive the case outcome from the count. It describes only that recorded synthetic evaluation.
 
+Fixture links keep the short visible `Open case` or `Case selected` wording, but each accessible name also includes the repository and held-out PR number. This disambiguates repeated controls while preserving the same read-only route and zero-provider-work behavior.
+
 The browser polls explicit `starting_hindsight`, `recalling_and_reviewing`, and `reviewing_baseline` stages. Reloading the browser does not erase the stored job or completed runs; API-process termination can still interrupt active in-process execution.
 
 On selection or browser refresh, the UI first checks for a validated active comparison job ID in the current tab's session storage. If present, it resumes the existing `GET /api/review-jobs/{job_id}` polling loop and does not post a replacement job. Without a local locator, it discovers the newest queued/running comparison for the same stored PR and resumes that job when present. Only then does it read `/api/prs/{pr_id}/comparisons/latest`; the backend returns a completed comparison with two persisted runs that both belong to the requested PR, then recomputes the same deterministic guardrails. An empty response renders the normal no-comparison state. None of these recovery paths calls Hindsight/Gemini by itself.

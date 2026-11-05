@@ -72,10 +72,11 @@
 - Each stored comparison update time now uses semantic `time` markup with the API client's normalized ISO UTC value while retaining localized display text.
 - Each stored fixture result now states `Passed` or `Needs attention` from its validated pass Boolean beside the guardrail count.
 - Automatic stored-result announcements now include the explicit outcome before the exact guardrail count.
+- Repeated fixture navigation links now expose repository- and held-out-PR-specific accessible names while retaining concise visible labels.
 
 ## In Progress
 
-- Post-MVP work continues by disambiguating repeated fixture navigation links for assistive technology.
+- Post-MVP work continues by making the selected fixture's current-page semantics more specific.
 
 ## Blocked
 
@@ -99,9 +100,21 @@
 
 ## Next Action
 
-Give each `Open case` link a repository- and candidate-specific accessible name without changing its concise visible label or starting work.
+Use `aria-current="page"` for the selected fixture link and preserve the tested repository/candidate-specific accessible name.
 
 ## Session Log
+
+### 2026-11-06 — Unambiguous fixture navigation links
+
+- Goal: Make repeated fixture navigation controls distinguishable to assistive technology without lengthening their visible labels.
+- Implemented: each link now exposes an accessible name containing its action/state, repository name, and held-out PR number; visible `Open case` / `Case selected` text and backend-owned routes are unchanged.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "recorded held-out|opens a recorded fixture"` → **2 passed, 38 skipped**.
+- Backend regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**.
+- Frontend regression: the first full run had one unrelated reattachment-announcement timing miss; its immediate focused rerun passed (**1 passed, 39 skipped**) and `npm test -- --run` then passed **51 tests across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 325.57 kB JavaScript and 16.10 kB CSS before gzip.
+- Live app: API health returned `ok`, Hindsight remained truthfully `unavailable`, the catalog returned two cases, and Memory Lab returned HTTP 200 after Vite hot reload.
+- Provider safety: accessible naming changes only rendered link metadata and adds no API, Hindsight, or Gemini request.
+- Next: use the specific `page` value for the selected link's `aria-current` state.
 
 ### 2026-11-06 — Explicit outcomes in catalog announcements
 
