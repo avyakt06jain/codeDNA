@@ -803,6 +803,8 @@ Completed comparisons are refresh-safe. A read-only latest-comparison query sele
 Catalog loading applies the same narrow transient classification used by job polling: network failures and HTTP `408`, `425`, `429`, `500`, `502`, `503`, and `504` receive at most three retries after 1, 2, and 4 seconds. A nonretryable response or fourth transient failure renders an assertive error plus `Retry fixture catalog`. That action starts one fresh bounded GET-only cycle, never posts a comparison, and returns keyboard focus to the fixture heading on success or the recreated retry control on another failure. Unmount suppresses late state updates.
 
 After a successful load, `Refresh fixture catalog` starts the same bounded GET-only cycle so a comparison completed elsewhere can update the stored result without reloading the page. Success replaces the catalog and returns focus to its heading. Exhaustion keeps the last successful rows navigable while presenting the normal retry alert; it never converts stale-but-valid SQLite data into an empty state and never starts provider work.
+
+Every successful local comparison completion also starts one catalog refresh through that same GET-only recovery boundary. This refresh covers newly created and reattached jobs, does not move keyboard focus, and never creates a second comparison or provider request. If it fails, the existing last-known-good catalog and retry alert remain authoritative.
 - Historical rule status is visually marked active vs superseded.
 - If no memory was used, UI explicitly says so.
 - An ingestion failure isn't displayed as successful memory learning.

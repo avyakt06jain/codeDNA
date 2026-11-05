@@ -4,7 +4,7 @@
 
 ## Current State
 
-- Date: 2026-11-04
+- Date: 2026-11-05
 - Phase: G0–G5 MVP gates complete; the evolved judge demo was exercised against a restarted local API.
 - Implementation: The retain → recall → validate → review → feedback → supersede → ablate loop is verified locally against real Hindsight and Gemini. `CODEDNA_DEMO_SCENE=evolved` leaves `DEC-0103` active and `DEC-0042` superseded.
 - Git: `main` is initialized, connected to GitHub, and verified checkpoints are pushed without rewriting published history.
@@ -63,10 +63,11 @@
 - Memory Lab now reads both held-out cases from a backend-owned SQLite contract, including repository/source/candidate/active-decision metadata, latest stored guardrail results, and direct candidate-selection links.
 - Evaluation-catalog reads now recover from transient failures with bounded retries and an explicit GET-only retry action that preserves keyboard position.
 - A successfully loaded fixture catalog can now be refreshed through the same GET-only boundary; failed refreshes retain last-known-good case navigation.
+- A completed local comparison now refreshes the fixture catalog automatically through one GET-only recovery cycle, without moving focus or creating more provider work.
 
 ## In Progress
 
-- Post-MVP work continues by synchronizing catalog results immediately after local comparison completion.
+- Post-MVP work continues by making automatic catalog-result changes accessible without redundant announcements.
 
 ## Blocked
 
@@ -90,9 +91,21 @@
 
 ## Next Action
 
-Refresh the Memory Lab fixture catalog automatically after a comparison completes on the current page, reusing the existing GET-only recovery boundary.
+Announce only material automatic fixture-result changes to assistive technology, without duplicating the comparison-complete status.
 
 ## Session Log
+
+### 2026-11-05 — Automatic post-comparison catalog synchronization
+
+- Goal: Reflect a newly completed local comparison in the fixture catalog without requiring a second user action.
+- Implemented: every successful new, reattached, or manually rechecked comparison completion starts one refresh through the existing bounded `GET /api/evaluation-cases` recovery boundary. Automatic refresh does not move focus; failures preserve last-known-good rows and the existing retry path.
+- Focused checks: the new regression passed alone (**1 passed, 38 skipped**), then `npm test -- --run src/ui.test.tsx` → **39 passed**. It proves a completed comparison updates the catalog from 6/6 to the newer stored 5/6 result with exactly one comparison POST and two catalog GETs.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **50 passed across 4 files**.
+- Frontend build: `npm run build` → **PASS**, 40 modules, 323.75 kB JavaScript and 15.92 kB CSS before gzip.
+- Test environment note: an initial combined run was interrupted by a multi-hour host pause and reported unrelated timer failures; immediate isolated, focused, and full reruns passed.
+- Live app: API health returned `ok`, Hindsight remained truthfully `unavailable`, the catalog returned two cases, and Memory Lab returned HTTP 200.
+- Provider safety: the explicit comparison action still creates one comparison; its automatic follow-up is only `GET /api/evaluation-cases` and cannot start Hindsight/Gemini work.
+- Next: announce a material automatic result change conservatively without duplicating the existing comparison-complete announcement.
 
 ### 2026-11-05 — Read-only fixture catalog refresh
 

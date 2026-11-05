@@ -139,7 +139,8 @@
 - **Verified:** `GET /api/evaluation-cases` resolves repository/source/candidate/active-decision metadata and the newest valid stored comparison from SQLite; invalid or cross-repository records fail closed, and the frontend no longer owns fixture identifiers.
 - **Verified:** Memory Lab retries transient evaluation-catalog failures after bounded 1/2/4-second delays, exposes a GET-only retry after exhaustion, starts no provider work, and restores keyboard focus after manual recovery.
 - **Verified:** A healthy catalog exposes `Refresh fixture catalog`; success updates stored results and focuses the catalog heading, while exhausted refresh preserves last-known-good cases and issues zero POSTs.
-- **Next:** Refresh the catalog automatically after a comparison completes on the current page so its stored guardrail result is immediately reflected without a second action.
+- **Verified:** Every successfully completed local comparison triggers one GET-only catalog refresh, immediately reflecting its stored guardrail result without moving focus or creating additional provider work.
+- **Next:** Announce a material automatic catalog-result change to assistive technology without duplicating the existing comparison-complete announcement.
 
 ## Documentation and version-control policy
 

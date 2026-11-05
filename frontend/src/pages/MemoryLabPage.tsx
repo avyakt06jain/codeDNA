@@ -175,6 +175,7 @@ export function MemoryLabPage() {
         setRetryJobId("");
         setComparison(result);
         setStage("complete");
+        refreshCatalogAfterComparison();
       }).catch(async (reason) => {
         if (cancelled) return;
         terminal = reason instanceof TerminalJobError;
@@ -256,6 +257,10 @@ export function MemoryLabPage() {
     setCasesRetryKey((value) => value + 1);
   }
 
+  function refreshCatalogAfterComparison() {
+    setCasesRetryKey((value) => value + 1);
+  }
+
   async function runComparison() {
     if (!selected) return;
     setRunning(true);
@@ -282,6 +287,7 @@ export function MemoryLabPage() {
       setRetryJobId("");
       setComparison(result);
       setStage("complete");
+      refreshCatalogAfterComparison();
     } catch (reason) {
       if (!alive.current) return;
       terminal = reason instanceof TerminalJobError;
@@ -316,6 +322,7 @@ export function MemoryLabPage() {
       terminal = true;
       setComparison(result);
       setStage("complete");
+      refreshCatalogAfterComparison();
     } catch (reason) {
       if (!alive.current) return;
       terminal = reason instanceof TerminalJobError;
