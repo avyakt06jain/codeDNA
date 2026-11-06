@@ -79,10 +79,11 @@
 - Review Workspace now exposes the combined pull-request load and persisted recovery boundary as one named `aria-busy` region; its existing live region remains the only status announcement.
 - Memory Lab now exposes comparison-control load/recovery as a named `aria-busy` region independent from the fixture catalog's existing busy state; its existing live region remains the only matching status announcement.
 - Initial persisted-recovery failures now leave both run workspaces settled with task-specific alerts, truthful zero-provider-work wording, dependency-aware next steps, and usable normally gated creation controls.
+- Review Workspace and Memory Lab now offer task-specific GET-only saved-recovery retries that restore persisted results after a transient failure without a creation POST.
 
 ## In Progress
 
-- Post-MVP work continues by adding a GET-only retry path for initial persisted-recovery failures before users choose creation.
+- Post-MVP work continues by preserving keyboard position after saved-recovery retries resolve or fail again.
 
 ## Blocked
 
@@ -106,9 +107,19 @@
 
 ## Next Action
 
-Add task-specific `Retry saved recovery` actions that repeat only active/latest GET recovery and never submit a review/comparison or contact a provider directly.
+Move focus after manual saved-recovery retry to the recovered result on success or the recreated task-specific retry action after another failure, without adding provider work.
 
 ## Session Log
+
+### 2026-11-06 — GET-only saved-recovery retry
+
+- Goal: Let users recheck persisted review/comparison work after a transient initial recovery failure before choosing a creation POST.
+- Implemented: task-specific `Retry saved review recovery` and `Retry saved comparison recovery` actions rerun the existing exact-PR active/latest recovery effects; Review Workspace also reloads its PR record, while Memory Lab preserves its independently loaded repository PR list. The failure state clears during the retry; success removes the alert/action and restores the saved result. Starting new work also clears stale recovery-failure UI.
+- Focused checks: `npm test -- --run src/ui.test.tsx -t "retries saved.*recovery"` → **2 passed, 44 skipped**; `npm run build` → **PASS**, 40 modules, 326.57 kB JavaScript and 16.10 kB CSS before gzip. Each test injects one active-job GET failure, retries successfully, restores the latest result, verifies two active reads plus one latest read, and proves zero POSTs.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **57 passed across 4 files**; `npm run build` → **PASS**, 40 modules, 326.57 kB JavaScript and 16.10 kB CSS before gzip.
+- Live app: API health returned `ok`, Hindsight remained truthfully `unavailable`, and both retry-enabled workspaces returned HTTP 200 after Vite hot reload.
+- Provider safety: the retry invokes only existing PR/active/latest GET contracts and cannot start Hindsight/Gemini or paid usage.
+- Next: restore keyboard focus deterministically after retry success or repeated failure.
 
 ### 2026-11-06 — Actionable initial recovery failures
 

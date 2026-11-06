@@ -148,6 +148,8 @@ function installFetch(options?: {
   activeComparisonJob?: boolean;
   reviewRecoveryFailure?: boolean;
   comparisonRecoveryFailure?: boolean;
+  reviewRecoveryFailures?: number;
+  comparisonRecoveryFailures?: number;
   repositoryActiveJobs?: boolean;
   repositoryActiveJobsStartAfter?: number;
   repositoryActiveJobsCompleteAfter?: number;
@@ -167,6 +169,8 @@ function installFetch(options?: {
   const hindsight = options?.hindsight ?? "ready";
   let reviewPollFailures = options?.reviewPollFailures ?? 0;
   let comparisonPollFailures = options?.comparisonPollFailures ?? 0;
+  let reviewRecoveryFailures = options?.reviewRecoveryFailures ?? (options?.reviewRecoveryFailure ? Number.MAX_SAFE_INTEGER : 0);
+  let comparisonRecoveryFailures = options?.comparisonRecoveryFailures ?? (options?.comparisonRecoveryFailure ? Number.MAX_SAFE_INTEGER : 0);
   let repositoryActiveJobReads = 0;
   let repositoryActiveJobFailures = options?.repositoryActiveJobFailures ?? 0;
   let evaluationCaseFailures = options?.evaluationCaseFailures ?? 0;
@@ -252,8 +256,12 @@ function installFetch(options?: {
     }
     if (path === "/api/prs/pr-acme-87/review-jobs/active" && method === "GET") {
       const kind = url.searchParams.get("kind");
-      if ((kind === "comparison" && options?.comparisonRecoveryFailure)
-        || (kind === "review" && options?.reviewRecoveryFailure)) {
+      if (kind === "comparison" && comparisonRecoveryFailures > 0) {
+        comparisonRecoveryFailures -= 1;
+        return json({ detail: "temporary recovery outage" }, 503);
+      }
+      if (kind === "review" && reviewRecoveryFailures > 0) {
+        reviewRecoveryFailures -= 1;
         return json({ detail: "temporary recovery outage" }, 503);
       }
       const jobId = kind === "comparison"
@@ -477,6 +485,19 @@ it("leaves an actionable review state when persisted recovery fails", async () =
   expect(alert.textContent).toContain("start a new review when dependencies are ready");
   expect(screen.getByRole("region", { name: "Review workspace" }).getAttribute("aria-busy")).toBe("false");
   expect((screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement).disabled).toBe(false);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
+it("retries saved review recovery through GET only", async () => {
+  const fetchMock = installFetch({ reviewRecoveryFailures: 1, latestReview: true });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const retry = await screen.findByRole("button", { name: "Retry saved review recovery" });
+  fireEvent.click(retry);
+  expect(await screen.findByRole("article", { name: "Direct status write skips the service" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Retry saved review recovery" })).toBeNull();
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=review"))).toHaveLength(2);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(1);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
@@ -1071,6 +1092,24 @@ it("leaves an actionable comparison state when persisted recovery fails", async 
   expect(alert.textContent).toContain("Run a new comparison when memory is connected");
   expect(screen.getByRole("region", { name: "Comparison workspace" }).getAttribute("aria-busy")).toBe("false");
   expect((screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement).disabled).toBe(false);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
+it("retries saved comparison recovery through GET only", async () => {
+  const restored = {
+    evaluation: { passed: true, checks: { same_candidate: true }, counts: { memory_findings: 1 } },
+    memory: { run_id: "run-retry-saved-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
+    baseline: { run_id: "run-retry-saved-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
+  };
+  const fetchMock = installFetch({ comparisonRecoveryFailures: 1, latestComparison: restored });
+  renderAt("/repos/repo-acme-commerce/lab");
+  const retry = await screen.findByRole("button", { name: "Retry saved comparison recovery" });
+  fireEvent.click(retry);
+  expect(await screen.findByText("Guardrails passed")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Retry saved comparison recovery" })).toBeNull();
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=comparison"))).toHaveLength(2);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(1);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 

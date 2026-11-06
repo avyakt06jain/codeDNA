@@ -76,6 +76,8 @@ export function MemoryLabPage() {
   const [loading, setLoading] = useState(true);
   const [restoring, setRestoring] = useState(false);
   const [recoveredPrId, setRecoveredPrId] = useState("");
+  const [recoveryFailed, setRecoveryFailed] = useState(false);
+  const [recoveryRetryKey, setRecoveryRetryKey] = useState(0);
   const [running, setRunning] = useState(false);
   const [activeJobId, setActiveJobId] = useState("");
   const [jobTiming, setJobTiming] = useState<JobTiming>({});
@@ -174,6 +176,7 @@ export function MemoryLabPage() {
     let cancelled = false;
     const savedJobId = prId ? loadActiveJob("comparison", prId) : null;
     setRecoveredPrId("");
+    setRecoveryFailed(false);
     setComparison(null);
     setActiveJobId("");
     setJobTiming({});
@@ -268,6 +271,7 @@ export function MemoryLabPage() {
         if (!cancelled) {
           const detail = reason instanceof Error ? reason.message : "Saved comparison recovery failed.";
           setError(`Comparison recovery unavailable: ${detail} No comparison or provider branch was started. Run a new comparison when memory is connected.`);
+          setRecoveryFailed(true);
         }
       } finally {
         if (!cancelled) {
@@ -279,7 +283,7 @@ export function MemoryLabPage() {
     return () => {
       cancelled = true;
     };
-  }, [prId]);
+  }, [prId, recoveryRetryKey]);
 
   const selected = prs.some((item) => item.id === prId) ? prId : "";
   const blocked = hindsight !== "ready";
@@ -310,6 +314,7 @@ export function MemoryLabPage() {
   async function runComparison() {
     if (!selected) return;
     setRunning(true);
+    setRecoveryFailed(false);
     setError("");
     setComparison(null);
     setActiveJobId("");
@@ -492,6 +497,11 @@ export function MemoryLabPage() {
         {loading ? <LoadingNote announce={false}>Loading pull requests…</LoadingNote> : null}
         {restoring ? <LoadingNote announce={false}>Restoring the latest completed comparison…</LoadingNote> : null}
         {error ? <ErrorNote>{error}</ErrorNote> : null}
+        {recoveryFailed ? (
+          <button type="button" className="secondary" disabled={loading || restoring || running} onClick={() => setRecoveryRetryKey((value) => value + 1)}>
+            Retry saved comparison recovery
+          </button>
+        ) : null}
         <ActiveJobDetails jobId={activeJobId} status={comparisonStageLabel(stage)} {...jobTiming} />
         {retryJobId ? (
           <button type="button" className="secondary" disabled={running} onClick={() => void checkComparisonAgain()}>

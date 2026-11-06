@@ -19,6 +19,8 @@ export function ReviewPage() {
   const [pr, setPr] = useState<PullRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [recoveredPrId, setRecoveredPrId] = useState("");
+  const [recoveryFailed, setRecoveryFailed] = useState(false);
+  const [recoveryRetryKey, setRecoveryRetryKey] = useState(0);
   const [error, setError] = useState("");
   const [memoryEnabled, setMemoryEnabled] = useState(true);
   const [running, setRunning] = useState(false);
@@ -54,6 +56,7 @@ export function ReviewPage() {
     let cancelled = false;
     const savedJobId = loadActiveJob("review", prId);
     setRecoveredPrId("");
+    setRecoveryFailed(false);
     setLoading(true);
     setRunning(false);
     setError("");
@@ -144,6 +147,7 @@ export function ReviewPage() {
         if (recoveryResult.status === "rejected") {
           const detail = recoveryResult.reason instanceof Error ? recoveryResult.reason.message : "Saved review recovery failed.";
           setError(`Review recovery unavailable: ${detail} No review or provider call was started. Use the controls to start a new review when dependencies are ready.`);
+          setRecoveryFailed(true);
         } else if (recoveryResult.value.job) {
           observeJob(recoveryResult.value.job.jobId, recoveryResult.value.job);
         } else if (recoveryResult.value.review) {
@@ -160,7 +164,7 @@ export function ReviewPage() {
     return () => {
       cancelled = true;
     };
-  }, [prId]);
+  }, [prId, recoveryRetryKey]);
 
   const files = useMemo(() => splitDiff(pr?.diff_text ?? ""), [pr?.diff_text]);
   useEffect(() => {
@@ -175,6 +179,7 @@ export function ReviewPage() {
 
   async function runReview() {
     setRunning(true);
+    setRecoveryFailed(false);
     setError("");
     setReview(null);
     setActiveJobId("");
@@ -332,6 +337,11 @@ export function ReviewPage() {
         </div>
       </header>
       {error ? <ErrorNote>{error}</ErrorNote> : null}
+      {recoveryFailed ? (
+        <button type="button" className="secondary" disabled={loading || running} onClick={() => setRecoveryRetryKey((value) => value + 1)}>
+          Retry saved review recovery
+        </button>
+      ) : null}
       <ActiveJobDetails jobId={activeJobId} status={stageLabel(stage)} {...jobTiming} />
       {retryJobId ? (
         <button type="button" className="secondary" disabled={running} onClick={() => void checkReviewAgain()}>

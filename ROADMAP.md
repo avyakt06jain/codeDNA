@@ -155,7 +155,8 @@
 - **Verified:** Review Workspace exposes its combined initial load and persisted recovery boundary as one named `aria-busy` region while retaining one live status announcement and visible loading text.
 - **Verified:** Memory Lab exposes pull-request/comparison recovery through a separate named `aria-busy` region while its fixture catalog retains an independent busy lifecycle and the page retains one live status announcement.
 - **Verified:** Initial persisted-recovery failures in Review Workspace and Memory Lab clear their busy state, state that no provider work was started by recovery, identify the affected task, and leave the normally gated run control usable.
-- **Next:** Add an explicit GET-only retry for failed initial persisted recovery so users can recheck existing work before choosing a creation POST.
+- **Verified:** Task-specific saved-recovery retry actions rerun only PR/active/latest GETs, restore persisted results after a transient failure, remove recovered error state, and issue zero creation POSTs.
+- **Next:** Preserve keyboard position across saved-recovery retry success and repeated failure by moving focus to the recovered result or recreated retry action.
 
 ## Documentation and version-control policy
 
