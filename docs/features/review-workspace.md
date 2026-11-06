@@ -22,6 +22,8 @@ If active/latest recovery fails, the region settles to `aria-busy=false` and an 
 
 That manual retry also preserves keyboard position. A restored result focuses the `Review findings` heading, a repeated failure focuses the newly rendered retry button, and a successful empty recovery focuses the named Review workspace. Changing PR cancels the pending focus intent.
 
+If the manual retry succeeds but finds neither an active job nor a persisted review, the existing polite live region announces that exact empty outcome and confirms no provider work started. The ordinary `No review yet` surface remains visible; the outcome is not presented as an error. Active reattachment and restored reviews do not use the empty-result announcement.
+
 The creation endpoint also closes the simultaneous-tab race: if another ordinary review is already queued/running for the PR, it returns that job with `reused: true` and schedules no second provider task. The workspace preserves that response field and visibly announces reattachment before polling the existing job.
 
 During a transient polling failure, the persistent live region and visible stage explain that CodeDNA is reconnecting to the existing review. The bounded retry does not enable the run action or create another job.

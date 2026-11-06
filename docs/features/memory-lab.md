@@ -60,6 +60,8 @@ If active/latest comparison recovery fails, the region settles to `aria-busy=fal
 
 That manual retry also preserves keyboard position. A restored result focuses the `Guardrails` heading, a repeated failure focuses the newly rendered retry button, and a successful empty recovery focuses the named Comparison workspace. Changing the selected PR cancels the pending focus intent.
 
+If the manual retry succeeds but finds neither an active job nor a persisted comparison, the existing polite live region announces that exact empty outcome and confirms neither provider branch started. The ordinary `No comparison yet` surface remains visible; the outcome is not presented as an error. Active reattachment and restored comparisons do not use the empty-result announcement.
+
 Comparison creation uses the same atomic claim. Concurrent requests for the same PR receive one comparison job ID, and only its creator schedules the memory/baseline branches. A reused response produces an immediate visible and polite reattachment announcement before polling resumes, explicitly stating that neither provider branch was started again.
 
 Memory Lab uses one persistent polite/atomic live region for loading, restoration, and background comparison stages. Comparison-specific labels distinguish memory-assisted work, baseline work, completion, and persisted-result restoration instead of announcing these as a generic review.

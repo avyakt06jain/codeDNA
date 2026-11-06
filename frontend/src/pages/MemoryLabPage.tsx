@@ -81,6 +81,7 @@ export function MemoryLabPage() {
   const [restoring, setRestoring] = useState(false);
   const [recoveredPrId, setRecoveredPrId] = useState("");
   const [recoveryFailed, setRecoveryFailed] = useState(false);
+  const [recoveryMessage, setRecoveryMessage] = useState("");
   const [recoveryRetryKey, setRecoveryRetryKey] = useState(0);
   const [running, setRunning] = useState(false);
   const [activeJobId, setActiveJobId] = useState("");
@@ -185,6 +186,7 @@ export function MemoryLabPage() {
     const savedJobId = prId ? loadActiveJob("comparison", prId) : null;
     setRecoveredPrId("");
     setRecoveryFailed(false);
+    setRecoveryMessage("");
     setComparison(null);
     setActiveJobId("");
     setJobTiming({});
@@ -274,6 +276,9 @@ export function MemoryLabPage() {
         if (!cancelled) {
           setComparison(result);
           setStage(result ? "comparison_restored" : "");
+          if (!result && recoveryRetryRequested.current) {
+            setRecoveryMessage("Saved comparison recovery completed. No persisted comparison was found, and no provider branch was started.");
+          }
         }
       } catch (reason) {
         if (!cancelled) {
@@ -298,7 +303,7 @@ export function MemoryLabPage() {
   const steps = traceSteps(comparison?.memory.retrieval?.timings_ms);
   const liveStatus = stage && stage !== "complete"
     ? comparisonStageLabel(stage)
-    : catalogAnnouncement || (stage
+    : catalogAnnouncement || recoveryMessage || (stage
       ? comparisonStageLabel(stage)
     : restoring
       ? "Restoring the latest completed comparison…"
@@ -318,6 +323,7 @@ export function MemoryLabPage() {
     recoveryRetryRequested.current = true;
     setRestoring(true);
     setRecoveryFailed(false);
+    setRecoveryMessage("");
     setError("");
     setRecoveryRetryKey((value) => value + 1);
   }
@@ -339,6 +345,7 @@ export function MemoryLabPage() {
     if (!selected) return;
     setRunning(true);
     setRecoveryFailed(false);
+    setRecoveryMessage("");
     setError("");
     setComparison(null);
     setActiveJobId("");

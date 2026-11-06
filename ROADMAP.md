@@ -157,7 +157,8 @@
 - **Verified:** Initial persisted-recovery failures in Review Workspace and Memory Lab clear their busy state, state that no provider work was started by recovery, identify the affected task, and leave the normally gated run control usable.
 - **Verified:** Task-specific saved-recovery retry actions rerun only PR/active/latest GETs, restore persisted results after a transient failure, remove recovered error state, and issue zero creation POSTs.
 - **Verified:** Manual saved-recovery retry preserves keyboard position: restored reviews focus `Review findings`, restored comparisons focus `Guardrails`, repeated failures focus the recreated retry action, and empty success falls back to the named workspace.
-- **Next:** Announce an explicit successful no-result outcome when a GET-only saved-recovery retry finds no persisted result, without implying provider work or failure.
+- **Verified:** A manual retry that successfully finds neither active work nor a persisted result emits one polite task-specific completion message, explicitly states that no provider work started, keeps the normal empty state, and issues zero POSTs.
+- **Next:** Keep a previously ready Hindsight health state observable after startup, with low-frequency visible-tab checks that stop while the document is hidden.
 
 ## Documentation and version-control policy
 

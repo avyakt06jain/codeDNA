@@ -24,6 +24,7 @@ export function ReviewPage() {
   const [loading, setLoading] = useState(true);
   const [recoveredPrId, setRecoveredPrId] = useState("");
   const [recoveryFailed, setRecoveryFailed] = useState(false);
+  const [recoveryMessage, setRecoveryMessage] = useState("");
   const [recoveryRetryKey, setRecoveryRetryKey] = useState(0);
   const [error, setError] = useState("");
   const [memoryEnabled, setMemoryEnabled] = useState(true);
@@ -65,6 +66,7 @@ export function ReviewPage() {
     const savedJobId = loadActiveJob("review", prId);
     setRecoveredPrId("");
     setRecoveryFailed(false);
+    setRecoveryMessage("");
     setLoading(true);
     setRunning(false);
     setError("");
@@ -161,6 +163,8 @@ export function ReviewPage() {
         } else if (recoveryResult.value.review) {
           setReview(recoveryResult.value.review);
           setStage("complete");
+        } else if (recoveryRetryRequested.current) {
+          setRecoveryMessage("Saved review recovery completed. No persisted review was found, and no provider work was started.");
         }
       })
       .finally(() => {
@@ -183,7 +187,7 @@ export function ReviewPage() {
   const findings = review?.findings ?? [];
   const fileFindings = findings.filter((item) => item.file_path === selected?.path);
   const memoryBlocked = memoryEnabled && hindsight !== "ready";
-  const liveStatus = feedbackMessage || (stage ? stageLabel(stage) : loading ? "Loading pull request…" : "");
+  const liveStatus = feedbackMessage || recoveryMessage || (stage ? stageLabel(stage) : loading ? "Loading pull request…" : "");
 
   useEffect(() => {
     if (!recoveryRetryRequested.current || loading) return;
@@ -197,6 +201,7 @@ export function ReviewPage() {
     recoveryRetryRequested.current = true;
     setLoading(true);
     setRecoveryFailed(false);
+    setRecoveryMessage("");
     setError("");
     setRecoveryRetryKey((value) => value + 1);
   }
@@ -204,6 +209,7 @@ export function ReviewPage() {
   async function runReview() {
     setRunning(true);
     setRecoveryFailed(false);
+    setRecoveryMessage("");
     setError("");
     setReview(null);
     setActiveJobId("");

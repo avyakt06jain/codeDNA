@@ -81,10 +81,11 @@
 - Initial persisted-recovery failures now leave both run workspaces settled with task-specific alerts, truthful zero-provider-work wording, dependency-aware next steps, and usable normally gated creation controls.
 - Review Workspace and Memory Lab now offer task-specific GET-only saved-recovery retries that restore persisted results after a transient failure without a creation POST.
 - Manual saved-recovery retries now preserve keyboard position by focusing restored result headings, recreated retry actions after repeated failure, or the named workspace after an empty success.
+- Empty successful saved-recovery retries now emit one polite task-specific outcome that confirms no persisted result was found and no provider work started; active reattachment and restored results remain distinct.
 
 ## In Progress
 
-- Post-MVP work continues by making an empty successful saved-recovery retry explicit to assistive technology without treating it as an error.
+- Post-MVP work continues by keeping Hindsight health observable after it first becomes ready, without unnecessary hidden-tab polling.
 
 ## Blocked
 
@@ -108,9 +109,19 @@
 
 ## Next Action
 
-Add a concise polite confirmation when a GET-only saved-recovery retry succeeds but finds no persisted review/comparison, without adding provider work or implying failure.
+Continue low-frequency Hindsight health observation after the first ready response, pause it while the document is hidden, and expose a later outage truthfully without starting provider work.
 
 ## Session Log
+
+### 2026-11-06 — Explicit empty saved-recovery outcome
+
+- Goal: Make a successful manual recovery with no active or persisted work understandable without turning a normal empty state into an error.
+- Implemented: Review Workspace and Memory Lab now use their existing polite/atomic live region to announce an exact task-specific empty outcome after manual saved-recovery success. Each message confirms that no provider work started; active-job reattachment and persisted-result restoration do not emit it. The message clears before new work and on PR/selection recovery changes, while keyboard focus remains on the named workspace.
+- Initial focused check: `npm test -- --run src/ui.test.tsx -t "announces an empty saved"` **FAILED 2/2** because the assertions assumed the page's live region was the only status element, but the shell intentionally also exposes memory health as status. The assertions were narrowed to the status element with the exact completion text; the rerun **passed 2/2**.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **59 passed across 4 files**; `npm run build` → **PASS**, 40 modules, 327.61 kB JavaScript and 16.10 kB CSS before gzip.
+- Live app: the existing local API and Vite listeners remained healthy; API returned `ok`, Hindsight truthfully remained `unavailable`, and both updated routes returned HTTP 200.
+- Provider safety: this slice adds only local state, one existing live-region message, and deterministic mocked regressions. It issues zero creation POSTs and no Hindsight, Gemini, or paid request.
+- Next: keep a once-ready Hindsight health indicator current through low-frequency visible-tab checks.
 
 ### 2026-11-06 — Saved-recovery retry focus
 

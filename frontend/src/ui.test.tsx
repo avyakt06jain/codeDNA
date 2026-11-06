@@ -508,6 +508,18 @@ it("retries saved review recovery through GET only", async () => {
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
+it("announces an empty saved review recovery without starting work", async () => {
+  const fetchMock = installFetch({ reviewRecoveryFailures: 1 });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const retry = await screen.findByRole("button", { name: "Retry saved review recovery" });
+  fireEvent.click(retry);
+  const message = "Saved review recovery completed. No persisted review was found, and no provider work was started.";
+  await waitFor(() => expect(screen.getAllByRole("status").some((item) => item.textContent === message)).toBe(true));
+  expect(document.activeElement).toBe(screen.getByRole("region", { name: "Review workspace" }));
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
 it("checks an existing review again after bounded polling is exhausted", async () => {
   const fetchMock = installFetch({ activeReviewJob: true, reviewPollFailures: 4 });
   renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
@@ -1124,6 +1136,18 @@ it("retries saved comparison recovery through GET only", async () => {
   expect(screen.queryByRole("alert")).toBeNull();
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=comparison"))).toHaveLength(2);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
+it("announces an empty saved comparison recovery without starting work", async () => {
+  const fetchMock = installFetch({ comparisonRecoveryFailures: 1 });
+  renderAt("/repos/repo-acme-commerce/lab");
+  const retry = await screen.findByRole("button", { name: "Retry saved comparison recovery" });
+  fireEvent.click(retry);
+  const message = "Saved comparison recovery completed. No persisted comparison was found, and no provider branch was started.";
+  await waitFor(() => expect(screen.getAllByRole("status").some((item) => item.textContent === message)).toBe(true));
+  expect(document.activeElement).toBe(screen.getByRole("region", { name: "Comparison workspace" }));
+  expect(screen.queryByRole("alert")).toBeNull();
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
