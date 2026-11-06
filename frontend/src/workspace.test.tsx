@@ -4,8 +4,8 @@ import { api } from "./api";
 import { useWorkspace, WorkspaceProvider } from "./workspace";
 
 function HealthProbe() {
-  const { health, healthCheckedAt, healthReadFailed, hindsight } = useWorkspace();
-  return <p>{hindsight}:{health?.hindsight ?? "none"}:{healthReadFailed ? "read-failed" : "read-ok"}<time dateTime={healthCheckedAt}>{healthCheckedAt}</time></p>;
+  const { health, healthCheckedAt, healthReadFailed, healthChecking, checkHealth, hindsight } = useWorkspace();
+  return <><p>{hindsight}:{health?.hindsight ?? "none"}:{healthReadFailed ? "read-failed" : "read-ok"}:{healthChecking ? "checking" : "idle"}<time dateTime={healthCheckedAt}>{healthCheckedAt}</time></p><button type="button" onClick={checkHealth}>Check</button></>;
 }
 
 function renderWorkspace() {
@@ -29,12 +29,12 @@ it("keeps checking health after Hindsight first becomes ready", async () => {
 
   renderWorkspace();
   await act(async () => Promise.resolve());
-  expect(screen.getByText(/ready:ready:read-ok/)).toBeTruthy();
+  expect(screen.getByText(/ready:ready:read-ok:idle/)).toBeTruthy();
   expect(health).toHaveBeenCalledTimes(1);
   expect(screen.getByText("2026-11-06T12:00:00.000Z")).toBeTruthy();
 
   await act(async () => vi.advanceTimersByTimeAsync(30_000));
-  expect(screen.getByText(/unavailable:ready:read-failed/)).toBeTruthy();
+  expect(screen.getByText(/unavailable:ready:read-failed:idle/)).toBeTruthy();
   expect(health).toHaveBeenCalledTimes(2);
   expect(screen.getByText("2026-11-06T12:00:00.000Z")).toBeTruthy();
 });
@@ -50,7 +50,7 @@ it("pauses health checks while hidden and reconciles when visible", async () => 
 
   renderWorkspace();
   await act(async () => Promise.resolve());
-  expect(screen.getByText(/ready:ready:read-ok/)).toBeTruthy();
+  expect(screen.getByText(/ready:ready:read-ok:idle/)).toBeTruthy();
   visibility = "hidden";
   document.dispatchEvent(new Event("visibilitychange"));
   await act(async () => vi.advanceTimersByTimeAsync(60_000));
@@ -58,7 +58,7 @@ it("pauses health checks while hidden and reconciles when visible", async () => 
 
   visibility = "visible";
   await act(async () => document.dispatchEvent(new Event("visibilitychange")));
-  expect(screen.getByText(/unavailable:unavailable:read-ok/)).toBeTruthy();
+  expect(screen.getByText(/unavailable:unavailable:read-ok:idle/)).toBeTruthy();
   expect(health).toHaveBeenCalledTimes(2);
   expect(screen.getByText("2026-11-06T12:01:00.000Z")).toBeTruthy();
 });
@@ -74,7 +74,7 @@ it("backs off consecutive application health failures and resets after success",
   renderWorkspace();
   await act(async () => Promise.resolve());
   expect(health).toHaveBeenCalledTimes(1);
-  expect(screen.getByText(/unavailable:none:read-failed/)).toBeTruthy();
+  expect(screen.getByText(/unavailable:none:read-failed:idle/)).toBeTruthy();
 
   await act(async () => vi.advanceTimersByTimeAsync(1_999));
   expect(health).toHaveBeenCalledTimes(1);
@@ -85,7 +85,7 @@ it("backs off consecutive application health failures and resets after success",
   expect(health).toHaveBeenCalledTimes(2);
   await act(async () => vi.advanceTimersByTimeAsync(1));
   expect(health).toHaveBeenCalledTimes(3);
-  expect(screen.getByText(/unavailable:unavailable:read-ok/)).toBeTruthy();
+  expect(screen.getByText(/unavailable:unavailable:read-ok:idle/)).toBeTruthy();
 
   await act(async () => vi.advanceTimersByTimeAsync(2_000));
   expect(health).toHaveBeenCalledTimes(4);

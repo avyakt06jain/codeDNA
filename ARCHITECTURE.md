@@ -856,6 +856,8 @@ The global frontend health observer treats `GET /api/health` as a read-only appl
 
 Every successful health response records a browser observation timestamp. The shell renders it as localized text in a semantic `time` element beside the dependency indicator. A failed application-health read preserves both that timestamp and the last successful response for inspection, but sets a separate read-failure flag that forces the effective memory gate to unavailable. The shell reports `Memory status unknown` for that transport/API failure, distinct from `Memory unavailable` in a successful response, and labels the failed current check. Both states disable memory work. The frequently changing time remains outside the indicator's polite/atomic state live region, so steady-state checks do not repeatedly announce `Memory connected`; only the controlled dependency label has status semantics.
 
+While memory status is unknown, the shell exposes `Check health again`. It cancels the pending backoff timer and invokes the same single-flight, read-only observer; repeated activation while the request is pending is disabled and cannot create concurrent reads. The control becomes `Checking health…`, then focus moves to the persistent dependency status whether the read succeeds or fails. This action does not probe or start Hindsight directly.
+
 ### 9.2 Logging/tracing
 
 For each review store (bounded and sanitized):

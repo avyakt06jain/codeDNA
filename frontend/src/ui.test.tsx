@@ -136,6 +136,7 @@ function json(data: unknown, status = 200): Response {
 function installFetch(options?: {
   hindsight?: "starting" | "ready" | "unavailable";
   healthFailures?: number;
+  healthGate?: Promise<void>;
   interruptedJobs?: number;
   decisionsWrapped?: boolean;
   comparison?: Record<string, unknown>;
@@ -187,6 +188,7 @@ function installFetch(options?: {
         healthFailures -= 1;
         return json({ detail: "application health unavailable" }, 503);
       }
+      if (options?.healthGate) await options.healthGate;
       return json({ status: "ok", memory: "configured", hindsight, interrupted_jobs: options?.interruptedJobs ?? 0 });
     }
     if (path === "/api/repositories") return json(repositories);
@@ -387,12 +389,23 @@ it("shows the latest successful health check without repeating it in the live st
 });
 
 it("distinguishes an application health failure from confirmed Hindsight unavailability", async () => {
-  installFetch({ healthFailures: 1 });
+  let releaseHealth: () => void = () => undefined;
+  const healthGate = new Promise<void>((resolve) => { releaseHealth = resolve; });
+  const fetchMock = installFetch({ healthFailures: 1, healthGate });
   renderAt("/");
   const unknown = await screen.findByText("Memory status unknown");
   expect(unknown.getAttribute("role")).toBe("status");
   expect(unknown.parentElement?.textContent).toContain("No successful check yet · current check failed");
   expect(screen.queryByText("Memory unavailable")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Check health again" }));
+  const checking = await screen.findByRole("button", { name: "Checking health…" }) as HTMLButtonElement;
+  expect(checking.disabled).toBe(true);
+  fireEvent.click(checking);
+  expect(fetchMock.mock.calls.filter(([input]) => new URL(String(input), "http://localhost").pathname === "/api/health")).toHaveLength(2);
+  releaseHealth();
+  const connected = await screen.findByText("Memory connected");
+  expect(document.activeElement).toBe(connected);
+  expect(fetchMock.mock.calls.filter(([input]) => new URL(String(input), "http://localhost").pathname === "/api/health")).toHaveLength(2);
 });
 
 it("labels a successful health response with unavailable Hindsight separately", async () => {

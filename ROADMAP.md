@@ -162,7 +162,8 @@
 - **Verified:** The Hindsight indicator shows a localized, machine-readable latest successful health observation time; failed reads preserve that timestamp, and its frequent updates sit outside the state-change live region.
 - **Verified:** Failed application-health reads are represented separately from successful responses that report Hindsight unavailable. The former preserves the last successful payload/time as cached evidence, displays `Memory status unknown`, and forces the same unavailable run-control gate without provider work.
 - **Verified:** Consecutive application-health transport failures use capped 2/4/8/16/30-second backoff, reset after a successful response, and still reconcile immediately when a hidden tab becomes visible.
-- **Next:** Add an explicit read-only health retry control for an unknown memory state so a judge can reconcile immediately without waiting for backoff or starting provider work.
+- **Verified:** An unknown memory state exposes a single-flight `Check health again` action that cancels pending backoff, uses only `GET /api/health`, disables during the request, and returns keyboard focus to the resulting status.
+- **Next:** Bound a health request that never settles so one hung fetch cannot leave the global observer permanently checking and unable to recover.
 
 ## Documentation and version-control policy
 

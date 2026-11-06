@@ -86,10 +86,11 @@
 - The dependency indicator now shows a localized semantic timestamp for the latest successful health response; failed reads preserve it, while the live region contains only the controlled dependency state label.
 - Application-health request failures now preserve the last successful health payload/time but set an explicit read-failure state, force memory work unavailable, and display `Memory status unknown`; a successful response that reports Hindsight unavailable remains separately labeled `Memory unavailable`.
 - Consecutive application-health request failures now back off at 2/4/8/16/30 seconds with a 30-second cap; success resets the sequence, while visibility return still triggers an immediate read-only reconciliation.
+- An unknown memory state now offers `Check health again`; the single-flight read cancels pending backoff, disables its control while pending, and returns focus to the persistent result status without starting provider work.
 
 ## In Progress
 
-- Post-MVP work continues by making an unknown memory state immediately recheckable through the existing read-only health boundary without starting provider work.
+- Post-MVP work continues by bounding application-health requests that never settle so the observer cannot remain permanently in flight.
 
 ## Blocked
 
@@ -113,9 +114,19 @@
 
 ## Next Action
 
-Add an explicit `Check health again` action when memory status is unknown; it must use the existing read-only endpoint, respect the single-flight guard, restore keyboard focus, and never start provider work.
+Add a bounded client timeout for `GET /api/health`; timeout must enter the existing unknown/backoff path, release the single-flight guard, remain distinguishable from confirmed Hindsight unavailability, and never start provider work.
 
 ## Session Log
+
+### 2026-11-07 — Manual application-health reconciliation
+
+- Goal: Let a judge or keyboard user reconcile an unknown memory state immediately instead of waiting through automatic backoff.
+- Implemented: the workspace exposes its existing health observer through a single-flight manual action. The shell renders `Check health again` only after an application-health read failure, disables and relabels it while pending, cancels the scheduled backoff read, and focuses the persistent memory status after success or failure.
+- Focused checks: `npm test -- --run src/workspace.test.tsx src/ui.test.tsx -t "health|Hindsight first becomes ready|pauses health"` → **8 passed, 47 skipped**; dedicated manual recovery coverage verifies two total health GETs, disabled duplicate activation, successful recovery, and deterministic focus restoration.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **66 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 328.87 kB JavaScript and 16.36 kB CSS before gzip.
+- Live app: after Vite hot reload, the existing API returned `ok`, Hindsight truthfully remained `unavailable`, and the overview returned HTTP 200.
+- Provider safety: manual reconciliation calls only the existing application `GET /api/health` contract. It does not start or probe Hindsight directly, call Gemini, submit jobs, or enable paid usage.
+- Next: bound a health fetch that never settles so the single-flight observer always becomes recoverable.
 
 ### 2026-11-07 — Bounded application-health failure recovery
 

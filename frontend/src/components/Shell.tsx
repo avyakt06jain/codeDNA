@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { formatWhen, memoryLabel, preferredPullRequestId } from "../text";
@@ -24,7 +24,9 @@ export function RepoScope() {
 export function Shell() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { repositories, repoId, setRepoId, prs, health, healthCheckedAt, healthReadFailed, hindsight, loadingRepos, repoError } = useWorkspace();
+  const { repositories, repoId, setRepoId, prs, health, healthCheckedAt, healthReadFailed, healthChecking, checkHealth, hindsight, loadingRepos, repoError } = useWorkspace();
+  const healthStatusRef = useRef<HTMLElement>(null);
+  const [restoreHealthFocus, setRestoreHealthFocus] = useState(false);
   const routeRepo = pathname.match(/\/repos\/([^/]+)/)?.[1];
   const currentRepoId = routeRepo || repoId;
   const repo = repositories.find((item) => item.id === currentRepoId);
@@ -33,6 +35,17 @@ export function Shell() {
   const inPr = pathname.includes("/prs/");
   const inDna = pathname.includes("/dna");
   const inLab = pathname.includes("/lab");
+
+  useEffect(() => {
+    if (!restoreHealthFocus || healthChecking) return;
+    healthStatusRef.current?.focus();
+    setRestoreHealthFocus(false);
+  }, [healthChecking, restoreHealthFocus]);
+
+  function retryHealth() {
+    setRestoreHealthFocus(true);
+    checkHealth();
+  }
 
   function selectRepository(nextId: string) {
     setRepoId(nextId);
@@ -121,10 +134,10 @@ export function Shell() {
             </div>
           </section>
         </div>
-        <p className={`memory-pill ${hindsight}`}>
+        <div className={`memory-pill ${hindsight}`}>
           <span className="memory-dot" aria-hidden="true" />
           <span>
-            <strong role="status" aria-live="polite" aria-atomic="true">
+            <strong ref={healthStatusRef} tabIndex={-1} role="status" aria-live="polite" aria-atomic="true">
               {healthReadFailed ? "Memory status unknown" : memoryLabel(hindsight)}
             </strong>
             <small>
@@ -132,8 +145,13 @@ export function Shell() {
                 <>Last successful check <time dateTime={healthCheckedAt}>{formatWhen(healthCheckedAt)}</time>{healthReadFailed ? " · current check failed" : null}</>
               ) : healthReadFailed ? "No successful check yet · current check failed" : "No successful check yet"}
             </small>
+            {healthReadFailed ? (
+              <button type="button" className="memory-retry" disabled={healthChecking} onClick={retryHealth}>
+                {healthChecking ? "Checking health…" : "Check health again"}
+              </button>
+            ) : null}
           </span>
-        </p>
+        </div>
       </aside>
       <div className="workspace">
         <header className="topbar">

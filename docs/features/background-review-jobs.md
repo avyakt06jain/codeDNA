@@ -46,6 +46,7 @@ An HTTP `404` has separate terminal meaning: the saved active-job locator no lon
 - Each successful health response advances a localized semantic `time` beside the Hindsight indicator; failed reads preserve the prior successful check time. The timestamp is outside the dependency state live region, preventing unchanged 30-second observations from producing repeated assistive-technology announcements.
 - Application-health request failure is tracked independently from the last successful payload: it displays `Memory status unknown`, forces the effective dependency gate unavailable, and preserves cached observation context. A successful response that reports unavailable Hindsight remains `Memory unavailable`, so operators can distinguish app/API reachability from dependency state without enabling memory work in either case.
 - Consecutive application-health request failures retry after 2/4/8/16/30 seconds and stay capped at 30 seconds. A successful response resets the sequence. Visibility restoration bypasses a pending delay for one immediate check, preserving fast operator recovery without provider work.
+- `Check health again` appears only while application health is unknown. It cancels pending backoff, reuses the observer's single-flight guard, disables duplicate activation while pending, and restores focus to the dependency status after either outcome. It remains a `GET /api/health` read and never creates provider work.
 
 ## Verification
 

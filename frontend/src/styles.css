@@ -92,6 +92,9 @@ a { color: var(--green); }
 .memory-dot { width: 8px; height: 8px; border-radius: 50%; background: #e6c15a; flex: none; }
 .memory-pill.ready .memory-dot { background: #3ddea0; }
 .memory-pill.unavailable .memory-dot { background: #e07a72; }
+.memory-retry { margin-top: 8px; border: 1px solid #b7cdc4; border-radius: 8px; background: transparent; color: #fff; padding: 5px 8px; font: inherit; font-size: 12px; cursor: pointer; }
+.memory-retry:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); }
+.memory-retry:disabled { cursor: wait; opacity: 0.7; }
 
 .workspace { min-width: 0; }
 .topbar { min-height: 64px; display: flex; align-items: center; padding: 12px 28px; }

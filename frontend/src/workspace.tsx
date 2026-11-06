@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, type Health, type PullRequestSummary, type Repository } from "./api";
 import { DEFAULT_REPO_ID, memoryState } from "./text";
 
@@ -13,6 +13,8 @@ type WorkspaceValue = {
   health: Health | null;
   healthCheckedAt: string;
   healthReadFailed: boolean;
+  healthChecking: boolean;
+  checkHealth: () => void;
   hindsight: "ready" | "unavailable" | "starting";
   prs: PullRequestSummary[];
   loadingRepos: boolean;
@@ -33,6 +35,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [health, setHealth] = useState<Health | null>(null);
   const [healthCheckedAt, setHealthCheckedAt] = useState("");
   const [healthReadFailed, setHealthReadFailed] = useState(false);
+  const [healthChecking, setHealthChecking] = useState(false);
+  const healthCheckRef = useRef<() => void>(() => undefined);
   const [prs, setPrs] = useState<PullRequestSummary[]>([]);
   const [loadingRepos, setLoadingRepos] = useState(true);
   const [repoError, setRepoError] = useState("");
@@ -52,6 +56,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const tick = async () => {
       if (cancelled || inFlight || !isVisible()) return;
       inFlight = true;
+      setHealthChecking(true);
       let nextDelay = HEALTH_RETRY_MS;
       try {
         const next = await api.health();
@@ -68,6 +73,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         nextDelay = Math.min(HEALTH_RETRY_MS * (2 ** (consecutiveFailures - 1)), HEALTH_FAILURE_MAX_MS);
       } finally {
         inFlight = false;
+        if (!cancelled) setHealthChecking(false);
         schedule(nextDelay);
       }
     };
@@ -78,13 +84,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     };
 
     document.addEventListener("visibilitychange", handleVisibility);
+    healthCheckRef.current = () => {
+      window.clearTimeout(timer);
+      void tick();
+    };
     void tick();
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      healthCheckRef.current = () => undefined;
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, []);
+
+  const checkHealth = useCallback(() => healthCheckRef.current(), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,11 +143,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     health,
     healthCheckedAt,
     healthReadFailed,
+    healthChecking,
+    checkHealth,
     hindsight: healthReadFailed ? "unavailable" : memoryState(health?.hindsight),
     prs,
     loadingRepos,
     repoError,
-  }), [repositories, repoId, health, healthCheckedAt, healthReadFailed, prs, loadingRepos, repoError]);
+  }), [repositories, repoId, health, healthCheckedAt, healthReadFailed, healthChecking, checkHealth, prs, loadingRepos, repoError]);
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }
