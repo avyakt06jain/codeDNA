@@ -265,7 +265,10 @@ export function MemoryLabPage() {
           setStage(result ? "comparison_restored" : "");
         }
       } catch (reason) {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : "Comparison recovery unavailable.");
+        if (!cancelled) {
+          const detail = reason instanceof Error ? reason.message : "Saved comparison recovery failed.";
+          setError(`Comparison recovery unavailable: ${detail} No comparison or provider branch was started. Run a new comparison when memory is connected.`);
+        }
       } finally {
         if (!cancelled) {
           setRestoring(false);

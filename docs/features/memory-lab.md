@@ -54,6 +54,8 @@ On selection or browser refresh, the UI first checks for a validated active comp
 
 Those controls and their comparison result live in a named `Comparison workspace` region whose `aria-busy` is true during pull-request loading or persisted comparison recovery and false after that boundary settles. This is independent from the fixture catalog's own `aria-busy`, so catalog refresh and comparison readiness are not presented as the same operation. Visible load/restoration notes remain available while the page's existing polite/atomic live region is the only element with matching status semantics.
 
+If active/latest comparison recovery fails, the region settles to `aria-busy=false` and an assertive task-specific alert includes the sanitized failure detail, states that recovery started neither comparison provider branch, and directs the user to run a new comparison when memory is connected. The normal Hindsight readiness gate remains authoritative, and recovery issues no POST.
+
 Comparison creation uses the same atomic claim. Concurrent requests for the same PR receive one comparison job ID, and only its creator schedules the memory/baseline branches. A reused response produces an immediate visible and polite reattachment announcement before polling resumes, explicitly stating that neither provider branch was started again.
 
 Memory Lab uses one persistent polite/atomic live region for loading, restoration, and background comparison stages. Comparison-specific labels distinguish memory-assisted work, baseline work, completion, and persisted-result restoration instead of announcing these as a generic review.

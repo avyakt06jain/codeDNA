@@ -154,7 +154,8 @@
 - **Verified:** Review Workspace now applies the same exact-PR recovery barrier; deterministic gates prove no review POST can occur until active/latest persisted recovery completes and that reused work is announced before polling finishes.
 - **Verified:** Review Workspace exposes its combined initial load and persisted recovery boundary as one named `aria-busy` region while retaining one live status announcement and visible loading text.
 - **Verified:** Memory Lab exposes pull-request/comparison recovery through a separate named `aria-busy` region while its fixture catalog retains an independent busy lifecycle and the page retains one live status announcement.
-- **Next:** Audit initial and recovery failure states in both run workspaces so a settled busy region always leaves an actionable, control-specific error or ready state.
+- **Verified:** Initial persisted-recovery failures in Review Workspace and Memory Lab clear their busy state, state that no provider work was started by recovery, identify the affected task, and leave the normally gated run control usable.
+- **Next:** Add an explicit GET-only retry for failed initial persisted recovery so users can recheck existing work before choosing a creation POST.
 
 ## Documentation and version-control policy
 

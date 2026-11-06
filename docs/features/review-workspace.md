@@ -16,6 +16,8 @@ After the backend accepts a review, the page keeps its validated opaque job ID i
 
 The page exposes one named `Review workspace` region with `aria-busy=true` for that combined load/recovery boundary and `false` after it settles. The visible loading note remains present, while the existing polite/atomic live region is the only element with status semantics for the loading message. This busy state adds no request, focus movement, or provider work.
 
+If active/latest recovery fails, the region settles to `aria-busy=false` and an assertive task-specific alert includes the sanitized failure detail, states that recovery started no review or provider call, and tells the user the run control is available when dependencies are ready. The existing memory-readiness gate still applies; the message does not bypass it or claim that unobserved backend work is absent.
+
 The creation endpoint also closes the simultaneous-tab race: if another ordinary review is already queued/running for the PR, it returns that job with `reused: true` and schedules no second provider task. The workspace preserves that response field and visibly announces reattachment before polling the existing job.
 
 During a transient polling failure, the persistent live region and visible stage explain that CodeDNA is reconnecting to the existing review. The bounded retry does not enable the run action or create another job.

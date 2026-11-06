@@ -146,6 +146,8 @@ function installFetch(options?: {
   missingComparisonJob?: boolean;
   activeReviewJob?: boolean;
   activeComparisonJob?: boolean;
+  reviewRecoveryFailure?: boolean;
+  comparisonRecoveryFailure?: boolean;
   repositoryActiveJobs?: boolean;
   repositoryActiveJobsStartAfter?: number;
   repositoryActiveJobsCompleteAfter?: number;
@@ -250,6 +252,10 @@ function installFetch(options?: {
     }
     if (path === "/api/prs/pr-acme-87/review-jobs/active" && method === "GET") {
       const kind = url.searchParams.get("kind");
+      if ((kind === "comparison" && options?.comparisonRecoveryFailure)
+        || (kind === "review" && options?.reviewRecoveryFailure)) {
+        return json({ detail: "temporary recovery outage" }, 503);
+      }
       const jobId = kind === "comparison"
         ? options?.activeComparisonJob ? "job-cmp" : null
         : options?.activeReviewJob ? "job-review" : null;
@@ -460,6 +466,18 @@ it("keeps review creation disabled until persisted recovery completes", async ()
   await waitFor(() => expect(run.disabled).toBe(false));
   expect(workspace.getAttribute("aria-busy")).toBe("false");
   expect(screen.queryByText("Loading pull request…")).toBeNull();
+});
+
+it("leaves an actionable review state when persisted recovery fails", async () => {
+  const fetchMock = installFetch({ reviewRecoveryFailure: true });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("Review recovery unavailable: temporary recovery outage");
+  expect(alert.textContent).toContain("No review or provider call was started");
+  expect(alert.textContent).toContain("start a new review when dependencies are ready");
+  expect(screen.getByRole("region", { name: "Review workspace" }).getAttribute("aria-busy")).toBe("false");
+  expect((screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement).disabled).toBe(false);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
 it("checks an existing review again after bounded polling is exhausted", async () => {
@@ -1042,6 +1060,18 @@ it("keeps comparison creation disabled until persisted recovery completes", asyn
   await waitFor(() => expect(run.disabled).toBe(false));
   expect(workspace.getAttribute("aria-busy")).toBe("false");
   expect(screen.queryByText("Restoring the latest completed comparison…")).toBeNull();
+});
+
+it("leaves an actionable comparison state when persisted recovery fails", async () => {
+  const fetchMock = installFetch({ comparisonRecoveryFailure: true });
+  renderAt("/repos/repo-acme-commerce/lab");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("Comparison recovery unavailable: temporary recovery outage");
+  expect(alert.textContent).toContain("No comparison or provider branch was started");
+  expect(alert.textContent).toContain("Run a new comparison when memory is connected");
+  expect(screen.getByRole("region", { name: "Comparison workspace" }).getAttribute("aria-busy")).toBe("false");
+  expect((screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement).disabled).toBe(false);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
 it("checks an existing comparison again after bounded polling is exhausted", async () => {

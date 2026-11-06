@@ -142,7 +142,8 @@ export function ReviewPage() {
           setError(pullRequestResult.reason instanceof Error ? pullRequestResult.reason.message : "Pull request unavailable.");
         }
         if (recoveryResult.status === "rejected") {
-          setError(recoveryResult.reason instanceof Error ? recoveryResult.reason.message : "Review recovery unavailable.");
+          const detail = recoveryResult.reason instanceof Error ? recoveryResult.reason.message : "Saved review recovery failed.";
+          setError(`Review recovery unavailable: ${detail} No review or provider call was started. Use the controls to start a new review when dependencies are ready.`);
         } else if (recoveryResult.value.job) {
           observeJob(recoveryResult.value.job.jobId, recoveryResult.value.job);
         } else if (recoveryResult.value.review) {

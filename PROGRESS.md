@@ -78,10 +78,11 @@
 - Review Workspace now enforces the same exact-PR recovery barrier and uses deterministic async gates for both the no-POST readiness check and reused-review announcement.
 - Review Workspace now exposes the combined pull-request load and persisted recovery boundary as one named `aria-busy` region; its existing live region remains the only status announcement.
 - Memory Lab now exposes comparison-control load/recovery as a named `aria-busy` region independent from the fixture catalog's existing busy state; its existing live region remains the only matching status announcement.
+- Initial persisted-recovery failures now leave both run workspaces settled with task-specific alerts, truthful zero-provider-work wording, dependency-aware next steps, and usable normally gated creation controls.
 
 ## In Progress
 
-- Post-MVP work continues by auditing settled recovery failures for clear, control-specific next actions across both run workspaces.
+- Post-MVP work continues by adding a GET-only retry path for initial persisted-recovery failures before users choose creation.
 
 ## Blocked
 
@@ -105,9 +106,19 @@
 
 ## Next Action
 
-Audit Review Workspace and Memory Lab recovery failures to ensure every cleared busy state leaves either a ready control or an actionable, task-specific error without suggesting provider work ran.
+Add task-specific `Retry saved recovery` actions that repeat only active/latest GET recovery and never submit a review/comparison or contact a provider directly.
 
 ## Session Log
+
+### 2026-11-06 — Actionable initial recovery failures
+
+- Goal: Ensure a cleared busy state never leaves an ambiguous generic error after saved review/comparison recovery fails.
+- Implemented: Review Workspace and Memory Lab now name the failed recovery operation, include the sanitized server detail, explicitly state that recovery started no review/comparison provider work, and point to the run control's dependency precondition. Each exact-PR busy state clears and the normal creation control becomes usable when its existing Hindsight rule allows.
+- Focused checks: `npm test -- --run src/ui.test.tsx -t "actionable.*recovery fails"` → **2 passed, 42 skipped**; `npm run build` → **PASS**, 40 modules, 326.14 kB JavaScript and 16.10 kB CSS before gzip. Tests inject active-job GET failures and verify task-specific alerts, cleared busy state, enabled controls, and zero POSTs.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **55 passed across 4 files**; `npm run build` → **PASS**, 40 modules, 326.14 kB JavaScript and 16.10 kB CSS before gzip.
+- Live app: API health returned `ok`, Hindsight remained truthfully `unavailable`, and both Review Workspace and Memory Lab returned HTTP 200 after Vite hot reload.
+- Provider safety: failures and assertions are deterministic frontend mocks; no external request, paid usage, or fabricated Hindsight result was introduced.
+- Next: provide GET-only recovery retry actions so a user can recheck persisted work before choosing creation.
 
 ### 2026-11-06 — Memory Lab comparison busy-region semantics
 
