@@ -20,6 +20,8 @@ If active/latest recovery fails, the region settles to `aria-busy=false` and an 
 
 `Retry saved review recovery` starts a fresh exact-PR recovery generation: it reloads the PR, checks active review work, and reads the latest memory result only when no active job exists. It issues no creation POST. Success clears the alert/action and restores or resumes persisted work; another failure recreates the same bounded user choice.
 
+That manual retry also preserves keyboard position. A restored result focuses the `Review findings` heading, a repeated failure focuses the newly rendered retry button, and a successful empty recovery focuses the named Review workspace. Changing PR cancels the pending focus intent.
+
 The creation endpoint also closes the simultaneous-tab race: if another ordinary review is already queued/running for the PR, it returns that job with `reused: true` and schedules no second provider task. The workspace preserves that response field and visibly announces reattachment before polling the existing job.
 
 During a transient polling failure, the persistent live region and visible stage explain that CodeDNA is reconnecting to the existing review. The bounded retry does not enable the run action or create another job.

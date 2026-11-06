@@ -80,10 +80,11 @@
 - Memory Lab now exposes comparison-control load/recovery as a named `aria-busy` region independent from the fixture catalog's existing busy state; its existing live region remains the only matching status announcement.
 - Initial persisted-recovery failures now leave both run workspaces settled with task-specific alerts, truthful zero-provider-work wording, dependency-aware next steps, and usable normally gated creation controls.
 - Review Workspace and Memory Lab now offer task-specific GET-only saved-recovery retries that restore persisted results after a transient failure without a creation POST.
+- Manual saved-recovery retries now preserve keyboard position by focusing restored result headings, recreated retry actions after repeated failure, or the named workspace after an empty success.
 
 ## In Progress
 
-- Post-MVP work continues by preserving keyboard position after saved-recovery retries resolve or fail again.
+- Post-MVP work continues by making an empty successful saved-recovery retry explicit to assistive technology without treating it as an error.
 
 ## Blocked
 
@@ -107,9 +108,19 @@
 
 ## Next Action
 
-Move focus after manual saved-recovery retry to the recovered result on success or the recreated task-specific retry action after another failure, without adding provider work.
+Add a concise polite confirmation when a GET-only saved-recovery retry succeeds but finds no persisted review/comparison, without adding provider work or implying failure.
 
 ## Session Log
+
+### 2026-11-06 — Saved-recovery retry focus
+
+- Goal: Keep keyboard users anchored when a task-specific saved-recovery retry removes its initiating control.
+- Implemented: Review Workspace now focuses `Review findings` after a restored result, and Memory Lab focuses `Guardrails`; repeated failures focus the recreated task-specific retry button. A successful empty read focuses the named workspace, and route/selection changes cancel pending focus intent.
+- Initial focused check: the first `npm test -- --run src/ui.test.tsx -t "actionable.*recovery fails|retries saved.*recovery"` run **FAILED 1/4** because deferred animation-frame focus remained on the document body after review restoration. Applying focus directly once the recovery boundary settled corrected the behavior; the rerun **passed 4/4**.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **57 passed across 4 files**; `npm run build` → **PASS**, 40 modules, 327.26 kB JavaScript and 16.10 kB CSS before gzip.
+- Live app: the prior listeners were absent, so API and Vite were restarted in hidden local processes with `CODEDNA_DEMO_SCENE=evolved` and `CODEDNA_HINDSIGHT_AUTOSTART=0`. Health returned `ok`, Hindsight truthfully remained `unavailable`, and both updated routes returned HTTP 200.
+- Provider safety: focus restoration changes only client state and DOM focus; it adds no API, Hindsight, Gemini, or paid request.
+- Next: announce a successful manual recovery that finds no persisted result so the workspace fallback has an explicit outcome.
 
 ### 2026-11-06 — GET-only saved-recovery retry
 

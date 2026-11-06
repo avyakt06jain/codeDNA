@@ -16,6 +16,10 @@ export function ReviewPage() {
   const { repoId = "", prId = "" } = useParams();
   const { hindsight, prs } = useWorkspace();
   const alive = useRef(true);
+  const recoveryRetryRequested = useRef(false);
+  const recoveryRetryButton = useRef<HTMLButtonElement>(null);
+  const workspaceRegion = useRef<HTMLDivElement>(null);
+  const findingsHeading = useRef<HTMLHeadingElement>(null);
   const [pr, setPr] = useState<PullRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [recoveredPrId, setRecoveredPrId] = useState("");
@@ -51,6 +55,10 @@ export function ReviewPage() {
       alive.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    recoveryRetryRequested.current = false;
+  }, [prId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -176,6 +184,22 @@ export function ReviewPage() {
   const fileFindings = findings.filter((item) => item.file_path === selected?.path);
   const memoryBlocked = memoryEnabled && hindsight !== "ready";
   const liveStatus = feedbackMessage || (stage ? stageLabel(stage) : loading ? "Loading pull request…" : "");
+
+  useEffect(() => {
+    if (!recoveryRetryRequested.current || loading) return;
+    recoveryRetryRequested.current = false;
+    if (recoveryFailed) recoveryRetryButton.current?.focus();
+    else if (review) findingsHeading.current?.focus();
+    else workspaceRegion.current?.focus();
+  }, [loading, recoveryFailed, review]);
+
+  function retrySavedRecovery() {
+    recoveryRetryRequested.current = true;
+    setLoading(true);
+    setRecoveryFailed(false);
+    setError("");
+    setRecoveryRetryKey((value) => value + 1);
+  }
 
   async function runReview() {
     setRunning(true);
@@ -308,7 +332,7 @@ export function ReviewPage() {
   }
 
   return (
-    <div className="page" role="region" aria-label="Review workspace" aria-busy={loading}>
+    <div ref={workspaceRegion} className="page" role="region" aria-label="Review workspace" aria-busy={loading} tabIndex={-1}>
       <LiveStatus>{liveStatus}</LiveStatus>
       <header className="page-head review-head">
         <div>
@@ -338,7 +362,7 @@ export function ReviewPage() {
       </header>
       {error ? <ErrorNote>{error}</ErrorNote> : null}
       {recoveryFailed ? (
-        <button type="button" className="secondary" disabled={loading || running} onClick={() => setRecoveryRetryKey((value) => value + 1)}>
+        <button ref={recoveryRetryButton} type="button" className="secondary" disabled={loading || running} onClick={retrySavedRecovery}>
           Retry saved review recovery
         </button>
       ) : null}
@@ -403,7 +427,7 @@ export function ReviewPage() {
               />
             ) : null}
             <section className="card findings-card">
-              <div className="panel-head"><h2>Review findings{review ? ` (${review.findings.length})` : ""}</h2></div>
+              <div className="panel-head"><h2 ref={findingsHeading} tabIndex={-1}>Review findings{review ? ` (${review.findings.length})` : ""}</h2></div>
               {review ? (
                 <div className="run-summary">
                   <span>{review.mode === "memory" ? "Memory review" : "Baseline review"}</span>

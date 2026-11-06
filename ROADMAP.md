@@ -156,7 +156,8 @@
 - **Verified:** Memory Lab exposes pull-request/comparison recovery through a separate named `aria-busy` region while its fixture catalog retains an independent busy lifecycle and the page retains one live status announcement.
 - **Verified:** Initial persisted-recovery failures in Review Workspace and Memory Lab clear their busy state, state that no provider work was started by recovery, identify the affected task, and leave the normally gated run control usable.
 - **Verified:** Task-specific saved-recovery retry actions rerun only PR/active/latest GETs, restore persisted results after a transient failure, remove recovered error state, and issue zero creation POSTs.
-- **Next:** Preserve keyboard position across saved-recovery retry success and repeated failure by moving focus to the recovered result or recreated retry action.
+- **Verified:** Manual saved-recovery retry preserves keyboard position: restored reviews focus `Review findings`, restored comparisons focus `Guardrails`, repeated failures focus the recreated retry action, and empty success falls back to the named workspace.
+- **Next:** Announce an explicit successful no-result outcome when a GET-only saved-recovery retry finds no persisted result, without implying provider work or failure.
 
 ## Documentation and version-control policy
 

@@ -60,6 +60,10 @@ export function MemoryLabPage() {
   const requestedCaseId = searchParams.get("case") ?? "";
   const { hindsight } = useWorkspace();
   const alive = useRef(true);
+  const recoveryRetryRequested = useRef(false);
+  const recoveryRetryButton = useRef<HTMLButtonElement>(null);
+  const comparisonWorkspace = useRef<HTMLElement>(null);
+  const guardrailsHeading = useRef<HTMLHeadingElement>(null);
   const casesHeading = useRef<HTMLHeadingElement>(null);
   const casesRetryButton = useRef<HTMLButtonElement>(null);
   const manualCasesRetry = useRef(false);
@@ -99,6 +103,10 @@ export function MemoryLabPage() {
       alive.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    recoveryRetryRequested.current = false;
+  }, [prId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -298,6 +306,22 @@ export function MemoryLabPage() {
         ? "Loading pull requests…"
         : "");
 
+  useEffect(() => {
+    if (!recoveryRetryRequested.current || restoring) return;
+    recoveryRetryRequested.current = false;
+    if (recoveryFailed) recoveryRetryButton.current?.focus();
+    else if (comparison) guardrailsHeading.current?.focus();
+    else comparisonWorkspace.current?.focus();
+  }, [restoring, recoveryFailed, comparison]);
+
+  function retrySavedRecovery() {
+    recoveryRetryRequested.current = true;
+    setRestoring(true);
+    setRecoveryFailed(false);
+    setError("");
+    setRecoveryRetryKey((value) => value + 1);
+  }
+
   function reloadCatalog() {
     automaticCatalogRefresh.current = false;
     setCatalogAnnouncement("");
@@ -480,7 +504,7 @@ export function MemoryLabPage() {
           </button>
         ) : null}
       </section>
-      <section aria-label="Comparison workspace" aria-busy={loading || restoring}>
+      <section ref={comparisonWorkspace} aria-label="Comparison workspace" aria-busy={loading || restoring} tabIndex={-1}>
         <div className="lab-controls">
           <label>
             Pull request
@@ -498,7 +522,7 @@ export function MemoryLabPage() {
         {restoring ? <LoadingNote announce={false}>Restoring the latest completed comparison…</LoadingNote> : null}
         {error ? <ErrorNote>{error}</ErrorNote> : null}
         {recoveryFailed ? (
-          <button type="button" className="secondary" disabled={loading || restoring || running} onClick={() => setRecoveryRetryKey((value) => value + 1)}>
+          <button ref={recoveryRetryButton} type="button" className="secondary" disabled={loading || restoring || running} onClick={retrySavedRecovery}>
             Retry saved comparison recovery
           </button>
         ) : null}
@@ -531,7 +555,7 @@ export function MemoryLabPage() {
             <p className="hint">This run did not include stage timings.</p>
           )}
           <section className="card guardrails" aria-label="Guardrails">
-            <div className="panel-head"><h2>Guardrails</h2></div>
+            <div className="panel-head"><h2 ref={guardrailsHeading} tabIndex={-1}>Guardrails</h2></div>
             {typeof comparison.evaluation.passed === "boolean" ? (
               <p className={comparison.evaluation.passed ? "pass-line" : "fail-line"}>
                 {comparison.evaluation.passed ? "Guardrails passed" : "Guardrails need attention"}

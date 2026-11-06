@@ -486,6 +486,11 @@ it("leaves an actionable review state when persisted recovery fails", async () =
   expect(screen.getByRole("region", { name: "Review workspace" }).getAttribute("aria-busy")).toBe("false");
   expect((screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement).disabled).toBe(false);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+  const retry = screen.getByRole("button", { name: "Retry saved review recovery" });
+  retry.focus();
+  fireEvent.click(retry);
+  const recreated = await screen.findByRole("button", { name: "Retry saved review recovery" });
+  await waitFor(() => expect(document.activeElement).toBe(recreated));
 });
 
 it("retries saved review recovery through GET only", async () => {
@@ -494,6 +499,8 @@ it("retries saved review recovery through GET only", async () => {
   const retry = await screen.findByRole("button", { name: "Retry saved review recovery" });
   fireEvent.click(retry);
   expect(await screen.findByRole("article", { name: "Direct status write skips the service" })).toBeTruthy();
+  const findingsHeading = screen.getByRole("heading", { name: /^Review findings/ });
+  await waitFor(() => expect(document.activeElement).toBe(findingsHeading));
   expect(screen.queryByRole("button", { name: "Retry saved review recovery" })).toBeNull();
   expect(screen.queryByRole("alert")).toBeNull();
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=review"))).toHaveLength(2);
@@ -1093,6 +1100,11 @@ it("leaves an actionable comparison state when persisted recovery fails", async 
   expect(screen.getByRole("region", { name: "Comparison workspace" }).getAttribute("aria-busy")).toBe("false");
   expect((screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement).disabled).toBe(false);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+  const retry = screen.getByRole("button", { name: "Retry saved comparison recovery" });
+  retry.focus();
+  fireEvent.click(retry);
+  const recreated = await screen.findByRole("button", { name: "Retry saved comparison recovery" });
+  await waitFor(() => expect(document.activeElement).toBe(recreated));
 });
 
 it("retries saved comparison recovery through GET only", async () => {
@@ -1106,6 +1118,8 @@ it("retries saved comparison recovery through GET only", async () => {
   const retry = await screen.findByRole("button", { name: "Retry saved comparison recovery" });
   fireEvent.click(retry);
   expect(await screen.findByText("Guardrails passed")).toBeTruthy();
+  const guardrailsHeading = screen.getByRole("heading", { name: "Guardrails" });
+  await waitFor(() => expect(document.activeElement).toBe(guardrailsHeading));
   expect(screen.queryByRole("button", { name: "Retry saved comparison recovery" })).toBeNull();
   expect(screen.queryByRole("alert")).toBeNull();
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=comparison"))).toHaveLength(2);

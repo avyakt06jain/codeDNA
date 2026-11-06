@@ -58,6 +58,8 @@ If active/latest comparison recovery fails, the region settles to `aria-busy=fal
 
 `Retry saved comparison recovery` starts a fresh exact-PR recovery generation against the already loaded repository PR list: it checks active comparison work and reads the latest paired result only when no active job exists. It issues no creation POST. Success clears the alert/action and restores or resumes persisted work; another failure recreates the same bounded user choice.
 
+That manual retry also preserves keyboard position. A restored result focuses the `Guardrails` heading, a repeated failure focuses the newly rendered retry button, and a successful empty recovery focuses the named Comparison workspace. Changing the selected PR cancels the pending focus intent.
+
 Comparison creation uses the same atomic claim. Concurrent requests for the same PR receive one comparison job ID, and only its creator schedules the memory/baseline branches. A reused response produces an immediate visible and polite reattachment announcement before polling resumes, explicitly stating that neither provider branch was started again.
 
 Memory Lab uses one persistent polite/atomic live region for loading, restoration, and background comparison stages. Comparison-specific labels distinguish memory-assisted work, baseline work, completion, and persisted-result restoration instead of announcing these as a generic review.
