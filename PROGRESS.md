@@ -82,10 +82,11 @@
 - Review Workspace and Memory Lab now offer task-specific GET-only saved-recovery retries that restore persisted results after a transient failure without a creation POST.
 - Manual saved-recovery retries now preserve keyboard position by focusing restored result headings, recreated retry actions after repeated failure, or the named workspace after an empty success.
 - Empty successful saved-recovery retries now emit one polite task-specific outcome that confirms no persisted result was found and no provider work started; active reattachment and restored results remain distinct.
+- Global Hindsight health remains current after first readiness through 30-second visible-tab checks; starting/unavailable/error states retain two-second checks, hidden tabs issue none, and visibility return reconciles immediately.
 
 ## In Progress
 
-- Post-MVP work continues by keeping Hindsight health observable after it first becomes ready, without unnecessary hidden-tab polling.
+- Post-MVP work continues by making the dependency indicator's latest successful observation time inspectable without conflating it with provider readiness time.
 
 ## Blocked
 
@@ -109,9 +110,20 @@
 
 ## Next Action
 
-Continue low-frequency Hindsight health observation after the first ready response, pause it while the document is hidden, and expose a later outage truthfully without starting provider work.
+Display the latest successful `/api/health` observation time near the Hindsight indicator, preserving the current low-frequency/hidden-tab boundary and avoiding any provider call.
 
 ## Session Log
+
+### 2026-11-06 — Continuous visible-tab Hindsight health
+
+- Goal: Prevent a browser that once observed `ready` from displaying stale connected state after the local dependency later becomes unavailable.
+- Implemented: the workspace health observer now continues read-only checks every 30 seconds after readiness, keeps the existing two-second cadence for starting/unavailable/error states, allows only one in-flight request, cancels timers while hidden, reconciles immediately on visibility return, and removes timer/listener state on unmount.
+- Focused checks: the first `npm test -- --run src/workspace.test.tsx` **FAILED 2/2** because fake timers also paused Testing Library's polling helper. Replacing those waits with explicit React microtask flushing produced **2 passed** and verified ready-to-unavailable transition, zero hidden checks, and one immediate visible reconciliation.
+- Regression correction: the first full frontend run **FAILED 1/61** when comparison recovery rendered its result before the passive focus effect reliably committed focus. The focused rerun reproduced it. Moving the existing saved-recovery focus lifecycle to a layout effect made the render/focus boundary deterministic; its focused rerun passed and the final full suite passed.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **61 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 327.85 kB JavaScript and 16.10 kB CSS before gzip.
+- Live app: the existing API and Vite listeners remained healthy after hot reload; API returned `ok`, the browser route returned HTTP 200, and Hindsight truthfully remained `unavailable` without provider autostart.
+- Provider safety: the browser calls only the existing application health endpoint. The endpoint reports API-owned state; these checks do not start Hindsight, call Gemini, create jobs, or enable paid usage.
+- Next: expose the latest successful health observation time beside the dependency indicator.
 
 ### 2026-11-06 — Explicit empty saved-recovery outcome
 

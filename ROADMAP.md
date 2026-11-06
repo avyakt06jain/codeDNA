@@ -158,7 +158,8 @@
 - **Verified:** Task-specific saved-recovery retry actions rerun only PR/active/latest GETs, restore persisted results after a transient failure, remove recovered error state, and issue zero creation POSTs.
 - **Verified:** Manual saved-recovery retry preserves keyboard position: restored reviews focus `Review findings`, restored comparisons focus `Guardrails`, repeated failures focus the recreated retry action, and empty success falls back to the named workspace.
 - **Verified:** A manual retry that successfully finds neither active work nor a persisted result emits one polite task-specific completion message, explicitly states that no provider work started, keeps the normal empty state, and issues zero POSTs.
-- **Next:** Keep a previously ready Hindsight health state observable after startup, with low-frequency visible-tab checks that stop while the document is hidden.
+- **Verified:** Global Hindsight health remains observable after first readiness: visible tabs recheck ready state every 30 seconds, starting/unavailable state every two seconds, pause all timers while hidden, and reconcile immediately on return.
+- **Next:** Show the latest successful dependency-health observation time near the Hindsight indicator so judges can distinguish current state from a stale browser view.
 
 ## Documentation and version-control policy
 

@@ -2,6 +2,9 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { api, type Health, type PullRequestSummary, type Repository } from "./api";
 import { DEFAULT_REPO_ID, memoryState } from "./text";
 
+const HEALTH_RETRY_MS = 2_000;
+const HEALTH_READY_POLL_MS = 30_000;
+
 type WorkspaceValue = {
   repositories: Repository[];
   repoId: string;
@@ -32,25 +35,43 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     let timer = 0;
+    let inFlight = false;
+
+    const isVisible = () => document.visibilityState !== "hidden";
+    const schedule = (delay: number) => {
+      window.clearTimeout(timer);
+      if (cancelled || !isVisible()) return;
+      timer = window.setTimeout(() => void tick(), delay);
+    };
     const tick = async () => {
+      if (cancelled || inFlight || !isVisible()) return;
+      inFlight = true;
+      let nextDelay = HEALTH_RETRY_MS;
       try {
         const next = await api.health();
         if (cancelled) return;
         setHealth(next);
-        if (next.hindsight !== "ready") {
-          timer = window.setTimeout(() => void tick(), 2000);
-          if (cancelled) window.clearTimeout(timer);
-        }
+        nextDelay = next.hindsight === "ready" ? HEALTH_READY_POLL_MS : HEALTH_RETRY_MS;
       } catch {
         if (cancelled) return;
         setHealth({ hindsight: "unavailable", status: "error" });
-        timer = window.setTimeout(() => void tick(), 2000);
+      } finally {
+        inFlight = false;
+        schedule(nextDelay);
       }
     };
+
+    const handleVisibility = () => {
+      window.clearTimeout(timer);
+      if (isVisible()) void tick();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
     void tick();
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, []);
 

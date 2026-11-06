@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, isTransientRequestError, MissingJobError, PollingUnavailableError, TerminalJobError, type Comparison, type EvaluationCase, type JobTiming, type PullRequestSummary, type Review } from "../api";
 import { clearActiveJob, loadActiveJob, saveActiveJob } from "../activeJobs";
@@ -311,7 +311,7 @@ export function MemoryLabPage() {
         ? "Loading pull requests…"
         : "");
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!recoveryRetryRequested.current || restoring) return;
     recoveryRetryRequested.current = false;
     if (recoveryFailed) recoveryRetryButton.current?.focus();

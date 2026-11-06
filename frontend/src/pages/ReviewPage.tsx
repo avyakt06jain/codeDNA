@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api, MissingJobError, PollingUnavailableError, TerminalJobError, type Decision, type Finding, type JobTiming, type PullRequest, type Review } from "../api";
 import { clearActiveJob, loadActiveJob, saveActiveJob } from "../activeJobs";
@@ -189,7 +189,7 @@ export function ReviewPage() {
   const memoryBlocked = memoryEnabled && hindsight !== "ready";
   const liveStatus = feedbackMessage || recoveryMessage || (stage ? stageLabel(stage) : loading ? "Loading pull request…" : "");
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!recoveryRetryRequested.current || loading) return;
     recoveryRetryRequested.current = false;
     if (recoveryFailed) recoveryRetryButton.current?.focus();

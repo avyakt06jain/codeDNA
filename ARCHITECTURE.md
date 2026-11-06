@@ -852,6 +852,8 @@ Each fixture navigation control retains the concise visible `Open case` or `Case
 
 Don't spend tokens or billable calls for health checks unless necessary. A configured API key is not proof that quota/service actually works.
 
+The global frontend health observer treats `GET /api/health` as a read-only application-state check, not a provider probe. While the document is visible it retries starting/unavailable/error state every two seconds and continues observing a ready dependency every 30 seconds, so a later local-service outage replaces stale `ready` UI truthfully. Hidden documents cancel the pending timer and issue no health GET; returning to visible triggers one immediate reconciliation before the normal interval resumes. Only one request may be in flight, and unmount removes the timer and visibility listener. This polling never starts Hindsight, calls Gemini, or creates review work.
+
 ### 9.2 Logging/tracing
 
 For each review store (bounded and sanitized):
