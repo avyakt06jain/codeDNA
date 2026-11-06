@@ -10,6 +10,7 @@ type WorkspaceValue = {
   repoId: string;
   setRepoId: (id: string) => void;
   health: Health | null;
+  healthCheckedAt: string;
   hindsight: "ready" | "unavailable" | "starting";
   prs: PullRequestSummary[];
   loadingRepos: boolean;
@@ -28,6 +29,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [repoId, setRepoId] = useState(initialRepoId);
   const [health, setHealth] = useState<Health | null>(null);
+  const [healthCheckedAt, setHealthCheckedAt] = useState("");
   const [prs, setPrs] = useState<PullRequestSummary[]>([]);
   const [loadingRepos, setLoadingRepos] = useState(true);
   const [repoError, setRepoError] = useState("");
@@ -51,6 +53,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         const next = await api.health();
         if (cancelled) return;
         setHealth(next);
+        setHealthCheckedAt(new Date().toISOString());
         nextDelay = next.hindsight === "ready" ? HEALTH_READY_POLL_MS : HEALTH_RETRY_MS;
       } catch {
         if (cancelled) return;
@@ -117,11 +120,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     repoId,
     setRepoId,
     health,
+    healthCheckedAt,
     hindsight: memoryState(health?.hindsight),
     prs,
     loadingRepos,
     repoError,
-  }), [repositories, repoId, health, prs, loadingRepos, repoError]);
+  }), [repositories, repoId, health, healthCheckedAt, prs, loadingRepos, repoError]);
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }

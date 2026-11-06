@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import { Link, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
-import { memoryLabel, preferredPullRequestId } from "../text";
+import { formatWhen, memoryLabel, preferredPullRequestId } from "../text";
 import { useWorkspace } from "../workspace";
 
 function Glyph({ children }: { children: ReactNode }) {
@@ -24,7 +24,7 @@ export function RepoScope() {
 export function Shell() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { repositories, repoId, setRepoId, prs, health, hindsight, loadingRepos, repoError } = useWorkspace();
+  const { repositories, repoId, setRepoId, prs, health, healthCheckedAt, hindsight, loadingRepos, repoError } = useWorkspace();
   const routeRepo = pathname.match(/\/repos\/([^/]+)/)?.[1];
   const currentRepoId = routeRepo || repoId;
   const repo = repositories.find((item) => item.id === currentRepoId);
@@ -121,11 +121,15 @@ export function Shell() {
             </div>
           </section>
         </div>
-        <p className={`memory-pill ${hindsight}`} role="status">
+        <p className={`memory-pill ${hindsight}`}>
           <span className="memory-dot" aria-hidden="true" />
           <span>
-            <strong>{memoryLabel(hindsight)}</strong>
-            <small>Hindsight</small>
+            <strong role="status" aria-live="polite" aria-atomic="true">{memoryLabel(hindsight)}</strong>
+            <small>
+              Hindsight · {healthCheckedAt ? (
+                <>Last successful check <time dateTime={healthCheckedAt}>{formatWhen(healthCheckedAt)}</time></>
+              ) : "No successful check yet"}
+            </small>
           </span>
         </p>
       </aside>

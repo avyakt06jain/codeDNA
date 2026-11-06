@@ -83,10 +83,11 @@
 - Manual saved-recovery retries now preserve keyboard position by focusing restored result headings, recreated retry actions after repeated failure, or the named workspace after an empty success.
 - Empty successful saved-recovery retries now emit one polite task-specific outcome that confirms no persisted result was found and no provider work started; active reattachment and restored results remain distinct.
 - Global Hindsight health remains current after first readiness through 30-second visible-tab checks; starting/unavailable/error states retain two-second checks, hidden tabs issue none, and visibility return reconciles immediately.
+- The dependency indicator now shows a localized semantic timestamp for the latest successful health response; failed reads preserve it, while the live region contains only the controlled dependency state label.
 
 ## In Progress
 
-- Post-MVP work continues by making the dependency indicator's latest successful observation time inspectable without conflating it with provider readiness time.
+- Post-MVP work continues by distinguishing an application-health read failure from a confirmed Hindsight-unavailable response without weakening the conservative run-control gate.
 
 ## Blocked
 
@@ -110,9 +111,20 @@
 
 ## Next Action
 
-Display the latest successful `/api/health` observation time near the Hindsight indicator, preserving the current low-frequency/hidden-tab boundary and avoiding any provider call.
+Represent an application-health request failure separately from a successful response that reports Hindsight unavailable, while keeping memory work disabled in both cases and preserving the last successful check time.
 
 ## Session Log
+
+### 2026-11-06 — Inspectable dependency health freshness
+
+- Goal: Let judges distinguish current Hindsight state from an older successful browser observation without adding a provider probe or noisy accessibility announcements.
+- Implemented: every successful `/api/health` response records an ISO browser observation time; the shell renders it as localized semantic `time` next to the Hindsight indicator. Failed reads retain the previous successful timestamp. The status role now wraps only the controlled dependency label, leaving the frequently changing timestamp outside the polite live region.
+- Focused checks: `npm test -- --run src/workspace.test.tsx src/ui.test.tsx -t "health|Hindsight first becomes ready|pauses health"` → **4 passed, 47 skipped**. Tests prove a failed read preserves the timestamp, a later successful visible reconciliation advances it, and the rendered semantic time is not inside the live status element.
+- Build correction: the first `npm run build` **FAILED** because the component assertion's optional `querySelector` result was not narrowed before `contains`. An explicit fail-fast guard corrected only the test typing; the final build passed.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **62 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 328.13 kB JavaScript and 16.10 kB CSS before gzip.
+- Live app: the existing API and Vite listeners remained healthy after hot reload; API returned `ok`, the overview returned HTTP 200, and Hindsight truthfully remained `unavailable` without provider autostart.
+- Provider safety: this slice only annotates already scheduled application-health responses; it adds no request, provider startup, Gemini call, job creation, or paid usage.
+- Next: distinguish health transport failure from a successful unavailable dependency report while keeping both fail-closed.
 
 ### 2026-11-06 — Continuous visible-tab Hindsight health
 

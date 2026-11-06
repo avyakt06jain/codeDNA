@@ -367,6 +367,17 @@ it("announces jobs reconciled after an API restart", async () => {
   expect(await screen.findByText("2 interrupted jobs were marked failed after restart. Start a new review to retry safely.")).toBeTruthy();
 });
 
+it("shows the latest successful health check without repeating it in the live status", async () => {
+  installFetch();
+  renderAt("/");
+  const memoryStatus = await screen.findByText("Memory connected");
+  const healthTime = memoryStatus.parentElement?.querySelector("time");
+  expect(memoryStatus.getAttribute("role")).toBe("status");
+  expect(healthTime?.getAttribute("datetime")).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  if (!healthTime) throw new Error("Expected a semantic health check time.");
+  expect(memoryStatus.contains(healthTime)).toBe(false);
+});
+
 async function reviewedPage() {
   const fetchMock = installFetch();
   renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");

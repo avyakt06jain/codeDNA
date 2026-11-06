@@ -159,7 +159,8 @@
 - **Verified:** Manual saved-recovery retry preserves keyboard position: restored reviews focus `Review findings`, restored comparisons focus `Guardrails`, repeated failures focus the recreated retry action, and empty success falls back to the named workspace.
 - **Verified:** A manual retry that successfully finds neither active work nor a persisted result emits one polite task-specific completion message, explicitly states that no provider work started, keeps the normal empty state, and issues zero POSTs.
 - **Verified:** Global Hindsight health remains observable after first readiness: visible tabs recheck ready state every 30 seconds, starting/unavailable state every two seconds, pause all timers while hidden, and reconcile immediately on return.
-- **Next:** Show the latest successful dependency-health observation time near the Hindsight indicator so judges can distinguish current state from a stale browser view.
+- **Verified:** The Hindsight indicator shows a localized, machine-readable latest successful health observation time; failed reads preserve that timestamp, and its frequent updates sit outside the state-change live region.
+- **Next:** Distinguish a failed application-health read from a confirmed Hindsight-unavailable response without presenting either as connected or starting provider work.
 
 ## Documentation and version-control policy
 
