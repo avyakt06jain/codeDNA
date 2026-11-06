@@ -44,6 +44,7 @@ An HTTP `404` has separate terminal meaning: the saved active-job locator no lon
 - `/api/health` reports the number reconciled during this process start, and the UI renders an accessible safe-retry notice when the count is nonzero.
 - The shell continues observing the read-only health contract after Hindsight first reports ready: visible tabs use a 30-second ready interval and the existing two-second starting/unavailable interval. Hidden tabs cancel the timer and perform one immediate reconciliation when visible again. Health observation never creates a review job or starts provider work.
 - Each successful health response advances a localized semantic `time` beside the Hindsight indicator; failed reads preserve the prior successful check time. The timestamp is outside the dependency state live region, preventing unchanged 30-second observations from producing repeated assistive-technology announcements.
+- Application-health request failure is tracked independently from the last successful payload: it displays `Memory status unknown`, forces the effective dependency gate unavailable, and preserves cached observation context. A successful response that reports unavailable Hindsight remains `Memory unavailable`, so operators can distinguish app/API reachability from dependency state without enabling memory work in either case.
 
 ## Verification
 

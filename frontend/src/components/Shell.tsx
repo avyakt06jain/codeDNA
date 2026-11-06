@@ -24,7 +24,7 @@ export function RepoScope() {
 export function Shell() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { repositories, repoId, setRepoId, prs, health, healthCheckedAt, hindsight, loadingRepos, repoError } = useWorkspace();
+  const { repositories, repoId, setRepoId, prs, health, healthCheckedAt, healthReadFailed, hindsight, loadingRepos, repoError } = useWorkspace();
   const routeRepo = pathname.match(/\/repos\/([^/]+)/)?.[1];
   const currentRepoId = routeRepo || repoId;
   const repo = repositories.find((item) => item.id === currentRepoId);
@@ -124,11 +124,13 @@ export function Shell() {
         <p className={`memory-pill ${hindsight}`}>
           <span className="memory-dot" aria-hidden="true" />
           <span>
-            <strong role="status" aria-live="polite" aria-atomic="true">{memoryLabel(hindsight)}</strong>
+            <strong role="status" aria-live="polite" aria-atomic="true">
+              {healthReadFailed ? "Memory status unknown" : memoryLabel(hindsight)}
+            </strong>
             <small>
               Hindsight · {healthCheckedAt ? (
-                <>Last successful check <time dateTime={healthCheckedAt}>{formatWhen(healthCheckedAt)}</time></>
-              ) : "No successful check yet"}
+                <>Last successful check <time dateTime={healthCheckedAt}>{formatWhen(healthCheckedAt)}</time>{healthReadFailed ? " · current check failed" : null}</>
+              ) : healthReadFailed ? "No successful check yet · current check failed" : "No successful check yet"}
             </small>
           </span>
         </p>

@@ -4,8 +4,8 @@ import { api } from "./api";
 import { useWorkspace, WorkspaceProvider } from "./workspace";
 
 function HealthProbe() {
-  const { healthCheckedAt, hindsight } = useWorkspace();
-  return <p>{hindsight}<time dateTime={healthCheckedAt}>{healthCheckedAt}</time></p>;
+  const { health, healthCheckedAt, healthReadFailed, hindsight } = useWorkspace();
+  return <p>{hindsight}:{health?.hindsight ?? "none"}:{healthReadFailed ? "read-failed" : "read-ok"}<time dateTime={healthCheckedAt}>{healthCheckedAt}</time></p>;
 }
 
 function renderWorkspace() {
@@ -29,12 +29,12 @@ it("keeps checking health after Hindsight first becomes ready", async () => {
 
   renderWorkspace();
   await act(async () => Promise.resolve());
-  expect(screen.getByText("ready")).toBeTruthy();
+  expect(screen.getByText(/ready:ready:read-ok/)).toBeTruthy();
   expect(health).toHaveBeenCalledTimes(1);
   expect(screen.getByText("2026-11-06T12:00:00.000Z")).toBeTruthy();
 
   await act(async () => vi.advanceTimersByTimeAsync(30_000));
-  expect(screen.getByText("unavailable")).toBeTruthy();
+  expect(screen.getByText(/unavailable:ready:read-failed/)).toBeTruthy();
   expect(health).toHaveBeenCalledTimes(2);
   expect(screen.getByText("2026-11-06T12:00:00.000Z")).toBeTruthy();
 });
@@ -50,7 +50,7 @@ it("pauses health checks while hidden and reconciles when visible", async () => 
 
   renderWorkspace();
   await act(async () => Promise.resolve());
-  expect(screen.getByText("ready")).toBeTruthy();
+  expect(screen.getByText(/ready:ready:read-ok/)).toBeTruthy();
   visibility = "hidden";
   document.dispatchEvent(new Event("visibilitychange"));
   await act(async () => vi.advanceTimersByTimeAsync(60_000));
@@ -58,7 +58,7 @@ it("pauses health checks while hidden and reconciles when visible", async () => 
 
   visibility = "visible";
   await act(async () => document.dispatchEvent(new Event("visibilitychange")));
-  expect(screen.getByText("unavailable")).toBeTruthy();
+  expect(screen.getByText(/unavailable:unavailable:read-ok/)).toBeTruthy();
   expect(health).toHaveBeenCalledTimes(2);
   expect(screen.getByText("2026-11-06T12:01:00.000Z")).toBeTruthy();
 });

@@ -11,6 +11,7 @@ type WorkspaceValue = {
   setRepoId: (id: string) => void;
   health: Health | null;
   healthCheckedAt: string;
+  healthReadFailed: boolean;
   hindsight: "ready" | "unavailable" | "starting";
   prs: PullRequestSummary[];
   loadingRepos: boolean;
@@ -30,6 +31,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [repoId, setRepoId] = useState(initialRepoId);
   const [health, setHealth] = useState<Health | null>(null);
   const [healthCheckedAt, setHealthCheckedAt] = useState("");
+  const [healthReadFailed, setHealthReadFailed] = useState(false);
   const [prs, setPrs] = useState<PullRequestSummary[]>([]);
   const [loadingRepos, setLoadingRepos] = useState(true);
   const [repoError, setRepoError] = useState("");
@@ -54,10 +56,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         setHealth(next);
         setHealthCheckedAt(new Date().toISOString());
+        setHealthReadFailed(false);
         nextDelay = next.hindsight === "ready" ? HEALTH_READY_POLL_MS : HEALTH_RETRY_MS;
       } catch {
         if (cancelled) return;
-        setHealth({ hindsight: "unavailable", status: "error" });
+        setHealthReadFailed(true);
       } finally {
         inFlight = false;
         schedule(nextDelay);
@@ -121,11 +124,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setRepoId,
     health,
     healthCheckedAt,
-    hindsight: memoryState(health?.hindsight),
+    healthReadFailed,
+    hindsight: healthReadFailed ? "unavailable" : memoryState(health?.hindsight),
     prs,
     loadingRepos,
     repoError,
-  }), [repositories, repoId, health, healthCheckedAt, prs, loadingRepos, repoError]);
+  }), [repositories, repoId, health, healthCheckedAt, healthReadFailed, prs, loadingRepos, repoError]);
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }

@@ -135,6 +135,7 @@ function json(data: unknown, status = 200): Response {
 
 function installFetch(options?: {
   hindsight?: "starting" | "ready" | "unavailable";
+  healthFailures?: number;
   interruptedJobs?: number;
   decisionsWrapped?: boolean;
   comparison?: Record<string, unknown>;
@@ -175,12 +176,19 @@ function installFetch(options?: {
   let repositoryActiveJobFailures = options?.repositoryActiveJobFailures ?? 0;
   let evaluationCaseFailures = options?.evaluationCaseFailures ?? 0;
   let evaluationCaseReads = 0;
+  let healthFailures = options?.healthFailures ?? 0;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const url = new URL(raw, "http://localhost");
     const path = url.pathname;
     const method = (init?.method ?? "GET").toUpperCase();
-    if (path === "/api/health") return json({ status: "ok", memory: "configured", hindsight, interrupted_jobs: options?.interruptedJobs ?? 0 });
+    if (path === "/api/health") {
+      if (healthFailures > 0) {
+        healthFailures -= 1;
+        return json({ detail: "application health unavailable" }, 503);
+      }
+      return json({ status: "ok", memory: "configured", hindsight, interrupted_jobs: options?.interruptedJobs ?? 0 });
+    }
     if (path === "/api/repositories") return json(repositories);
     if (path === "/api/evaluation-cases") {
       evaluationCaseReads += 1;
@@ -376,6 +384,23 @@ it("shows the latest successful health check without repeating it in the live st
   expect(healthTime?.getAttribute("datetime")).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   if (!healthTime) throw new Error("Expected a semantic health check time.");
   expect(memoryStatus.contains(healthTime)).toBe(false);
+});
+
+it("distinguishes an application health failure from confirmed Hindsight unavailability", async () => {
+  installFetch({ healthFailures: 1 });
+  renderAt("/");
+  const unknown = await screen.findByText("Memory status unknown");
+  expect(unknown.getAttribute("role")).toBe("status");
+  expect(unknown.parentElement?.textContent).toContain("No successful check yet · current check failed");
+  expect(screen.queryByText("Memory unavailable")).toBeNull();
+});
+
+it("labels a successful health response with unavailable Hindsight separately", async () => {
+  installFetch({ hindsight: "unavailable" });
+  renderAt("/");
+  expect(await screen.findByText("Memory unavailable")).toBeTruthy();
+  expect(screen.queryByText("Memory status unknown")).toBeNull();
+  expect(screen.queryByText(/current check failed/)).toBeNull();
 });
 
 async function reviewedPage() {

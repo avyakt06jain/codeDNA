@@ -4,7 +4,7 @@
 
 ## Current State
 
-- Date: 2026-11-06
+- Date: 2026-11-07
 - Phase: G0–G5 MVP gates complete; the evolved judge demo was exercised against a restarted local API.
 - Implementation: The retain → recall → validate → review → feedback → supersede → ablate loop is verified locally against real Hindsight and Gemini. `CODEDNA_DEMO_SCENE=evolved` leaves `DEC-0103` active and `DEC-0042` superseded.
 - Git: `main` is initialized, connected to GitHub, and verified checkpoints are pushed without rewriting published history.
@@ -84,10 +84,11 @@
 - Empty successful saved-recovery retries now emit one polite task-specific outcome that confirms no persisted result was found and no provider work started; active reattachment and restored results remain distinct.
 - Global Hindsight health remains current after first readiness through 30-second visible-tab checks; starting/unavailable/error states retain two-second checks, hidden tabs issue none, and visibility return reconciles immediately.
 - The dependency indicator now shows a localized semantic timestamp for the latest successful health response; failed reads preserve it, while the live region contains only the controlled dependency state label.
+- Application-health request failures now preserve the last successful health payload/time but set an explicit read-failure state, force memory work unavailable, and display `Memory status unknown`; a successful response that reports Hindsight unavailable remains separately labeled `Memory unavailable`.
 
 ## In Progress
 
-- Post-MVP work continues by distinguishing an application-health read failure from a confirmed Hindsight-unavailable response without weakening the conservative run-control gate.
+- Post-MVP work continues by bounding repeated application-health transport failures without weakening visibility reconciliation or the conservative run-control gate.
 
 ## Blocked
 
@@ -111,9 +112,19 @@
 
 ## Next Action
 
-Represent an application-health request failure separately from a successful response that reports Hindsight unavailable, while keeping memory work disabled in both cases and preserving the last successful check time.
+Add bounded backoff for repeated application-health transport failures while retaining an immediate read when the tab becomes visible and never starting provider work.
 
 ## Session Log
+
+### 2026-11-07 — Distinct application-health failure state
+
+- Goal: Distinguish inability to read application health from a successful health response that confirms Hindsight is unavailable, without allowing stale readiness to enable memory work.
+- Implemented: the workspace keeps the last successful health payload and observation time, records request failure independently, and derives an unavailable effective memory state whenever that read fails. The shell announces `Memory status unknown` plus the failed-current-check detail for application/API failures; a successful response with unavailable Hindsight remains `Memory unavailable`.
+- Focused checks: `npm test -- --run src/workspace.test.tsx src/ui.test.tsx` → **53 passed across 2 files**. Coverage proves a ready cached payload cannot keep memory enabled after a failed read, the successful timestamp is preserved, successful unavailable responses remain distinct, and successful reconciliation clears read failure.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **64 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 328.29 kB JavaScript and 16.10 kB CSS before gzip.
+- Live app: after Vite hot reload, the existing API returned `ok`, Hindsight truthfully remained `unavailable`, and the overview returned HTTP 200.
+- Provider safety: this changes only interpretation of the existing read-only application-health request. It starts no Hindsight process, Gemini call, review job, or paid usage.
+- Next: add bounded backoff for consecutive application-health transport failures while preserving visibility-return reconciliation.
 
 ### 2026-11-06 — Inspectable dependency health freshness
 
