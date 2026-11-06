@@ -1,6 +1,6 @@
 # Memory Lab
 
-**Status:** Verified on 2026-10-27 through CLI, API, and browser; active-job recovery and accessible progress/catalog announcements verified through 2026-11-05.
+**Status:** Verified on 2026-10-27 through CLI, API, and browser; active-job recovery and accessible progress/catalog announcements verified through 2026-11-06.
 
 ## Experiment contract
 
@@ -49,6 +49,8 @@ Fixture links keep the short visible `Open case` or `Case selected` wording, but
 The browser polls explicit `starting_hindsight`, `recalling_and_reviewing`, and `reviewing_baseline` stages. Reloading the browser does not erase the stored job or completed runs; API-process termination can still interrupt active in-process execution.
 
 On selection or browser refresh, the UI first checks for a validated active comparison job ID in the current tab's session storage. If present, it resumes the existing `GET /api/review-jobs/{job_id}` polling loop and does not post a replacement job. Without a local locator, it discovers the newest queued/running comparison for the same stored PR and resumes that job when present. Only then does it read `/api/prs/{pr_id}/comparisons/latest`; the backend returns a completed comparison with two persisted runs that both belong to the requested PR, then recomputes the same deterministic guardrails. An empty response renders the normal no-comparison state. None of these recovery paths calls Hindsight/Gemini by itself.
+
+`Run comparison` stays disabled until that recovery sequence has finished for the exact currently selected PR. Changing selection clears the recovery marker before any control can start work. This prevents a fast click from being followed by the recovery effect resetting a newly created or reattached stage. Tests hold latest-result recovery and reused-job polling behind explicit promise gates, proving the control barrier, zero recovery POSTs, and the reattachment announcement without relying on wall-clock delays.
 
 Comparison creation uses the same atomic claim. Concurrent requests for the same PR receive one comparison job ID, and only its creator schedules the memory/baseline branches. A reused response produces an immediate visible and polite reattachment announcement before polling resumes, explicitly stating that neither provider branch was started again.
 

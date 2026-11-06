@@ -150,7 +150,8 @@
 - **Verified:** Automatic fixture-result announcements state `Passed` or `Needs attention` before the exact guardrail count, while unchanged refreshes still avoid duplicate completion announcements.
 - **Verified:** Repeated fixture navigation links retain concise visible text but expose repository- and held-out-PR-specific accessible names, including the selected-case state.
 - **Verified:** The selected fixture link uses `aria-current="page"`; unselected links omit the attribute and preserve their unique accessible names.
-- **Next:** Stabilize the existing comparison-reattachment announcement regression, which can finish before its full-suite assertion despite passing in isolation.
+- **Verified:** Memory Lab keeps comparison creation disabled until persisted recovery finishes for the exact selected PR, eliminating the load/recovery race; deterministic promise-gated tests verify both the barrier and the reused-work announcement.
+- **Next:** Audit Review Workspace for an analogous load/recovery enablement race and add an exact-PR recovery barrier only if inspection proves it is present.
 
 ## Documentation and version-control policy
 

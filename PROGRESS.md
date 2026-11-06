@@ -74,10 +74,11 @@
 - Automatic stored-result announcements now include the explicit outcome before the exact guardrail count.
 - Repeated fixture navigation links now expose repository- and held-out-PR-specific accessible names while retaining concise visible labels.
 - The selected fixture link now uses the specific `aria-current="page"` state; unselected links omit it.
+- Memory Lab now enables comparison creation only after active/latest persisted recovery has finished for the exact selected PR; controlled async gates verify the barrier and the reused-work announcement without wall-clock timing.
 
 ## In Progress
 
-- Post-MVP work continues by stabilizing the existing comparison-reattachment announcement regression.
+- Post-MVP work continues by auditing Review Workspace for the same load/recovery enablement race now closed in Memory Lab.
 
 ## Blocked
 
@@ -101,9 +102,21 @@
 
 ## Next Action
 
-Make the existing comparison-reattachment announcement test deterministic in the full suite without weakening its guarantee that reused provider work is announced before completion.
+Inspect Review Workspace's initial load and persisted-job recovery ordering; add an exact-PR recovery barrier only if its run controls can become enabled before recovery completes.
 
 ## Session Log
+
+### 2026-11-06 — Comparison recovery start barrier
+
+- Goal: Make reused-comparison announcements deterministic while preserving the guarantee that recovery cannot race a new comparison start.
+- Initial finding: replacing the test's 500 ms delay with a controlled polling gate first **FAILED** because the run control could briefly enable before selected-PR recovery began; a fast click was then followed by recovery resetting the active stage. This exposed a production race rather than only a flaky test.
+- Implemented: Memory Lab now tracks the PR whose persisted active/latest recovery has completed and keeps `Run comparison` disabled until it matches the selected PR. Reattachment and latest-result recovery remain GET-only and start no Hindsight/Gemini work.
+- Test hardening: the reused-work regression now controls completion with an explicit promise gate, and a new regression holds latest-result recovery open to prove the run control stays disabled and issues zero POSTs.
+- Focused checks: `npm test -- --run src/ui.test.tsx -t "reuses existing provider work|persisted recovery completes"` → **3 passed, 38 skipped**; `npm run build` → **PASS**, 40 modules, 325.64 kB JavaScript and 16.10 kB CSS before gzip.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; two consecutive `npm test -- --run` executions → **52 passed across 4 files** each; final `npm run build` → **PASS**, 40 modules, 325.64 kB JavaScript and 16.10 kB CSS before gzip.
+- Live app: API health returned `ok`, Hindsight remained truthfully `unavailable`, the evaluation catalog returned two cases, and Memory Lab returned HTTP 200 after Vite hot reload.
+- Provider safety: all new coverage uses mocked GET recovery and issues no external provider request; paid usage remains disabled and Hindsight results were not fabricated.
+- Next: audit Review Workspace for the analogous ordering risk before changing its control contract.
 
 ### 2026-11-06 — Specific selected-fixture semantics
 

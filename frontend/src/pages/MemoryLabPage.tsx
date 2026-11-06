@@ -75,6 +75,7 @@ export function MemoryLabPage() {
   const [prId, setPrId] = useState("");
   const [loading, setLoading] = useState(true);
   const [restoring, setRestoring] = useState(false);
+  const [recoveredPrId, setRecoveredPrId] = useState("");
   const [running, setRunning] = useState(false);
   const [activeJobId, setActiveJobId] = useState("");
   const [jobTiming, setJobTiming] = useState<JobTiming>({});
@@ -172,6 +173,7 @@ export function MemoryLabPage() {
   useEffect(() => {
     let cancelled = false;
     const savedJobId = prId ? loadActiveJob("comparison", prId) : null;
+    setRecoveredPrId("");
     setComparison(null);
     setActiveJobId("");
     setJobTiming({});
@@ -265,7 +267,10 @@ export function MemoryLabPage() {
       } catch (reason) {
         if (!cancelled) setError(reason instanceof Error ? reason.message : "Comparison recovery unavailable.");
       } finally {
-        if (!cancelled) setRestoring(false);
+        if (!cancelled) {
+          setRestoring(false);
+          setRecoveredPrId(prId);
+        }
       }
     })();
     return () => {
@@ -475,7 +480,7 @@ export function MemoryLabPage() {
             {prs.map((item) => <option key={item.id} value={item.id}>#{item.number} {item.title}</option>)}
           </select>
         </label>
-        <button type="button" className="primary" disabled={!selected || running || blocked || loading || restoring} onClick={() => void runComparison()}>
+        <button type="button" className="primary" disabled={!selected || recoveredPrId !== selected || running || blocked || loading || restoring} onClick={() => void runComparison()}>
           Run comparison
         </button>
       </div>

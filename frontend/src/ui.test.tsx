@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import App from "./App";
@@ -153,6 +153,8 @@ function installFetch(options?: {
   reusedReviewStart?: boolean;
   reusedComparisonStart?: boolean;
   pollDelayMs?: number;
+  comparisonPollGate?: Promise<void>;
+  latestComparisonGate?: Promise<void>;
   evaluationCaseFailures?: number;
   evaluationCaseFailuresAfter?: number;
   evaluationCaseUpdateAfter?: number;
@@ -237,6 +239,7 @@ function installFetch(options?: {
       return json({ pr_id: "pr-acme-87", mode: "memory", review: options?.latestReview ? review : null });
     }
     if (path === "/api/prs/pr-acme-87/comparisons/latest" && method === "GET") {
+      if (options?.latestComparisonGate) await options.latestComparisonGate;
       return json({ pr_id: "pr-acme-87", job_id: options?.latestComparison ? "job-restored" : null, comparison: options?.latestComparison ?? null });
     }
     if (path === "/api/prs/pr-acme-120/comparisons/latest" && method === "GET") {
@@ -297,6 +300,7 @@ function installFetch(options?: {
       return json({ job_id: "job-cmp", status: "queued", stage: "queued", reused: options?.reusedComparisonStart === true, created_at: jobCreatedAt, updated_at: jobCreatedAt }, 202);
     }
     if (path === "/api/review-jobs/job-cmp") {
+      if (options?.comparisonPollGate) await options.comparisonPollGate;
       if (options?.pollDelayMs) await new Promise((resolve) => setTimeout(resolve, options.pollDelayMs));
       if (options?.missingComparisonJob) return json({ detail: "job not found" }, 404);
       if (comparisonPollFailures > 0) {
@@ -957,20 +961,44 @@ it("discovers an active comparison after tab storage is lost without starting an
 });
 
 it("announces when starting a comparison reuses existing provider work", async () => {
+  let releaseComparisonPoll = () => {};
+  const comparisonPollGate = new Promise<void>((resolve) => {
+    releaseComparisonPoll = resolve;
+  });
   const comparison = {
     evaluation: { passed: true, checks: { same_candidate: true }, counts: { memory_findings: 1 } },
     memory: { run_id: "run-reused-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-reused-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
   };
-  const fetchMock = installFetch({ comparison, reusedComparisonStart: true, pollDelayMs: 500 });
+  const fetchMock = installFetch({ comparison, reusedComparisonStart: true, comparisonPollGate });
   renderAt("/repos/repo-acme-commerce/lab");
   await screen.findByRole("option", { name: /Update order status/ });
   const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
   await vi.waitFor(() => expect(run.disabled).toBe(false));
   fireEvent.click(run);
-  expect((await screen.findAllByText("Existing comparison found. Reattached without starting either provider branch.")).length).toBeGreaterThan(0);
+  try {
+    expect((await screen.findAllByText("Existing comparison found. Reattached without starting either provider branch.")).length).toBeGreaterThan(0);
+  } finally {
+    await act(async () => releaseComparisonPoll());
+  }
   expect(await screen.findByText("Guardrails passed")).toBeTruthy();
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+});
+
+it("keeps comparison creation disabled until persisted recovery completes", async () => {
+  let releaseLatestComparison = () => {};
+  const latestComparisonGate = new Promise<void>((resolve) => {
+    releaseLatestComparison = resolve;
+  });
+  const fetchMock = installFetch({ latestComparisonGate });
+  renderAt("/repos/repo-acme-commerce/lab");
+  await screen.findByRole("option", { name: /Update order status/ });
+  const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
+  await waitFor(() => expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(1));
+  expect(run.disabled).toBe(true);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+  await act(async () => releaseLatestComparison());
+  await waitFor(() => expect(run.disabled).toBe(false));
 });
 
 it("checks an existing comparison again after bounded polling is exhausted", async () => {
