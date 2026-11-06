@@ -1,6 +1,6 @@
 # Review Workspace
 
-**Status:** Verified live on 2026-10-27; refresh recovery and keyboard behavior verified by component tests on 2026-10-28.
+**Status:** Verified live on 2026-10-27; refresh recovery, keyboard behavior, and exact-PR creation readiness verified by component tests through 2026-11-06.
 
 The G3 React client reads repositories, pull requests, decisions, review results, and evidence from FastAPI. It never receives credentials or arbitrary Hindsight bank IDs. The primary view shows a bounded stored diff, actual added-line numbers, review mode, model, elapsed time, validated findings, and an evidence drawer. Team DNA shows authoritative decision state and source references.
 
@@ -11,6 +11,8 @@ Evidence and feedback are keyboard-safe. Opening either surface moves focus into
 Background review progress is announced through one persistent polite/atomic live region. The visible progress and loading treatments are hidden from the accessibility tree when that region already carries the same message, preventing duplicate stage announcements. Feedback confirmation uses the same region; errors remain assertive alerts.
 
 After the backend accepts a review, the page keeps its validated opaque job ID in per-tab session storage. Refreshing the same tab resumes GET-only polling of that job instead of issuing another review POST. Completion and known terminal failure clear the locator; cancellation, timeout, and transient polling errors keep it available for recovery. If no local locator exists, the page first discovers the newest queued/running review for the same stored PR. Only when none exists does it restore the latest completed memory review from SQLite.
+
+`Run CodeDNA Review` stays disabled until pull-request loading and that recovery sequence have both completed for the exact route PR. Route changes clear the recovery marker before the control can create work. Tests hold latest-result recovery and reused-job polling behind explicit promise gates, proving the control barrier, zero recovery POSTs, and the reattachment announcement without wall-clock delays.
 
 The creation endpoint also closes the simultaneous-tab race: if another ordinary review is already queued/running for the PR, it returns that job with `reused: true` and schedules no second provider task. The workspace preserves that response field and visibly announces reattachment before polling the existing job.
 

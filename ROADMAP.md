@@ -151,7 +151,8 @@
 - **Verified:** Repeated fixture navigation links retain concise visible text but expose repository- and held-out-PR-specific accessible names, including the selected-case state.
 - **Verified:** The selected fixture link uses `aria-current="page"`; unselected links omit the attribute and preserve their unique accessible names.
 - **Verified:** Memory Lab keeps comparison creation disabled until persisted recovery finishes for the exact selected PR, eliminating the load/recovery race; deterministic promise-gated tests verify both the barrier and the reused-work announcement.
-- **Next:** Audit Review Workspace for an analogous load/recovery enablement race and add an exact-PR recovery barrier only if inspection proves it is present.
+- **Verified:** Review Workspace now applies the same exact-PR recovery barrier; deterministic gates prove no review POST can occur until active/latest persisted recovery completes and that reused work is announced before polling finishes.
+- **Next:** Expose Review Workspace's initial/recovery activity as a single explicit busy region so visual and assistive-technology users receive the same control-readiness state.
 
 ## Documentation and version-control policy
 

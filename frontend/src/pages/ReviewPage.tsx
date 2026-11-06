@@ -18,6 +18,7 @@ export function ReviewPage() {
   const alive = useRef(true);
   const [pr, setPr] = useState<PullRequest | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recoveredPrId, setRecoveredPrId] = useState("");
   const [error, setError] = useState("");
   const [memoryEnabled, setMemoryEnabled] = useState(true);
   const [running, setRunning] = useState(false);
@@ -52,6 +53,7 @@ export function ReviewPage() {
   useEffect(() => {
     let cancelled = false;
     const savedJobId = loadActiveJob("review", prId);
+    setRecoveredPrId("");
     setLoading(true);
     setRunning(false);
     setError("");
@@ -149,7 +151,10 @@ export function ReviewPage() {
         }
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setRecoveredPrId(prId);
+        }
       });
     return () => {
       cancelled = true;
@@ -318,7 +323,7 @@ export function ReviewPage() {
               <span className="switch-knob" />
             </button>
           </div>
-          <button type="button" className="primary" disabled={running || !pr || memoryBlocked} onClick={() => void runReview()}>
+          <button type="button" className="primary" disabled={recoveredPrId !== prId || running || !pr || memoryBlocked} onClick={() => void runReview()}>
             Run CodeDNA Review
           </button>
           {memoryBlocked ? <p className="hint">Memory reviews wait until Hindsight is ready. Turn memory off to run a baseline.</p> : null}

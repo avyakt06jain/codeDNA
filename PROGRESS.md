@@ -75,10 +75,11 @@
 - Repeated fixture navigation links now expose repository- and held-out-PR-specific accessible names while retaining concise visible labels.
 - The selected fixture link now uses the specific `aria-current="page"` state; unselected links omit it.
 - Memory Lab now enables comparison creation only after active/latest persisted recovery has finished for the exact selected PR; controlled async gates verify the barrier and the reused-work announcement without wall-clock timing.
+- Review Workspace now enforces the same exact-PR recovery barrier and uses deterministic async gates for both the no-POST readiness check and reused-review announcement.
 
 ## In Progress
 
-- Post-MVP work continues by auditing Review Workspace for the same load/recovery enablement race now closed in Memory Lab.
+- Post-MVP work continues by making Review Workspace's recovery/readiness state equally explicit to visual and assistive-technology users.
 
 ## Blocked
 
@@ -102,9 +103,21 @@
 
 ## Next Action
 
-Inspect Review Workspace's initial load and persisted-job recovery ordering; add an exact-PR recovery barrier only if its run controls can become enabled before recovery completes.
+Add one explicit busy-region contract around Review Workspace's initial pull-request and persisted-job recovery without duplicating its existing live announcement.
 
 ## Session Log
+
+### 2026-11-06 — Review recovery start barrier
+
+- Goal: Close the Review Workspace control-readiness gap with the same exact-PR recovery invariant already verified in Memory Lab.
+- Implemented: Review Workspace clears its recovered-PR marker on route change and enables `Run CodeDNA Review` only after pull-request loading plus active/latest persisted recovery complete for that exact PR. Recovery remains GET-only and cannot start Hindsight/Gemini work.
+- Test hardening: the reused-review announcement now uses a controlled status-poll gate instead of a 100 ms timer, and a new latest-review gate proves the run control remains disabled with zero POSTs until recovery finishes.
+- Focused checks: `npm test -- --run src/ui.test.tsx -t "starting a review reuses|review creation disabled"` → **2 passed, 40 skipped**; `npm run build` → **PASS**, 40 modules, 325.68 kB JavaScript and 16.10 kB CSS before gzip.
+- Regression finding: the first full frontend run **FAILED 1/53** because an older Memory Lab trace test clicked while its newly enforced recovery barrier still disabled the control. Waiting for the enabled state corrected the test without changing production behavior.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; two consecutive `npm test -- --run` executions → **53 passed across 4 files** each; final `npm run build` → **PASS**, 40 modules, 325.68 kB JavaScript and 16.10 kB CSS before gzip.
+- Live app: API health returned `ok`, Hindsight remained truthfully `unavailable`, the evaluation catalog returned two cases, and Review Workspace returned HTTP 200 after Vite hot reload.
+- Provider safety: all new tests use mocked GET recovery and issue no external provider request; no paid service was enabled and no Hindsight result was fabricated.
+- Next: make the combined Review Workspace load/recovery state explicit as one nonduplicative busy region.
 
 ### 2026-11-06 — Comparison recovery start barrier
 

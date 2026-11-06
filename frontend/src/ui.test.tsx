@@ -153,6 +153,8 @@ function installFetch(options?: {
   reusedReviewStart?: boolean;
   reusedComparisonStart?: boolean;
   pollDelayMs?: number;
+  reviewPollGate?: Promise<void>;
+  latestReviewGate?: Promise<void>;
   comparisonPollGate?: Promise<void>;
   latestComparisonGate?: Promise<void>;
   evaluationCaseFailures?: number;
@@ -236,6 +238,7 @@ function installFetch(options?: {
       return json({ ...prs[0], repository_id: "repo-acme-commerce", description: "Sets order status directly.", diff_text: diff });
     }
     if (path === "/api/prs/pr-acme-87/reviews/latest" && method === "GET") {
+      if (options?.latestReviewGate) await options.latestReviewGate;
       return json({ pr_id: "pr-acme-87", mode: "memory", review: options?.latestReview ? review : null });
     }
     if (path === "/api/prs/pr-acme-87/comparisons/latest" && method === "GET") {
@@ -288,6 +291,7 @@ function installFetch(options?: {
       return json({ job_id: "job-review", status: "queued", stage: "queued", reused: options?.reusedReviewStart === true, created_at: jobCreatedAt, updated_at: jobCreatedAt }, 202);
     }
     if (path === "/api/review-jobs/job-review") {
+      if (options?.reviewPollGate) await options.reviewPollGate;
       if (options?.pollDelayMs) await new Promise((resolve) => setTimeout(resolve, options.pollDelayMs));
       if (options?.missingReviewJob) return json({ detail: "job not found" }, 404);
       if (reviewPollFailures > 0) {
@@ -418,13 +422,38 @@ it("discovers an active review after tab storage is lost without starting anothe
 });
 
 it("announces when starting a review reuses existing provider work", async () => {
-  const fetchMock = installFetch({ reusedReviewStart: true, pollDelayMs: 100 });
+  let releaseReviewPoll = () => {};
+  const reviewPollGate = new Promise<void>((resolve) => {
+    releaseReviewPoll = resolve;
+  });
+  const fetchMock = installFetch({ reusedReviewStart: true, reviewPollGate });
   renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
   await screen.findByRole("heading", { name: /Update order status/ });
-  fireEvent.click(screen.getByRole("button", { name: "Run CodeDNA Review" }));
-  expect((await screen.findAllByText("Existing review found. Reattached without starting another provider call.")).length).toBeGreaterThan(0);
+  const run = screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  try {
+    expect((await screen.findAllByText("Existing review found. Reattached without starting another provider call.")).length).toBeGreaterThan(0);
+  } finally {
+    await act(async () => releaseReviewPoll());
+  }
   expect(await screen.findByRole("article", { name: "Direct status write skips the service" })).toBeTruthy();
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+});
+
+it("keeps review creation disabled until persisted recovery completes", async () => {
+  let releaseLatestReview = () => {};
+  const latestReviewGate = new Promise<void>((resolve) => {
+    releaseLatestReview = resolve;
+  });
+  const fetchMock = installFetch({ latestReviewGate });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  await waitFor(() => expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(1));
+  const run = screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement;
+  expect(run.disabled).toBe(true);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+  await act(async () => releaseLatestReview());
+  await waitFor(() => expect(run.disabled).toBe(false));
 });
 
 it("checks an existing review again after bounded polling is exhausted", async () => {
@@ -716,7 +745,9 @@ it("shows a memory-lab trace only for recorded timings and lists guardrails", as
   renderAt("/repos/repo-acme-commerce/lab");
   await screen.findByRole("option", { name: /Update order status/ });
   await screen.findByText("Memory connected");
-  fireEvent.click(screen.getByRole("button", { name: "Run comparison" }));
+  const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
   expect(await screen.findByText("0.4s")).toBeTruthy();
   expect(screen.getAllByRole("status").filter((item) => item.textContent === "Comparison complete")).toHaveLength(1);
   expect(screen.getAllByRole("status").some((item) => item.textContent === "Review complete")).toBe(false);
