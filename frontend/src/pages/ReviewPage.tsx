@@ -302,7 +302,7 @@ export function ReviewPage() {
   }
 
   return (
-    <div className="page">
+    <div className="page" role="region" aria-label="Review workspace" aria-busy={loading}>
       <LiveStatus>{liveStatus}</LiveStatus>
       <header className="page-head review-head">
         <div>

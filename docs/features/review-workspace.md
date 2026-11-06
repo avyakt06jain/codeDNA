@@ -14,6 +14,8 @@ After the backend accepts a review, the page keeps its validated opaque job ID i
 
 `Run CodeDNA Review` stays disabled until pull-request loading and that recovery sequence have both completed for the exact route PR. Route changes clear the recovery marker before the control can create work. Tests hold latest-result recovery and reused-job polling behind explicit promise gates, proving the control barrier, zero recovery POSTs, and the reattachment announcement without wall-clock delays.
 
+The page exposes one named `Review workspace` region with `aria-busy=true` for that combined load/recovery boundary and `false` after it settles. The visible loading note remains present, while the existing polite/atomic live region is the only element with status semantics for the loading message. This busy state adds no request, focus movement, or provider work.
+
 The creation endpoint also closes the simultaneous-tab race: if another ordinary review is already queued/running for the PR, it returns that job with `reused: true` and schedules no second provider task. The workspace preserves that response field and visibly announces reattachment before polling the existing job.
 
 During a transient polling failure, the persistent live region and visible stage explain that CodeDNA is reconnecting to the existing review. The bounded retry does not enable the run action or create another job.

@@ -76,10 +76,11 @@
 - The selected fixture link now uses the specific `aria-current="page"` state; unselected links omit it.
 - Memory Lab now enables comparison creation only after active/latest persisted recovery has finished for the exact selected PR; controlled async gates verify the barrier and the reused-work announcement without wall-clock timing.
 - Review Workspace now enforces the same exact-PR recovery barrier and uses deterministic async gates for both the no-POST readiness check and reused-review announcement.
+- Review Workspace now exposes the combined pull-request load and persisted recovery boundary as one named `aria-busy` region; its existing live region remains the only status announcement.
 
 ## In Progress
 
-- Post-MVP work continues by making Review Workspace's recovery/readiness state equally explicit to visual and assistive-technology users.
+- Post-MVP work continues by separating Memory Lab's comparison-control readiness from its already independent fixture-catalog busy state.
 
 ## Blocked
 
@@ -103,9 +104,19 @@
 
 ## Next Action
 
-Add one explicit busy-region contract around Review Workspace's initial pull-request and persisted-job recovery without duplicating its existing live announcement.
+Add explicit busy-region semantics around Memory Lab's pull-request/comparison recovery controls without changing the fixture catalog's independent `aria-busy` lifecycle.
 
 ## Session Log
+
+### 2026-11-06 — Review Workspace busy-region semantics
+
+- Goal: Make Review Workspace's control-readiness boundary explicit to visual and assistive-technology users without adding duplicate announcements.
+- Implemented: the named `Review workspace` region now exposes `aria-busy=true` throughout the combined pull-request load and active/latest persisted recovery, then clears only when that boundary settles. The existing visible loading note and single polite/atomic live status remain unchanged.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "review creation disabled"` → **1 passed, 41 skipped**. The test holds recovery open, verifies the busy region, disabled creation, visible loading state, exactly one matching status announcement, zero POSTs, and the final ready state.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **53 passed across 4 files**; `npm run build` → **PASS**, 40 modules, 325.74 kB JavaScript and 16.10 kB CSS before gzip.
+- Live app: API health returned `ok`, Hindsight remained truthfully `unavailable`, and Review Workspace returned HTTP 200 after Vite hot reload.
+- Provider safety: the change is semantic presentation over the existing GET-only recovery boundary; it adds no request and no Hindsight/Gemini work.
+- Next: give Memory Lab's comparison controls an equivalent busy region while keeping fixture-catalog activity separate.
 
 ### 2026-11-06 — Review recovery start barrier
 

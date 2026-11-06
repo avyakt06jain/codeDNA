@@ -449,11 +449,17 @@ it("keeps review creation disabled until persisted recovery completes", async ()
   const fetchMock = installFetch({ latestReviewGate });
   renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
   await waitFor(() => expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(1));
+  const workspace = screen.getByRole("region", { name: "Review workspace" });
   const run = screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement;
+  expect(workspace.getAttribute("aria-busy")).toBe("true");
+  expect(screen.getAllByText("Loading pull request…")).toHaveLength(2);
+  expect(screen.getAllByRole("status").filter((item) => item.textContent === "Loading pull request…")).toHaveLength(1);
   expect(run.disabled).toBe(true);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   await act(async () => releaseLatestReview());
   await waitFor(() => expect(run.disabled).toBe(false));
+  expect(workspace.getAttribute("aria-busy")).toBe("false");
+  expect(screen.queryByText("Loading pull request…")).toBeNull();
 });
 
 it("checks an existing review again after bounded polling is exhausted", async () => {

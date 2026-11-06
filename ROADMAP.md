@@ -152,7 +152,8 @@
 - **Verified:** The selected fixture link uses `aria-current="page"`; unselected links omit the attribute and preserve their unique accessible names.
 - **Verified:** Memory Lab keeps comparison creation disabled until persisted recovery finishes for the exact selected PR, eliminating the load/recovery race; deterministic promise-gated tests verify both the barrier and the reused-work announcement.
 - **Verified:** Review Workspace now applies the same exact-PR recovery barrier; deterministic gates prove no review POST can occur until active/latest persisted recovery completes and that reused work is announced before polling finishes.
-- **Next:** Expose Review Workspace's initial/recovery activity as a single explicit busy region so visual and assistive-technology users receive the same control-readiness state.
+- **Verified:** Review Workspace exposes its combined initial load and persisted recovery boundary as one named `aria-busy` region while retaining one live status announcement and visible loading text.
+- **Next:** Apply the same explicit busy-region semantics to Memory Lab's pull-request/comparison recovery controls without conflating them with its independent fixture-catalog busy state.
 
 ## Documentation and version-control policy
 
