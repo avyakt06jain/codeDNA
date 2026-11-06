@@ -472,32 +472,33 @@ export function MemoryLabPage() {
           </button>
         ) : null}
       </section>
-      <div className="lab-controls">
-        <label>
-          Pull request
-          <select aria-label="Pull request" value={selected} onChange={(event) => setPrId(event.target.value)}>
-            {prs.length === 0 ? <option value="">No pull requests</option> : null}
-            {prs.map((item) => <option key={item.id} value={item.id}>#{item.number} {item.title}</option>)}
-          </select>
-        </label>
-        <button type="button" className="primary" disabled={!selected || recoveredPrId !== selected || running || blocked || loading || restoring} onClick={() => void runComparison()}>
-          Run comparison
-        </button>
-      </div>
-      {blocked ? <p className="hint">Comparison waits until memory is connected. A baseline review can still run from the pull request.</p> : null}
-      {loading ? <LoadingNote announce={false}>Loading pull requests…</LoadingNote> : null}
-      {restoring ? <LoadingNote announce={false}>Restoring the latest completed comparison…</LoadingNote> : null}
-      {error ? <ErrorNote>{error}</ErrorNote> : null}
-      <ActiveJobDetails jobId={activeJobId} status={comparisonStageLabel(stage)} {...jobTiming} />
-      {retryJobId ? (
-        <button type="button" className="secondary" disabled={running} onClick={() => void checkComparisonAgain()}>
-          Check comparison again
-        </button>
-      ) : null}
-      {running ? <p className="stage" aria-hidden="true">{comparisonStageLabel(stage)}</p> : null}
-      {!comparison && !running && !loading && !restoring ? <EmptyNote title="No comparison yet">Run both modes to compare validated findings and guardrails.</EmptyNote> : null}
-      {comparison ? (
-        <>
+      <section aria-label="Comparison workspace" aria-busy={loading || restoring}>
+        <div className="lab-controls">
+          <label>
+            Pull request
+            <select aria-label="Pull request" value={selected} onChange={(event) => setPrId(event.target.value)}>
+              {prs.length === 0 ? <option value="">No pull requests</option> : null}
+              {prs.map((item) => <option key={item.id} value={item.id}>#{item.number} {item.title}</option>)}
+            </select>
+          </label>
+          <button type="button" className="primary" disabled={!selected || recoveredPrId !== selected || running || blocked || loading || restoring} onClick={() => void runComparison()}>
+            Run comparison
+          </button>
+        </div>
+        {blocked ? <p className="hint">Comparison waits until memory is connected. A baseline review can still run from the pull request.</p> : null}
+        {loading ? <LoadingNote announce={false}>Loading pull requests…</LoadingNote> : null}
+        {restoring ? <LoadingNote announce={false}>Restoring the latest completed comparison…</LoadingNote> : null}
+        {error ? <ErrorNote>{error}</ErrorNote> : null}
+        <ActiveJobDetails jobId={activeJobId} status={comparisonStageLabel(stage)} {...jobTiming} />
+        {retryJobId ? (
+          <button type="button" className="secondary" disabled={running} onClick={() => void checkComparisonAgain()}>
+            Check comparison again
+          </button>
+        ) : null}
+        {running ? <p className="stage" aria-hidden="true">{comparisonStageLabel(stage)}</p> : null}
+        {!comparison && !running && !loading && !restoring ? <EmptyNote title="No comparison yet">Run both modes to compare validated findings and guardrails.</EmptyNote> : null}
+        {comparison ? (
+          <>
           <div className="lab-columns">
             <RunColumn title="Memory disabled" note="This run does not receive team memory." review={comparison.baseline} />
             <RunColumn title="With team memory" note="This run can recall repository memory." review={comparison.memory} />
@@ -545,8 +546,9 @@ export function MemoryLabPage() {
               </dl>
             ) : null}
           </section>
-        </>
-      ) : null}
+          </>
+        ) : null}
+      </section>
     </div>
   );
 }

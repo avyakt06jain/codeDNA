@@ -77,10 +77,11 @@
 - Memory Lab now enables comparison creation only after active/latest persisted recovery has finished for the exact selected PR; controlled async gates verify the barrier and the reused-work announcement without wall-clock timing.
 - Review Workspace now enforces the same exact-PR recovery barrier and uses deterministic async gates for both the no-POST readiness check and reused-review announcement.
 - Review Workspace now exposes the combined pull-request load and persisted recovery boundary as one named `aria-busy` region; its existing live region remains the only status announcement.
+- Memory Lab now exposes comparison-control load/recovery as a named `aria-busy` region independent from the fixture catalog's existing busy state; its existing live region remains the only matching status announcement.
 
 ## In Progress
 
-- Post-MVP work continues by separating Memory Lab's comparison-control readiness from its already independent fixture-catalog busy state.
+- Post-MVP work continues by auditing settled recovery failures for clear, control-specific next actions across both run workspaces.
 
 ## Blocked
 
@@ -104,9 +105,19 @@
 
 ## Next Action
 
-Add explicit busy-region semantics around Memory Lab's pull-request/comparison recovery controls without changing the fixture catalog's independent `aria-busy` lifecycle.
+Audit Review Workspace and Memory Lab recovery failures to ensure every cleared busy state leaves either a ready control or an actionable, task-specific error without suggesting provider work ran.
 
 ## Session Log
+
+### 2026-11-06 — Memory Lab comparison busy-region semantics
+
+- Goal: Expose Memory Lab's comparison-control readiness without conflating it with the independently loaded fixture catalog.
+- Implemented: a named `Comparison workspace` region now carries `aria-busy=true` during pull-request loading or persisted comparison recovery and clears when that exact-PR boundary settles. The fixture catalog keeps its own separate `aria-busy`; visible loading/restoration notes and the single polite/atomic live status remain unchanged.
+- Focused checks: `npm test -- --run src/ui.test.tsx -t "comparison creation disabled"` → **1 passed, 41 skipped**; `npm run build` → **PASS**, 40 modules, 325.83 kB JavaScript and 16.10 kB CSS before gzip. The test holds latest-result recovery open and verifies comparison-region busy state, one matching status announcement, disabled creation, zero POSTs, and final readiness.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **53 passed across 4 files**; `npm run build` → **PASS**, 40 modules, 325.83 kB JavaScript and 16.10 kB CSS before gzip.
+- Live app: the prior listeners were absent, so the API and Vite were restarted in hidden local processes with `CODEDNA_DEMO_SCENE=evolved` and `CODEDNA_HINDSIGHT_AUTOSTART=0`. Health returned `ok`, Hindsight truthfully remained `unavailable`, the catalog returned two cases, and Memory Lab returned HTTP 200.
+- Provider safety: this is semantic presentation over existing GET-only recovery; it adds no request, model call, or paid usage.
+- Next: audit recovery failures after busy state clears so each workspace leaves a clear task-specific next action.
 
 ### 2026-11-06 — Review Workspace busy-region semantics
 

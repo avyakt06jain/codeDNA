@@ -1032,10 +1032,16 @@ it("keeps comparison creation disabled until persisted recovery completes", asyn
   await screen.findByRole("option", { name: /Update order status/ });
   const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
   await waitFor(() => expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(1));
+  const workspace = screen.getByRole("region", { name: "Comparison workspace" });
+  expect(workspace.getAttribute("aria-busy")).toBe("true");
+  expect(screen.getAllByText("Restoring the latest completed comparison…")).toHaveLength(2);
+  expect(screen.getAllByRole("status").filter((item) => item.textContent === "Restoring the latest completed comparison…")).toHaveLength(1);
   expect(run.disabled).toBe(true);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   await act(async () => releaseLatestComparison());
   await waitFor(() => expect(run.disabled).toBe(false));
+  expect(workspace.getAttribute("aria-busy")).toBe("false");
+  expect(screen.queryByText("Restoring the latest completed comparison…")).toBeNull();
 });
 
 it("checks an existing comparison again after bounded polling is exhausted", async () => {
