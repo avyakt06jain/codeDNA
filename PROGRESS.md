@@ -85,10 +85,11 @@
 - Global Hindsight health remains current after first readiness through 30-second visible-tab checks; starting/unavailable/error states retain two-second checks, hidden tabs issue none, and visibility return reconciles immediately.
 - The dependency indicator now shows a localized semantic timestamp for the latest successful health response; failed reads preserve it, while the live region contains only the controlled dependency state label.
 - Application-health request failures now preserve the last successful health payload/time but set an explicit read-failure state, force memory work unavailable, and display `Memory status unknown`; a successful response that reports Hindsight unavailable remains separately labeled `Memory unavailable`.
+- Consecutive application-health request failures now back off at 2/4/8/16/30 seconds with a 30-second cap; success resets the sequence, while visibility return still triggers an immediate read-only reconciliation.
 
 ## In Progress
 
-- Post-MVP work continues by bounding repeated application-health transport failures without weakening visibility reconciliation or the conservative run-control gate.
+- Post-MVP work continues by making an unknown memory state immediately recheckable through the existing read-only health boundary without starting provider work.
 
 ## Blocked
 
@@ -112,9 +113,19 @@
 
 ## Next Action
 
-Add bounded backoff for repeated application-health transport failures while retaining an immediate read when the tab becomes visible and never starting provider work.
+Add an explicit `Check health again` action when memory status is unknown; it must use the existing read-only endpoint, respect the single-flight guard, restore keyboard focus, and never start provider work.
 
 ## Session Log
+
+### 2026-11-07 — Bounded application-health failure recovery
+
+- Goal: Avoid indefinite two-second traffic while the application health endpoint is unreachable without weakening conservative memory gating or visibility recovery.
+- Implemented: consecutive request failures now retry after 2/4/8/16/30 seconds and remain capped at 30 seconds. Any successful health response resets the failure count; a visibility return still cancels the pending timer and performs one immediate read-only reconciliation.
+- Focused checks: `npm test -- --run src/workspace.test.tsx` → **4 passed**. Tests verify increasing delays, the 30-second cap, reset after a successful unavailable response, preservation of the fail-closed state, and existing hidden/visible behavior.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **66 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 328.34 kB JavaScript and 16.10 kB CSS before gzip.
+- Live app: after Vite hot reload, the existing API returned `ok`, Hindsight truthfully remained `unavailable`, and the overview returned HTTP 200.
+- Provider safety: the schedule applies only to `GET /api/health`; it does not start Hindsight, call Gemini, create jobs, or enable paid usage.
+- Next: expose a keyboard-accessible read-only retry action when the application-health read is failing.
 
 ### 2026-11-07 — Distinct application-health failure state
 

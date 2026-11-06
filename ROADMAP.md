@@ -161,7 +161,8 @@
 - **Verified:** Global Hindsight health remains observable after first readiness: visible tabs recheck ready state every 30 seconds, starting/unavailable state every two seconds, pause all timers while hidden, and reconcile immediately on return.
 - **Verified:** The Hindsight indicator shows a localized, machine-readable latest successful health observation time; failed reads preserve that timestamp, and its frequent updates sit outside the state-change live region.
 - **Verified:** Failed application-health reads are represented separately from successful responses that report Hindsight unavailable. The former preserves the last successful payload/time as cached evidence, displays `Memory status unknown`, and forces the same unavailable run-control gate without provider work.
-- **Next:** Bound repeated application-health transport failures with conservative backoff while retaining immediate visibility-return reconciliation.
+- **Verified:** Consecutive application-health transport failures use capped 2/4/8/16/30-second backoff, reset after a successful response, and still reconcile immediately when a hidden tab becomes visible.
+- **Next:** Add an explicit read-only health retry control for an unknown memory state so a judge can reconcile immediately without waiting for backoff or starting provider work.
 
 ## Documentation and version-control policy
 

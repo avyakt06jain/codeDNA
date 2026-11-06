@@ -4,6 +4,7 @@ import { DEFAULT_REPO_ID, memoryState } from "./text";
 
 const HEALTH_RETRY_MS = 2_000;
 const HEALTH_READY_POLL_MS = 30_000;
+const HEALTH_FAILURE_MAX_MS = 30_000;
 
 type WorkspaceValue = {
   repositories: Repository[];
@@ -40,6 +41,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     let timer = 0;
     let inFlight = false;
+    let consecutiveFailures = 0;
 
     const isVisible = () => document.visibilityState !== "hidden";
     const schedule = (delay: number) => {
@@ -57,10 +59,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setHealth(next);
         setHealthCheckedAt(new Date().toISOString());
         setHealthReadFailed(false);
+        consecutiveFailures = 0;
         nextDelay = next.hindsight === "ready" ? HEALTH_READY_POLL_MS : HEALTH_RETRY_MS;
       } catch {
         if (cancelled) return;
         setHealthReadFailed(true);
+        consecutiveFailures += 1;
+        nextDelay = Math.min(HEALTH_RETRY_MS * (2 ** (consecutiveFailures - 1)), HEALTH_FAILURE_MAX_MS);
       } finally {
         inFlight = false;
         schedule(nextDelay);

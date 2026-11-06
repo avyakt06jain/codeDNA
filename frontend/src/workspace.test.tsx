@@ -62,3 +62,51 @@ it("pauses health checks while hidden and reconciles when visible", async () => 
   expect(health).toHaveBeenCalledTimes(2);
   expect(screen.getByText("2026-11-06T12:01:00.000Z")).toBeTruthy();
 });
+
+it("backs off consecutive application health failures and resets after success", async () => {
+  vi.useFakeTimers();
+  const health = vi.spyOn(api, "health")
+    .mockRejectedValueOnce(new Error("offline"))
+    .mockRejectedValueOnce(new Error("still offline"))
+    .mockResolvedValueOnce({ status: "ok", hindsight: "unavailable" })
+    .mockRejectedValue(new Error("offline again"));
+
+  renderWorkspace();
+  await act(async () => Promise.resolve());
+  expect(health).toHaveBeenCalledTimes(1);
+  expect(screen.getByText(/unavailable:none:read-failed/)).toBeTruthy();
+
+  await act(async () => vi.advanceTimersByTimeAsync(1_999));
+  expect(health).toHaveBeenCalledTimes(1);
+  await act(async () => vi.advanceTimersByTimeAsync(1));
+  expect(health).toHaveBeenCalledTimes(2);
+
+  await act(async () => vi.advanceTimersByTimeAsync(3_999));
+  expect(health).toHaveBeenCalledTimes(2);
+  await act(async () => vi.advanceTimersByTimeAsync(1));
+  expect(health).toHaveBeenCalledTimes(3);
+  expect(screen.getByText(/unavailable:unavailable:read-ok/)).toBeTruthy();
+
+  await act(async () => vi.advanceTimersByTimeAsync(2_000));
+  expect(health).toHaveBeenCalledTimes(4);
+  await act(async () => vi.advanceTimersByTimeAsync(1_999));
+  expect(health).toHaveBeenCalledTimes(4);
+  await act(async () => vi.advanceTimersByTimeAsync(1));
+  expect(health).toHaveBeenCalledTimes(5);
+});
+
+it("caps application health failure backoff at thirty seconds", async () => {
+  vi.useFakeTimers();
+  const health = vi.spyOn(api, "health").mockRejectedValue(new Error("offline"));
+
+  renderWorkspace();
+  await act(async () => Promise.resolve());
+  expect(health).toHaveBeenCalledTimes(1);
+
+  for (const [index, delay] of [2_000, 4_000, 8_000, 16_000, 30_000, 30_000].entries()) {
+    await act(async () => vi.advanceTimersByTimeAsync(delay - 1));
+    expect(health).toHaveBeenCalledTimes(index + 1);
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(health).toHaveBeenCalledTimes(index + 2);
+  }
+});
