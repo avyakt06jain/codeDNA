@@ -172,7 +172,8 @@
 - **Verified:** Review Workspace labels initial, manual creation-status, and missing-job latest-result recovery as `Latest saved review restored`; newly polled completion remains `Review complete`, and the restored label is emitted once through the persistent live region.
 - **Verified:** Review Workspace and both Memory Lab columns display bounded normalized `review-...`/`run-...` correlation IDs outside live regions. Invalid or overlong IDs normalize to absent, and evaluation-level run IDs use the same boundary.
 - **Verified:** Optional Memory Lab `evaluation.run_ids` must be a record whose present IDs are valid and equal the normalized nested memory/baseline runs. Absent metadata is accepted; malformed/mismatched metadata rejects the comparison, and a completed job surfaces a terminal error instead of contradictory output.
-- **Next:** Distinguish a missing latest comparison from a present-but-invalid stored comparison so recovery shows an actionable integrity error instead of silently presenting the normal empty state.
+- **Verified:** Latest-comparison recovery reserves the ordinary empty state for an explicit null result. A present payload that fails structural or run-correlation normalization surfaces an actionable integrity error during initial and manual creation-status recovery, with no replacement POST or provider work.
+- **Next:** Apply the same absent-versus-invalid distinction to persisted latest-review recovery so a malformed non-null review cannot appear as a usable result with a missing correlation ID.
 
 ## Documentation and version-control policy
 

@@ -41,6 +41,7 @@ CodeDNA separates memory from authority:
 - Ambiguity-safe creation timeout with a GET-only `Check creation status` action that resolves active, completed, empty, and failed boundaries without replaying the POST; late-claim, read-outage, and just-completed result behavior is regression tested
 - Bounded persisted run IDs in Review Workspace and both Memory Lab columns for inspectable result correlation without placing identifiers in live status output
 - Fail-closed Memory Lab correlation checks: optional evaluation run IDs must match the persisted memory/baseline runs or the comparison is rejected
+- Truthful latest-comparison recovery: a null result is empty, while a present payload that fails correlation validation produces an actionable integrity alert instead of `No comparison yet`
 - Safe stale-job recovery that clears a missing locator and restores the latest persisted same-PR result without rerunning providers
 - Read-only same-PR active-job discovery after tab/session loss, before any completed-result fallback
 - Atomic same-PR active-job reuse so simultaneous tabs schedule only one provider task

@@ -1279,6 +1279,28 @@ it("restores the latest completed comparison without starting a new job", async 
   expect(posts).toHaveLength(0);
 });
 
+it("surfaces an invalid stored comparison instead of treating it as missing", async () => {
+  const invalid = {
+    evaluation: {
+      passed: true,
+      checks: { same_candidate: true },
+      run_ids: { memory: "run-wrong-memory", baseline: "run-stored-baseline" },
+    },
+    memory: { run_id: "run-stored-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
+    baseline: { run_id: "run-stored-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
+  };
+  const fetchMock = installFetch({ latestComparison: invalid });
+  renderAt("/repos/repo-acme-commerce/lab");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain(
+    "Comparison recovery unavailable: The stored comparison failed correlation validation.",
+  );
+  expect(screen.getByRole("button", { name: "Retry saved comparison recovery" })).toBeTruthy();
+  expect(screen.queryByText("Guardrails passed")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
 it("reattaches to an active comparison after refresh without starting another job", async () => {
   const resumed = {
     evaluation: {
@@ -1456,6 +1478,40 @@ it("restores a completed comparison found during manual creation-status reconcil
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=comparison"))).toHaveLength(5);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(2);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(0);
+});
+
+it("keeps creation uncertain when manual reconciliation finds an invalid stored comparison", async () => {
+  const invalid = {
+    evaluation: {
+      passed: true,
+      checks: { same_candidate: true },
+      run_ids: { memory: "run-wrong-memory", baseline: "run-stored-baseline" },
+    },
+    memory: { run_id: "run-stored-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
+    baseline: { run_id: "run-stored-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
+  };
+  const fetchMock = installFetch({
+    comparisonCreationHangs: true,
+    comparisonCreationClaimVisible: false,
+    latestComparison: invalid,
+    latestComparisonAfterRead: 2,
+  });
+  renderAt("/repos/repo-acme-commerce/lab");
+  await screen.findByRole("option", { name: /Update order status/ });
+  const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  fireEvent.click(await screen.findByRole("button", { name: "Check creation status" }));
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain(
+    "Comparison creation status is still unavailable: The stored comparison failed correlation validation.",
+  );
+  const retry = screen.getByRole("button", { name: "Check creation status" });
+  await waitFor(() => expect(document.activeElement).toBe(retry));
+  expect(run.disabled).toBe(true);
+  expect(screen.queryByText("Guardrails passed")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(2);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
 });
 
 it("keeps comparison creation disabled until persisted recovery completes", async () => {

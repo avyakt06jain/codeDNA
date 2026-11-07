@@ -4,7 +4,7 @@
 
 ## Current State
 
-- Date: 2026-11-07
+- Date: 2026-11-08
 - Phase: G0–G5 MVP gates complete; the evolved judge demo was exercised against a restarted local API.
 - Implementation: The retain → recall → validate → review → feedback → supersede → ablate loop is verified locally against real Hindsight and Gemini. `CODEDNA_DEMO_SCENE=evolved` leaves `DEC-0103` active and `DEC-0042` superseded.
 - Git: `main` is initialized, connected to GitHub, and verified checkpoints are pushed without rewriting published history.
@@ -94,10 +94,11 @@
 - Review Workspace now labels latest-result recovery as `Latest saved review restored` across initial load, manual creation-status reconciliation, and missing-job fallback; only a job completion observed through polling says `Review complete`.
 - Review Workspace and Memory Lab now display bounded normalized persisted review run IDs in their result summaries. Invalid/overlong IDs are omitted, and the identifiers remain outside live regions and authorization decisions.
 - Memory Lab now rejects optional evaluation-level run-ID metadata unless each present ID is valid and matches its nested memory/baseline run. An active completed job with contradictory metadata surfaces a terminal missing-result error and renders no guardrails or misleading ID.
+- Memory Lab latest-result recovery now treats only an explicit null comparison as empty. A present result that fails correlation validation surfaces a task-specific integrity alert; manual creation-status reconciliation remains fail-closed, focused, and GET-only.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by distinguishing absent stored comparisons from present-but-invalid persisted comparison payloads during recovery.
+- Post-MVP trust hardening continues by applying the absent-versus-invalid recovery boundary to persisted latest reviews.
 
 ## Blocked
 
@@ -121,9 +122,19 @@
 
 ## Next Action
 
-When `/comparisons/latest` returns a non-null comparison that fails normalization, surface a task-specific integrity error and keep the ordinary empty state reserved for a genuinely null result. Cover initial and manual recovery without any POST/provider work.
+Require a valid correlation ID on a non-null persisted latest review and surface a task-specific integrity error when it fails normalization. Keep the ordinary empty state reserved for a genuinely null review, and cover initial and manual recovery without replacement POST/provider work.
 
 ## Session Log
+
+### 2026-11-08 — Truthful invalid-comparison recovery
+
+- Goal: Keep a corrupt persisted comparison distinguishable from a legitimate no-result response across every latest-result recovery boundary.
+- Implemented: `api.latestComparison` now returns `null` only for an explicit null comparison. A non-null payload rejected by structural/run-correlation normalization throws `InvalidComparisonResultError`. Initial recovery renders the existing actionable saved-recovery alert; manual creation-status reconciliation remains uncertain, keeps creation disabled, and refocuses `Check creation status`. Neither path renders guardrails or starts replacement work.
+- Focused checks: the first command used the repository-relative path from inside `frontend` and failed with `No test files found`; corrected command `npm test -- --run src/ui.test.tsx -t "invalid stored comparison"` → **2 passed, 63 skipped**. The cases assert one latest-result GET and zero POSTs on initial recovery, plus exactly one original creation POST and two latest-result GETs during manual reconciliation.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **83 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 331.73 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: the previous listeners were absent, so the API and Vite were restarted as hidden local processes with Hindsight autostart disabled. API health returned `ok`, Hindsight truthfully reported `unavailable`, and Memory Lab returned HTTP 200.
+- Provider safety: the implementation validates an existing application response in the browser. Tests and live startup used no Hindsight/Gemini request and enabled no paid service.
+- Next: apply the same absent-versus-invalid integrity boundary to persisted latest reviews.
 
 ### 2026-11-07 — Comparison run-ID correlation integrity
 
