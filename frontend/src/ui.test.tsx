@@ -687,7 +687,7 @@ it("shows overview counts from the summary without GitHub metrics", async () => 
   expect(screen.queryByText(/\bstars\b/i)).toBeNull();
   expect(screen.queryByText(/contributors/i)).toBeNull();
   expect(screen.queryByText(/Active work is no longer running/i)).toBeNull();
-  const emptyWork = screen.getByRole("region", { name: "No active work" });
+  const emptyWork = await screen.findByRole("region", { name: "No active work" });
   expect(within(emptyWork).getByText(/No queued or running CodeDNA reviews or Memory Lab comparisons/i)).toBeTruthy();
   const lastChecked = within(emptyWork).getByText(/Last checked/i).querySelector("time");
   expect(Number.isFinite(Date.parse(lastChecked?.getAttribute("datetime") ?? ""))).toBe(true);

@@ -450,7 +450,7 @@ function jobFailure(job: ReviewJob, fallback: string): TerminalJobError {
 }
 
 export const api = {
-  health: async () => normalizeHealth(await request<unknown>("/api/health")),
+  health: async (signal?: AbortSignal) => normalizeHealth(await request<unknown>("/api/health", { signal })),
   repositories: async () => unwrapRecords(await request<unknown>("/api/repositories")).map(normalizeRepository),
   evaluationCases: async () => unwrapRecords(await request<unknown>("/api/evaluation-cases")).flatMap((row) => {
     const item = normalizeEvaluationCase(row);

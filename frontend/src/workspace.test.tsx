@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { api } from "./api";
 import { useWorkspace, WorkspaceProvider } from "./workspace";
@@ -109,4 +109,27 @@ it("caps application health failure backoff at thirty seconds", async () => {
     await act(async () => vi.advanceTimersByTimeAsync(1));
     expect(health).toHaveBeenCalledTimes(index + 2);
   }
+});
+
+it("times out a hung health read and releases manual recovery", async () => {
+  vi.useFakeTimers();
+  const health = vi.spyOn(api, "health")
+    .mockImplementationOnce((signal?: AbortSignal) => new Promise((_resolve, reject) => {
+      signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+    }))
+    .mockResolvedValue({ status: "ok", hindsight: "unavailable" });
+
+  renderWorkspace();
+  await act(async () => Promise.resolve());
+  expect(screen.getByText(/starting:none:read-ok:checking/)).toBeTruthy();
+  await act(async () => vi.advanceTimersByTimeAsync(9_999));
+  expect(health).toHaveBeenCalledTimes(1);
+  expect(screen.getByText(/starting:none:read-ok:checking/)).toBeTruthy();
+
+  await act(async () => vi.advanceTimersByTimeAsync(1));
+  expect(screen.getByText(/unavailable:none:read-failed:idle/)).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Check" }));
+  await act(async () => Promise.resolve());
+  expect(health).toHaveBeenCalledTimes(2);
+  expect(screen.getByText(/unavailable:unavailable:read-ok:idle/)).toBeTruthy();
 });

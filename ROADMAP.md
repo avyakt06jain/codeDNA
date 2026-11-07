@@ -163,7 +163,8 @@
 - **Verified:** Failed application-health reads are represented separately from successful responses that report Hindsight unavailable. The former preserves the last successful payload/time as cached evidence, displays `Memory status unknown`, and forces the same unavailable run-control gate without provider work.
 - **Verified:** Consecutive application-health transport failures use capped 2/4/8/16/30-second backoff, reset after a successful response, and still reconcile immediately when a hidden tab becomes visible.
 - **Verified:** An unknown memory state exposes a single-flight `Check health again` action that cancels pending backoff, uses only `GET /api/health`, disables during the request, and returns keyboard focus to the resulting status.
-- **Next:** Bound a health request that never settles so one hung fetch cannot leave the global observer permanently checking and unable to recover.
+- **Verified:** Every application-health GET is aborted after 10 seconds; timeout enters the existing unknown/backoff path, releases the single-flight guard, preserves last-known-good context, and remains manually recoverable.
+- **Next:** Add bounded client timeouts to read-only background-job status and recovery requests so a hung API read cannot strand otherwise observable work; do not time out or replay creation POSTs in this slice.
 
 ## Documentation and version-control policy
 

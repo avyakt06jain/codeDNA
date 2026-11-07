@@ -5,6 +5,7 @@ import { DEFAULT_REPO_ID, memoryState } from "./text";
 const HEALTH_RETRY_MS = 2_000;
 const HEALTH_READY_POLL_MS = 30_000;
 const HEALTH_FAILURE_MAX_MS = 30_000;
+const HEALTH_REQUEST_TIMEOUT_MS = 10_000;
 
 type WorkspaceValue = {
   repositories: Repository[];
@@ -45,6 +46,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     let timer = 0;
     let inFlight = false;
+    let requestController: AbortController | null = null;
     let consecutiveFailures = 0;
 
     const isVisible = () => document.visibilityState !== "hidden";
@@ -57,9 +59,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (cancelled || inFlight || !isVisible()) return;
       inFlight = true;
       setHealthChecking(true);
+      const controller = new AbortController();
+      requestController = controller;
+      const requestTimeout = window.setTimeout(() => controller.abort(), HEALTH_REQUEST_TIMEOUT_MS);
       let nextDelay = HEALTH_RETRY_MS;
       try {
-        const next = await api.health();
+        const next = await api.health(controller.signal);
         if (cancelled) return;
         setHealth(next);
         setHealthCheckedAt(new Date().toISOString());
@@ -72,6 +77,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         consecutiveFailures += 1;
         nextDelay = Math.min(HEALTH_RETRY_MS * (2 ** (consecutiveFailures - 1)), HEALTH_FAILURE_MAX_MS);
       } finally {
+        window.clearTimeout(requestTimeout);
+        if (requestController === controller) requestController = null;
         inFlight = false;
         if (!cancelled) setHealthChecking(false);
         schedule(nextDelay);
@@ -92,6 +99,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      requestController?.abort();
       healthCheckRef.current = () => undefined;
       document.removeEventListener("visibilitychange", handleVisibility);
     };

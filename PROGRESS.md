@@ -87,10 +87,11 @@
 - Application-health request failures now preserve the last successful health payload/time but set an explicit read-failure state, force memory work unavailable, and display `Memory status unknown`; a successful response that reports Hindsight unavailable remains separately labeled `Memory unavailable`.
 - Consecutive application-health request failures now back off at 2/4/8/16/30 seconds with a 30-second cap; success resets the sequence, while visibility return still triggers an immediate read-only reconciliation.
 - An unknown memory state now offers `Check health again`; the single-flight read cancels pending backoff, disables its control while pending, and returns focus to the persistent result status without starting provider work.
+- Application-health reads now abort after 10 seconds; timeout enters the same unknown/backoff state, releases the single-flight/manual retry guard, preserves prior successful evidence, and cleanup aborts an outstanding read.
 
 ## In Progress
 
-- Post-MVP work continues by bounding application-health requests that never settle so the observer cannot remain permanently in flight.
+- Post-MVP work continues by bounding read-only background-job status/recovery requests so a hung API read cannot strand observable work.
 
 ## Blocked
 
@@ -114,9 +115,20 @@
 
 ## Next Action
 
-Add a bounded client timeout for `GET /api/health`; timeout must enter the existing unknown/backoff path, release the single-flight guard, remain distinguishable from confirmed Hindsight unavailability, and never start provider work.
+Add bounded client timeouts to read-only background-job status and recovery GETs. Preserve existing retry classification and locators, and do not apply automatic timeout/replay behavior to job-creation POSTs.
 
 ## Session Log
+
+### 2026-11-07 — Bounded application-health request lifetime
+
+- Goal: Prevent an application-health fetch that never settles from permanently holding the global observer's single-flight guard and manual recovery control.
+- Implemented: each health GET receives its own abort signal and a 10-second browser timeout. Abort follows the existing application-health failure path, retains last-known-good state, releases `healthChecking`, schedules normal backoff, and permits `Check health again`; provider cleanup aborts any outstanding request on unmount.
+- Focused checks: `npm test -- --run src/workspace.test.tsx` → **5 passed**. The new deterministic fake-timer case proves no early timeout at 9,999 ms, abort/fail-closed transition at 10,000 ms, guard release, and successful manual recovery through a second GET.
+- Regression correction: the first final frontend run **FAILED 1/67** because an existing overview assertion synchronously queried the independently loaded empty active-work region. Changing that assertion to await the region's documented asynchronous read boundary fixed the test without altering product behavior; the exact rerun passed.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; final `npm test -- --run` → **67 passed across 5 files**; final `npm run build` → **PASS**, 40 modules, 329.03 kB JavaScript and 16.36 kB CSS before gzip.
+- Live app: after Vite hot reload, the existing API returned `ok`, Hindsight truthfully remained `unavailable`, and the overview returned HTTP 200.
+- Provider safety: aborting a browser request neither starts nor retries Hindsight/Gemini work. The health endpoint remains a read-only application-state contract.
+- Next: bound hung read-only background-job status/recovery GETs without automatically replaying job creation.
 
 ### 2026-11-07 — Manual application-health reconciliation
 
