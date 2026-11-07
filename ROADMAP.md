@@ -167,7 +167,8 @@
 - **Verified:** Background-job status, active discovery, latest-result recovery, and repository active-summary GETs abort after 10 seconds. Status timeout is transient and retries the same job ID; recovery remains actionable and GET-only; creation POSTs are never replayed.
 - **Verified:** A creation response that exceeds 10 seconds triggers three bounded GET-only checks for the backend's atomic same-PR/same-kind claim. A discovered job is reattached and polled after exactly one POST; an unresolved outcome disables another creation attempt until page reconciliation.
 - **Verified:** An unresolved outcome exposes `Check creation status`, which performs only exact-PR/kind active and latest-result GETs. Active or completed work is resumed, an empty successful boundary safely reenables creation, failures remain fail-closed, and focus moves to the resolved workspace/result or retry action.
-- **Next:** Add transport-failure and newly-visible-active-claim regressions for the manual creation-status action in both workspaces, without changing its GET-only contract.
+- **Verified:** Review Workspace and Memory Lab regressions prove that a claim first visible during the manual check is reattached after exactly one POST, while a manual status-read failure keeps creation disabled, recreates/focuses the action, and performs no latest-result read.
+- **Next:** Verify that a completed result first observed during manual creation-status reconciliation is restored without polling or another POST in both workspaces.
 
 ## Documentation and version-control policy
 

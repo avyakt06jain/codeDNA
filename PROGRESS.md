@@ -94,7 +94,7 @@
 
 ## In Progress
 
-- Post-MVP reliability work continues by broadening failure/late-claim coverage for the explicit creation-status boundary without weakening its no-replay guarantee.
+- Post-MVP reliability work continues by covering completed-result restoration through the explicit creation-status boundary without weakening its no-replay guarantee.
 
 ## Blocked
 
@@ -118,9 +118,19 @@
 
 ## Next Action
 
-Add focused regressions for a failed manual creation-status read and an active claim that becomes visible only during that manual check, covering both Review Workspace and Memory Lab while asserting exactly one creation POST.
+Add focused regressions for a completed review/comparison that becomes visible only during manual creation-status reconciliation. Assert restoration through GET only, no job polling, no replacement POST, and deterministic result focus.
 
 ## Session Log
+
+### 2026-11-07 — Creation-status late-claim and outage coverage
+
+- Goal: Prove the manual creation-status boundary remains safe when backend state changes late or the status read itself fails.
+- Implemented: deterministic Review Workspace and Memory Lab fixtures can expose an active claim only on the explicit fifth active read or fail that exact read. Four component regressions cover both tasks. Late claims reattach and complete after one creation POST without consulting latest-result fallback; status-read failures keep creation disabled, recreate/focus `Check creation status`, and do not issue a latest-result read.
+- Focused checks: `npm test -- --run src/ui.test.tsx -t "manual creation-status|creation status read fails"` → **4 passed, 56 skipped**.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **76 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 331.01 kB JavaScript and 16.36 kB CSS before gzip.
+- Live app: API health remained `ok`, Hindsight truthfully remained `unavailable`, and Review Workspace plus Memory Lab each returned HTTP 200 after frontend hot reload.
+- Provider safety: all new cases use frontend HTTP fixtures and assert one creation POST total. They do not start Hindsight, Gemini, or the local provider runtime.
+- Next: cover completed-result restoration discovered by the same manual GET-only boundary.
 
 ### 2026-11-07 — Explicit creation-status reconciliation
 

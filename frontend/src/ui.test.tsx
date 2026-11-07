@@ -161,9 +161,13 @@ function installFetch(options?: {
   reusedReviewStart?: boolean;
   reviewCreationHangs?: boolean;
   reviewCreationClaimVisible?: boolean;
+  reviewCreationClaimVisibleAfterActiveRead?: number;
+  reviewRecoveryFailureAtActiveRead?: number;
   reusedComparisonStart?: boolean;
   comparisonCreationHangs?: boolean;
   comparisonCreationClaimVisible?: boolean;
+  comparisonCreationClaimVisibleAfterActiveRead?: number;
+  comparisonRecoveryFailureAtActiveRead?: number;
   pollDelayMs?: number;
   reviewPollGate?: Promise<void>;
   latestReviewGate?: Promise<void>;
@@ -187,7 +191,11 @@ function installFetch(options?: {
   let evaluationCaseReads = 0;
   let healthFailures = options?.healthFailures ?? 0;
   let reviewCreationClaimed = false;
+  let reviewCreationStarted = false;
+  let reviewActiveReads = 0;
   let comparisonCreationClaimed = false;
+  let comparisonCreationStarted = false;
+  let comparisonActiveReads = 0;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const url = new URL(raw, "http://localhost");
@@ -276,6 +284,8 @@ function installFetch(options?: {
     }
     if (path === "/api/prs/pr-acme-87/review-jobs/active" && method === "GET") {
       const kind = url.searchParams.get("kind");
+      if (kind === "review") reviewActiveReads += 1;
+      if (kind === "comparison") comparisonActiveReads += 1;
       if (kind === "comparison" && comparisonRecoveryFailures > 0) {
         comparisonRecoveryFailures -= 1;
         return json({ detail: "temporary recovery outage" }, 503);
@@ -290,9 +300,19 @@ function installFetch(options?: {
           init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
         });
       }
+      if (kind === "review" && options?.reviewRecoveryFailureAtActiveRead === reviewActiveReads) {
+        return json({ detail: "manual creation status unavailable" }, 503);
+      }
+      if (kind === "comparison" && options?.comparisonRecoveryFailureAtActiveRead === comparisonActiveReads) {
+        return json({ detail: "manual creation status unavailable" }, 503);
+      }
+      const lateReviewClaim = reviewCreationStarted
+        && reviewActiveReads >= (options?.reviewCreationClaimVisibleAfterActiveRead ?? Number.MAX_SAFE_INTEGER);
+      const lateComparisonClaim = comparisonCreationStarted
+        && comparisonActiveReads >= (options?.comparisonCreationClaimVisibleAfterActiveRead ?? Number.MAX_SAFE_INTEGER);
       const jobId = kind === "comparison"
-        ? options?.activeComparisonJob || comparisonCreationClaimed ? "job-cmp" : null
-        : options?.activeReviewJob || reviewCreationClaimed ? "job-review" : null;
+        ? options?.activeComparisonJob || comparisonCreationClaimed || lateComparisonClaim ? "job-cmp" : null
+        : options?.activeReviewJob || reviewCreationClaimed || lateReviewClaim ? "job-review" : null;
       return json({
         pr_id: "pr-acme-87",
         kind,
@@ -329,6 +349,7 @@ function installFetch(options?: {
     if (path.includes("/decisions")) return json(options?.decisionsWrapped ? { items: decisions } : decisions);
     if (path.endsWith("/review-jobs") && method === "POST") {
       if (options?.reviewCreationHangs) {
+        reviewCreationStarted = true;
         reviewCreationClaimed = options.reviewCreationClaimVisible !== false;
         return new Promise<Response>((_resolve, reject) => {
           init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
@@ -354,6 +375,7 @@ function installFetch(options?: {
     }
     if (path.endsWith("/comparison") && method === "POST") {
       if (options?.comparisonCreationHangs) {
+        comparisonCreationStarted = true;
         comparisonCreationClaimed = options.comparisonCreationClaimVisible !== false;
         return new Promise<Response>((_resolve, reject) => {
           init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
@@ -582,6 +604,56 @@ it("fails closed, then reconciles a lost review creation through GET-only status
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=review"))).toHaveLength(5);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(2);
+});
+
+it("reattaches when a review claim appears during the manual creation-status check", async () => {
+  let releaseReviewPoll = () => {};
+  const reviewPollGate = new Promise<void>((resolve) => {
+    releaseReviewPoll = resolve;
+  });
+  const fetchMock = installFetch({
+    reviewCreationHangs: true,
+    reviewCreationClaimVisible: false,
+    reviewCreationClaimVisibleAfterActiveRead: 5,
+    reviewPollGate,
+  });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const run = screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  const check = await screen.findByRole("button", { name: "Check creation status" });
+  fireEvent.click(check);
+  try {
+    expect((await screen.findAllByText("Existing review found. Reattached without starting another provider call.")).length).toBeGreaterThan(0);
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("region", { name: "Review workspace" })));
+  } finally {
+    await act(async () => releaseReviewPoll());
+  }
+  expect(await screen.findByRole("article", { name: "Direct status write skips the service" })).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=review"))).toHaveLength(5);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(1);
+});
+
+it("keeps review creation disabled when the manual creation-status read fails", async () => {
+  const fetchMock = installFetch({
+    reviewCreationHangs: true,
+    reviewCreationClaimVisible: false,
+    reviewRecoveryFailureAtActiveRead: 5,
+  });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const run = screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  fireEvent.click(await screen.findByRole("button", { name: "Check creation status" }));
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("Review creation status is still unavailable: manual creation status unavailable");
+  const retry = screen.getByRole("button", { name: "Check creation status" });
+  await waitFor(() => expect(document.activeElement).toBe(retry));
+  expect(run.disabled).toBe(true);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=review"))).toHaveLength(5);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(1);
 });
 
 it("keeps review creation disabled until persisted recovery completes", async () => {
@@ -1239,6 +1311,63 @@ it("reconciles a lost comparison creation through an explicit GET-only check", a
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=comparison"))).toHaveLength(5);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(2);
+});
+
+it("reattaches when a comparison claim appears during the manual creation-status check", async () => {
+  let releaseComparisonPoll = () => {};
+  const comparisonPollGate = new Promise<void>((resolve) => {
+    releaseComparisonPoll = resolve;
+  });
+  const comparison = {
+    evaluation: { passed: true, checks: { same_candidate: true }, counts: { memory_findings: 1 } },
+    memory: { run_id: "run-late-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
+    baseline: { run_id: "run-late-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
+  };
+  const fetchMock = installFetch({
+    comparison,
+    comparisonCreationHangs: true,
+    comparisonCreationClaimVisible: false,
+    comparisonCreationClaimVisibleAfterActiveRead: 5,
+    comparisonPollGate,
+  });
+  renderAt("/repos/repo-acme-commerce/lab");
+  await screen.findByRole("option", { name: /Update order status/ });
+  const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  fireEvent.click(await screen.findByRole("button", { name: "Check creation status" }));
+  try {
+    expect((await screen.findAllByText("Existing comparison found. Reattached without starting either provider branch.")).length).toBeGreaterThan(0);
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("region", { name: "Comparison workspace" })));
+  } finally {
+    await act(async () => releaseComparisonPoll());
+  }
+  expect(await screen.findByText("Guardrails passed")).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=comparison"))).toHaveLength(5);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(1);
+});
+
+it("keeps comparison creation disabled when the manual creation-status read fails", async () => {
+  const fetchMock = installFetch({
+    comparisonCreationHangs: true,
+    comparisonCreationClaimVisible: false,
+    comparisonRecoveryFailureAtActiveRead: 5,
+  });
+  renderAt("/repos/repo-acme-commerce/lab");
+  await screen.findByRole("option", { name: /Update order status/ });
+  const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  fireEvent.click(await screen.findByRole("button", { name: "Check creation status" }));
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("Comparison creation status is still unavailable: manual creation status unavailable");
+  const retry = screen.getByRole("button", { name: "Check creation status" });
+  await waitFor(() => expect(document.activeElement).toBe(retry));
+  expect(run.disabled).toBe(true);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=comparison"))).toHaveLength(5);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(1);
 });
 
 it("keeps comparison creation disabled until persisted recovery completes", async () => {

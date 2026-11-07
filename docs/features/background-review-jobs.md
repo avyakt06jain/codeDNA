@@ -65,5 +65,6 @@ An HTTP `404` has separate terminal meaning: the saved active-job locator no lon
 - Component tests start with empty session storage, discover active review/comparison jobs, verify one status GET and zero POST/latest-result calls, then confirm terminal locator cleanup.
 - Concurrency and route tests prove two simultaneous SQLite claims create one active row, repeated queue calls return one job ID, and only the creator receives a scheduled background task.
 - Component tests inject a missing active review and comparison, then verify one status GET, one latest-result GET, zero POSTs, persisted-result rendering, and stale-locator cleanup for each flow.
+- Manual creation-status tests delay review/comparison claim visibility until the explicit check, then verify reattachment, normal completion, one creation POST, no latest-result fallback, and workspace focus. Paired outage cases fail that exact active read and verify creation remains disabled, the recreated action receives focus, and no latest-result read or replacement POST occurs.
 - A live paired job returned queued state immediately and later resolved to two persisted runs with all six provenance/contamination guardrails passing.
 - An isolated live API restart converted a persisted queued job to `job_interrupted_by_restart` and reported `interrupted_jobs: 1` without touching the running demo.
