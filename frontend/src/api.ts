@@ -189,6 +189,7 @@ const API_ROOT = import.meta.env.VITE_API_URL ?? "";
 const POLL_ATTEMPTS = 360;
 const POLL_DELAY_MS = 1000;
 const POLL_RETRY_DELAYS_MS = import.meta.env.MODE === "test" ? [1, 2, 4] as const : [1000, 2000, 4000] as const;
+const JOB_READ_TIMEOUT_MS = import.meta.env.MODE === "test" ? 50 : 10_000;
 const SAFE_JOB_ID = /^job-[A-Za-z0-9_-]{1,80}$/;
 
 class ApiRequestError extends Error {
@@ -248,6 +249,23 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiRequestError(detail || `Request failed (${response.status})`, response.status);
   }
   return response.json() as Promise<T>;
+}
+
+async function requestJobRead<T>(path: string): Promise<T> {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeout = window.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, JOB_READ_TIMEOUT_MS);
+  try {
+    return await request<T>(path, { signal: controller.signal });
+  } catch (reason) {
+    if (timedOut) throw new TypeError("The background-job read timed out.");
+    throw reason;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 function unwrapRecords(payload: unknown): Record<string, unknown>[] {
@@ -416,7 +434,7 @@ async function pollReviewJob(
     if (!shouldContinue()) return null;
     let job: ReviewJob & Record<string, unknown>;
     try {
-      job = await request<ReviewJob & Record<string, unknown>>(`/api/review-jobs/${jobId}`);
+      job = await requestJobRead<ReviewJob & Record<string, unknown>>(`/api/review-jobs/${jobId}`);
       consecutiveFailures = 0;
     } catch (reason) {
       if (!isTransientRequestError(reason)) throw reason;
@@ -463,24 +481,24 @@ export const api = {
   decision: async (decisionId: string) => normalizeDecision(asRecord(await request<unknown>(`/api/decisions/${decisionId}`))),
   lineage: async (decisionId: string) => normalizeLineage(await request<unknown>(`/api/decisions/${decisionId}/lineage`), decisionId),
   latestReview: async (prId: string, mode: "memory" | "baseline" = "memory") => {
-    const payload = await request<unknown>(`/api/prs/${prId}/reviews/latest?mode=${mode}`);
+    const payload = await requestJobRead<unknown>(`/api/prs/${prId}/reviews/latest?mode=${mode}`);
     const row = isRecord(payload) ? payload : {};
     return isRecord(row.review) ? normalizeReview(row.review) : null;
   },
   latestComparison: async (prId: string) => {
-    const payload = await request<unknown>(`/api/prs/${prId}/comparisons/latest`);
+    const payload = await requestJobRead<unknown>(`/api/prs/${prId}/comparisons/latest`);
     const row = isRecord(payload) ? payload : {};
     return normalizeComparison(row.comparison);
   },
   activeJob: async (prId: string, kind: "review" | "comparison") => {
-    const payload = await request<unknown>(`/api/prs/${prId}/review-jobs/active?kind=${kind}`);
+    const payload = await requestJobRead<unknown>(`/api/prs/${prId}/review-jobs/active?kind=${kind}`);
     const row = isRecord(payload) ? payload : {};
     const jobId = jobIdFrom(row.job_id);
     return jobId ? { jobId, ...jobTimingFrom(row) } satisfies ActiveJob : null;
   },
   repositoryActiveJobs: async (repositoryId: string) => {
     const rows = unwrapRecords(
-      await request<unknown>(`/api/repositories/${repositoryId}/review-jobs/active`),
+      await requestJobRead<unknown>(`/api/repositories/${repositoryId}/review-jobs/active`),
     );
     return rows.flatMap((row): RepositoryActiveJob[] => {
       const jobId = jobIdFrom(row.job_id);

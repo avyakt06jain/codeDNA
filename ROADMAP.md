@@ -164,7 +164,8 @@
 - **Verified:** Consecutive application-health transport failures use capped 2/4/8/16/30-second backoff, reset after a successful response, and still reconcile immediately when a hidden tab becomes visible.
 - **Verified:** An unknown memory state exposes a single-flight `Check health again` action that cancels pending backoff, uses only `GET /api/health`, disables during the request, and returns keyboard focus to the resulting status.
 - **Verified:** Every application-health GET is aborted after 10 seconds; timeout enters the existing unknown/backoff path, releases the single-flight guard, preserves last-known-good context, and remains manually recoverable.
-- **Next:** Add bounded client timeouts to read-only background-job status and recovery requests so a hung API read cannot strand otherwise observable work; do not time out or replay creation POSTs in this slice.
+- **Verified:** Background-job status, active discovery, latest-result recovery, and repository active-summary GETs abort after 10 seconds. Status timeout is transient and retries the same job ID; recovery remains actionable and GET-only; creation POSTs are never replayed.
+- **Next:** Handle an ambiguous job-creation response safely by reconciling the backend's atomic same-PR claim before enabling another creation attempt; never blindly replay a timed-out POST.
 
 ## Documentation and version-control policy
 

@@ -88,10 +88,11 @@
 - Consecutive application-health request failures now back off at 2/4/8/16/30 seconds with a 30-second cap; success resets the sequence, while visibility return still triggers an immediate read-only reconciliation.
 - An unknown memory state now offers `Check health again`; the single-flight read cancels pending backoff, disables its control while pending, and returns focus to the persistent result status without starting provider work.
 - Application-health reads now abort after 10 seconds; timeout enters the same unknown/backoff state, releases the single-flight/manual retry guard, preserves prior successful evidence, and cleanup aborts an outstanding read.
+- Read-only review/comparison status, active-job discovery, latest-result recovery, and repository active-summary requests now abort after 10 seconds. Status timeout enters the existing transient reconnect loop for the same locator; saved recovery remains actionable and issues no POST.
 
 ## In Progress
 
-- Post-MVP work continues by bounding read-only background-job status/recovery requests so a hung API read cannot strand observable work.
+- Post-MVP work continues by safely reconciling an ambiguous job-creation response through the backend's atomic active-job claim before another creation attempt is permitted.
 
 ## Blocked
 
@@ -115,9 +116,19 @@
 
 ## Next Action
 
-Add bounded client timeouts to read-only background-job status and recovery GETs. Preserve existing retry classification and locators, and do not apply automatic timeout/replay behavior to job-creation POSTs.
+Design and implement ambiguous creation-response recovery: if a creation response is lost or hangs, query the same PR/kind active-job claim before allowing another POST, preserve truthful UI wording, and never blindly replay provider work.
 
 ## Session Log
+
+### 2026-11-07 — Bounded background-job read lifetime
+
+- Goal: Prevent a hung job-status or saved-recovery GET from stranding observable work while preserving the atomic creation boundary.
+- Implemented: job status, same-PR active discovery, latest completed review/comparison recovery, and repository active-work summary now use a shared 10-second abortable read boundary. Status timeout is classified as transient and reconnects to the unchanged job ID with existing 1/2/4-second recovery; initial saved recovery surfaces its existing GET-only actionable error. Job-creation POSTs are intentionally unchanged and never automatically replayed.
+- Focused checks: `npm test -- --run src/ui.test.tsx -t "timed-out active review|hung saved-review|reattaches to an active review"` → **3 passed, 50 skipped**. The new cases prove one hung status GET aborts then completes through exactly one same-ID retry, and one hung active-discovery GET becomes an actionable saved-recovery error; both issue zero POSTs.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **69 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 329.27 kB JavaScript and 16.36 kB CSS before gzip.
+- Live app: after Vite hot reload, the existing API returned `ok`, Hindsight truthfully remained `unavailable`, and the overview returned HTTP 200.
+- Provider safety: abort/retry applies only to application read contracts. It neither cancels backend provider work nor creates a replacement review/comparison.
+- Next: reconcile an ambiguous creation response through active-job discovery before allowing any new POST.
 
 ### 2026-11-07 — Bounded application-health request lifetime
 

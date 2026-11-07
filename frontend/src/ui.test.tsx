@@ -143,6 +143,7 @@ function installFetch(options?: {
   latestComparison?: Record<string, unknown>;
   latestReview?: boolean;
   reviewPollFailures?: number;
+  reviewPollHangs?: number;
   comparisonPollFailures?: number;
   missingReviewJob?: boolean;
   missingComparisonJob?: boolean;
@@ -151,6 +152,7 @@ function installFetch(options?: {
   reviewRecoveryFailure?: boolean;
   comparisonRecoveryFailure?: boolean;
   reviewRecoveryFailures?: number;
+  reviewRecoveryHangs?: number;
   comparisonRecoveryFailures?: number;
   repositoryActiveJobs?: boolean;
   repositoryActiveJobsStartAfter?: number;
@@ -170,8 +172,10 @@ function installFetch(options?: {
 }) {
   const hindsight = options?.hindsight ?? "ready";
   let reviewPollFailures = options?.reviewPollFailures ?? 0;
+  let reviewPollHangs = options?.reviewPollHangs ?? 0;
   let comparisonPollFailures = options?.comparisonPollFailures ?? 0;
   let reviewRecoveryFailures = options?.reviewRecoveryFailures ?? (options?.reviewRecoveryFailure ? Number.MAX_SAFE_INTEGER : 0);
+  let reviewRecoveryHangs = options?.reviewRecoveryHangs ?? 0;
   let comparisonRecoveryFailures = options?.comparisonRecoveryFailures ?? (options?.comparisonRecoveryFailure ? Number.MAX_SAFE_INTEGER : 0);
   let repositoryActiveJobReads = 0;
   let repositoryActiveJobFailures = options?.repositoryActiveJobFailures ?? 0;
@@ -274,6 +278,12 @@ function installFetch(options?: {
         reviewRecoveryFailures -= 1;
         return json({ detail: "temporary recovery outage" }, 503);
       }
+      if (kind === "review" && reviewRecoveryHangs > 0) {
+        reviewRecoveryHangs -= 1;
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+        });
+      }
       const jobId = kind === "comparison"
         ? options?.activeComparisonJob ? "job-cmp" : null
         : options?.activeReviewJob ? "job-review" : null;
@@ -316,6 +326,12 @@ function installFetch(options?: {
     }
     if (path === "/api/review-jobs/job-review") {
       if (options?.reviewPollGate) await options.reviewPollGate;
+      if (reviewPollHangs > 0) {
+        reviewPollHangs -= 1;
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+        });
+      }
       if (options?.pollDelayMs) await new Promise((resolve) => setTimeout(resolve, options.pollDelayMs));
       if (options?.missingReviewJob) return json({ detail: "job not found" }, 404);
       if (reviewPollFailures > 0) {
@@ -473,6 +489,16 @@ it("reattaches to an active review after refresh without starting another job", 
   expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
 });
 
+it("recovers a timed-out active review status read without starting another job", async () => {
+  saveActiveJob("review", "pr-acme-87", "job-review");
+  const fetchMock = installFetch({ reviewPollHangs: 1, pollDelayMs: 50 });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  expect((await screen.findAllByText("Connection interrupted. Reconnecting to the existing review…")).length).toBeGreaterThan(0);
+  expect(await screen.findByRole("article", { name: "Direct status write skips the service" }, { timeout: 3000 })).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(2);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
 it("discovers an active review after tab storage is lost without starting another job", async () => {
   const fetchMock = installFetch({ activeReviewJob: true });
   renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
@@ -540,6 +566,16 @@ it("leaves an actionable review state when persisted recovery fails", async () =
   fireEvent.click(retry);
   const recreated = await screen.findByRole("button", { name: "Retry saved review recovery" });
   await waitFor(() => expect(document.activeElement).toBe(recreated));
+});
+
+it("times out a hung saved-review recovery read without starting provider work", async () => {
+  const fetchMock = installFetch({ reviewRecoveryHangs: 1 });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("Review recovery unavailable: The background-job read timed out.");
+  expect(alert.textContent).toContain("No review or provider call was started");
+  expect(screen.getByRole("button", { name: "Retry saved review recovery" })).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
 it("retries saved review recovery through GET only", async () => {
