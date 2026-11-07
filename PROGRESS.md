@@ -94,7 +94,7 @@
 
 ## In Progress
 
-- Post-MVP reliability work continues by covering completed-result restoration through the explicit creation-status boundary without weakening its no-replay guarantee.
+- Post-MVP demo clarity work continues by distinguishing a restored Review Workspace result from a newly completed run in visible and announced stage text.
 
 ## Blocked
 
@@ -118,9 +118,19 @@
 
 ## Next Action
 
-Add focused regressions for a completed review/comparison that becomes visible only during manual creation-status reconciliation. Assert restoration through GET only, no job polling, no replacement POST, and deterministic result focus.
+Add a distinct `review_restored` label when Review Workspace loads a persisted completed review through initial, manual creation-status, or missing-job fallback recovery. Keep new-run completion wording unchanged and cover the label with focused accessibility assertions.
 
 ## Session Log
+
+### 2026-11-07 — Creation-status completed-result restoration coverage
+
+- Goal: Verify that manual reconciliation restores backend work that completed after the creation response was lost but before an active claim could be observed.
+- Implemented: the frontend HTTP fixture can delay latest review/comparison visibility until the second latest-result read. Two regressions drive one ambiguous creation POST, confirm five exact-kind active reads remain empty, then restore the completed result through the manual latest-result fallback. Review findings and comparison guardrails receive focus; neither path polls a job endpoint or sends a replacement POST.
+- Focused checks: `npm test -- --run src/ui.test.tsx -t "completed review found during manual|completed comparison found during manual"` → **2 passed, 60 skipped**.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **78 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 331.01 kB JavaScript and 16.36 kB CSS before gzip.
+- Live app: API health remained `ok`, Hindsight truthfully remained `unavailable`, and Review Workspace plus Memory Lab each returned HTTP 200 after frontend hot reload.
+- Provider safety: both cases are deterministic frontend fixtures and exercise application GET contracts only after the single simulated creation request. No Hindsight/Gemini runtime or paid usage is involved.
+- Next: distinguish restored Review Workspace results from newly completed reviews in visible and live-region wording.
 
 ### 2026-11-07 — Creation-status late-claim and outage coverage
 
