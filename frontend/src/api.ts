@@ -495,6 +495,7 @@ export class TerminalJobError extends Error {}
 export class MissingJobError extends TerminalJobError {}
 export class PollingUnavailableError extends Error {}
 export class CreationOutcomeUnknownError extends Error {}
+export class InvalidReviewResultError extends Error {}
 export class InvalidComparisonResultError extends Error {}
 
 function jobFailure(job: ReviewJob, fallback: string): TerminalJobError {
@@ -533,7 +534,15 @@ export const api = {
   latestReview: async (prId: string, mode: "memory" | "baseline" = "memory") => {
     const payload = await requestJobRead<unknown>(`/api/prs/${prId}/reviews/latest?mode=${mode}`);
     const row = isRecord(payload) ? payload : {};
-    return isRecord(row.review) ? normalizeReview(row.review) : null;
+    if (row.review == null) return null;
+    if (!isRecord(row.review)) {
+      throw new InvalidReviewResultError("The stored review failed correlation validation.");
+    }
+    const review = normalizeReview(row.review);
+    if (!review.run_id) {
+      throw new InvalidReviewResultError("The stored review failed correlation validation.");
+    }
+    return review;
   },
   latestComparison: async (prId: string) => {
     const payload = await requestJobRead<unknown>(`/api/prs/${prId}/comparisons/latest`);

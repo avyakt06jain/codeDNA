@@ -95,10 +95,11 @@
 - Review Workspace and Memory Lab now display bounded normalized persisted review run IDs in their result summaries. Invalid/overlong IDs are omitted, and the identifiers remain outside live regions and authorization decisions.
 - Memory Lab now rejects optional evaluation-level run-ID metadata unless each present ID is valid and matches its nested memory/baseline run. An active completed job with contradictory metadata surfaces a terminal missing-result error and renders no guardrails or misleading ID.
 - Memory Lab latest-result recovery now treats only an explicit null comparison as empty. A present result that fails correlation validation surfaces a task-specific integrity alert; manual creation-status reconciliation remains fail-closed, focused, and GET-only.
+- Review Workspace latest-result recovery now treats only an explicit null review as empty. A present result must be an object with a valid bounded run ID; otherwise initial/manual recovery surfaces a task-specific integrity alert and renders no findings.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by applying the absent-versus-invalid recovery boundary to persisted latest reviews.
+- Post-MVP trust hardening continues by applying the valid-run-ID boundary to completed active-job review payloads.
 
 ## Blocked
 
@@ -122,9 +123,19 @@
 
 ## Next Action
 
-Require a valid correlation ID on a non-null persisted latest review and surface a task-specific integrity error when it fails normalization. Keep the ordinary empty state reserved for a genuinely null review, and cover initial and manual recovery without replacement POST/provider work.
+Reject a completed active review job whose non-null review payload lacks a valid bounded run ID. Surface the existing terminal job error instead of rendering uncorrelated findings, and prove the locator clears without a replacement POST/provider call.
 
 ## Session Log
+
+### 2026-11-08 — Truthful invalid-review recovery
+
+- Goal: Prevent a malformed persisted latest review from appearing as usable findings without an inspectable run correlation ID.
+- Implemented: `api.latestReview` now returns `null` only for an explicit null review. A non-null value must be an object whose normalized `run_id` passes the bounded grammar; otherwise `InvalidReviewResultError` enters the existing task-specific recovery alert. Initial recovery offers the GET-only saved-recovery retry. Manual creation-status reconciliation remains uncertain, keeps creation disabled, and refocuses `Check creation status`. Neither path renders findings.
+- Focused checks: `npm test -- --run src/ui.test.tsx -t "invalid stored review"` → **2 passed, 65 skipped**. The cases assert one latest-result GET and zero POSTs on initial recovery, plus exactly one original creation POST and two latest-result GETs during manual reconciliation.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **85 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 331.94 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: API health returned `ok`, Hindsight truthfully remained `unavailable`, and Review Workspace returned HTTP 200 after Vite hot reload.
+- Provider safety: the slice validates an existing application response in the browser, adds no request, and starts no Hindsight/Gemini or paid usage.
+- Next: reject malformed review correlation IDs at the completed active-job boundary too.
 
 ### 2026-11-08 — Truthful invalid-comparison recovery
 
