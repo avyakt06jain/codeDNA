@@ -91,10 +91,11 @@
 - Read-only review/comparison status, active-job discovery, latest-result recovery, and repository active-summary requests now abort after 10 seconds. Status timeout enters the existing transient reconnect loop for the same locator; saved recovery remains actionable and issues no POST.
 - Review and comparison creation responses now time out after 10 seconds without replay: three bounded active-claim GETs reattach a visible backend job, while an unresolved claim clears exact-PR readiness and disables another creation attempt until reconciliation.
 - Unresolved creation uncertainty now exposes an exact-PR/kind `Check creation status` action. It checks active work and then the latest persisted result through GET only, keeps creation disabled after read failure, and restores deterministic keyboard focus after resolution.
+- Review Workspace now labels latest-result recovery as `Latest saved review restored` across initial load, manual creation-status reconciliation, and missing-job fallback; only a job completion observed through polling says `Review complete`.
 
 ## In Progress
 
-- Post-MVP demo clarity work continues by distinguishing a restored Review Workspace result from a newly completed run in visible and announced stage text.
+- Post-MVP observability work continues by exposing persisted review run IDs in the visible result summaries with bounded display validation.
 
 ## Blocked
 
@@ -118,9 +119,19 @@
 
 ## Next Action
 
-Add a distinct `review_restored` label when Review Workspace loads a persisted completed review through initial, manual creation-status, or missing-job fallback recovery. Keep new-run completion wording unchanged and cover the label with focused accessibility assertions.
+Display validated persisted run IDs in Review Workspace and the memory/baseline Memory Lab columns. Keep them out of live regions, reject malformed/unbounded identifiers in the API normalizer, and add focused rendering/validation tests.
 
 ## Session Log
+
+### 2026-11-07 — Truthful restored-review stage
+
+- Goal: Stop presenting a persisted Review Workspace result as though a new review had just completed.
+- Implemented: added the controlled frontend stage `review_restored` with label `Latest saved review restored`. Initial latest-result load, manual creation-status latest-result recovery, and missing-active-job fallback now use it. Results that complete through active job polling still use `Review complete`. The persistent polite live region remains the single matching status announcement.
+- Focused checks: `npm test -- --run src/text.test.ts src/ui.test.tsx -t "restored|restores the latest memory|clears a missing active review"` → **3 passed, 67 skipped** across one executed and one filter-skipped file. Assertions cover initial recovery, manual creation-status recovery, missing-job fallback, visible text, and one exact live-region announcement.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **78 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 331.08 kB JavaScript and 16.36 kB CSS before gzip.
+- Live app: API health remained `ok`, Hindsight truthfully remained `unavailable`, and Review Workspace returned HTTP 200 after Vite hot reload.
+- Provider safety: this is display-only state derived from existing persisted-result GETs; it sends no additional request and starts no provider work.
+- Next: expose sanitized persisted run IDs in both product result summaries, matching the Memory Lab feature contract.
 
 ### 2026-11-07 — Creation-status completed-result restoration coverage
 

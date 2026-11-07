@@ -526,6 +526,8 @@ it("restores the latest memory review after the pull-request page reloads", asyn
   expect(team.textContent).toContain("Design mismatch");
   expect(within(team).getByRole("button", { name: "View evidence" })).toBeTruthy();
   expect(within(team).getByRole("button", { name: "Dismiss" })).toBeTruthy();
+  expect(screen.getAllByText("Latest saved review restored").length).toBeGreaterThan(0);
+  expect(screen.getAllByRole("status").filter((item) => item.textContent === "Latest saved review restored")).toHaveLength(1);
 });
 
 it("reattaches to an active review after refresh without starting another job", async () => {
@@ -680,6 +682,7 @@ it("restores a completed review found during manual creation-status reconciliati
   fireEvent.click(await screen.findByRole("button", { name: "Check creation status" }));
   expect(await screen.findByRole("article", { name: "Direct status write skips the service" })).toBeTruthy();
   await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("heading", { name: /Review findings/ })));
+  expect(screen.getAllByText("Latest saved review restored").length).toBeGreaterThan(0);
   expect(screen.queryByRole("button", { name: "Check creation status" })).toBeNull();
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=review"))).toHaveLength(5);
@@ -795,6 +798,7 @@ it("clears a missing active review and restores the latest completed result", as
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(1);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(1);
   expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
+  expect(screen.getAllByText("Latest saved review restored").length).toBeGreaterThan(0);
 });
 
 it("shows active and superseded evidence for a design-mismatch finding", async () => {

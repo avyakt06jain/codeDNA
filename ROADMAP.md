@@ -169,7 +169,8 @@
 - **Verified:** An unresolved outcome exposes `Check creation status`, which performs only exact-PR/kind active and latest-result GETs. Active or completed work is resumed, an empty successful boundary safely reenables creation, failures remain fail-closed, and focus moves to the resolved workspace/result or retry action.
 - **Verified:** Review Workspace and Memory Lab regressions prove that a claim first visible during the manual check is reattached after exactly one POST, while a manual status-read failure keeps creation disabled, recreates/focuses the action, and performs no latest-result read.
 - **Verified:** When active discovery stays empty but a completed review/comparison first appears during manual creation-status reconciliation, each workspace restores it through the latest-result GET, focuses its result heading, performs no job-status poll, and sends no replacement POST.
-- **Next:** Give restored Review Workspace results a distinct saved-result stage label instead of presenting them as a newly completed run, matching Memory Lab's existing restored state.
+- **Verified:** Review Workspace labels initial, manual creation-status, and missing-job latest-result recovery as `Latest saved review restored`; newly polled completion remains `Review complete`, and the restored label is emitted once through the persistent live region.
+- **Next:** Surface persisted review run IDs in Review Workspace and both Memory Lab columns so judges can correlate visible results with API evidence; validate/sanitize the display and correct the existing feature-doc claim.
 
 ## Documentation and version-control policy
 

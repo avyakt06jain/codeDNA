@@ -21,6 +21,7 @@ const STAGES: Record<string, string> = {
   reconnecting: "Connection interrupted. Reconnecting to the existing review…",
   status_unavailable: "Status temporarily unavailable",
   review_reattached: "Existing review found. Reattached without starting another provider call.",
+  review_restored: "Latest saved review restored",
   complete: "Review complete",
   completed: "Review complete",
   failed: "The review failed",

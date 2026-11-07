@@ -56,6 +56,8 @@ describe("memory and timings", () => {
     expect(stageLabel("reconnecting")).toBe("Connection interrupted. Reconnecting to the existing review…");
     expect(stageLabel("status_unavailable")).toBe("Status temporarily unavailable");
     expect(stageLabel("review_reattached")).toBe("Existing review found. Reattached without starting another provider call.");
+    expect(stageLabel("review_restored")).toBe("Latest saved review restored");
+    expect(stageLabel("complete")).toBe("Review complete");
     expect(comparisonStageLabel("comparison_reattached")).toBe("Existing comparison found. Reattached without starting either provider branch.");
   });
 });

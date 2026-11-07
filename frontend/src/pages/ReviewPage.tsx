@@ -112,7 +112,7 @@ export function ReviewPage() {
             if (cancelled) return;
             if (restored) {
               setReview(restored);
-              setStage("complete");
+              setStage("review_restored");
               return;
             }
           } catch (fallbackReason) {
@@ -171,7 +171,7 @@ export function ReviewPage() {
             observeJob(recoveryResult.value.job.jobId, recoveryResult.value.job, reconcilingCreation);
           } else if (recoveryResult.value.review) {
             setReview(recoveryResult.value.review);
-            setStage("complete");
+            setStage("review_restored");
           } else if (recoveryRetryRequested.current) {
             setRecoveryMessage(reconcilingCreation
               ? "Creation status checked. No active or completed review was found, and no provider work was started by this check. You can start a new review."
@@ -297,7 +297,7 @@ export function ReviewPage() {
           if (!alive.current) return;
           if (restored) {
             setReview(restored);
-            setStage("complete");
+            setStage("review_restored");
             return;
           }
         } catch (fallbackReason) {
