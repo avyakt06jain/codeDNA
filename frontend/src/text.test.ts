@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeJobTimestamp, normalizeReview, normalizeRunId } from "./api";
+import { normalizeComparison, normalizeJobTimestamp, normalizeReview, normalizeRunId } from "./api";
 import { JOB_STALE_AFTER_MS, isStaleJob } from "./components/ActiveJobDetails";
 import { bindingCopy, comparisonStageLabel, feedbackPayload, formatSeconds, memoryLabel, preferredPullRequestId, stageLabel, traceSteps } from "./text";
 
@@ -30,6 +30,25 @@ describe("memory and timings", () => {
     expect(normalizeRunId("<script>alert(1)</script>")).toBe("");
     expect(normalizeRunId(`run-${"a".repeat(101)}`)).toBe("");
     expect(normalizeReview({ run_id: "invalid id", findings: [] }).run_id).toBe("");
+  });
+
+  it("fails closed when comparison run correlation metadata is malformed or mismatched", () => {
+    const comparison = {
+      evaluation: { checks: {}, run_ids: { memory: "run-memory", baseline: "run-baseline" } },
+      memory: { run_id: "run-memory", mode: "memory", findings: [] },
+      baseline: { run_id: "run-baseline", mode: "baseline", findings: [] },
+    };
+    expect(normalizeComparison(comparison)?.evaluation.run_ids).toEqual({ memory: "run-memory", baseline: "run-baseline" });
+    expect(normalizeComparison({ ...comparison, evaluation: { checks: {} } })).not.toBeNull();
+    expect(normalizeComparison({ ...comparison, evaluation: { checks: {}, run_ids: "run-memory" } })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      evaluation: { checks: {}, run_ids: { memory: "run-other", baseline: "run-baseline" } },
+    })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      evaluation: { checks: {}, run_ids: { memory: "<invalid>", baseline: "run-baseline" } },
+    })).toBeNull();
   });
 
   it("marks a job stale only after three minutes without an update", () => {

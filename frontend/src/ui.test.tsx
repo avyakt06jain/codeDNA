@@ -1077,6 +1077,29 @@ it("shows a memory-lab trace only for recorded timings and lists guardrails", as
   expect(baseline.textContent?.toLowerCase()).not.toContain("historical evidence");
 });
 
+it("rejects a completed comparison whose evaluation run IDs contradict its nested runs", async () => {
+  const fetchMock = installFetch({
+    comparison: {
+      evaluation: {
+        passed: true,
+        checks: { same_candidate: true },
+        run_ids: { memory: "run-wrong", baseline: "run-b" },
+      },
+      memory: { run_id: "run-m", status: "complete", mode: "memory", findings: [teamFinding] },
+      baseline: { run_id: "run-b", status: "complete", mode: "baseline", findings: [generalFinding] },
+    },
+  });
+  renderAt("/repos/repo-acme-commerce/lab");
+  await screen.findByRole("option", { name: /Update order status/ });
+  const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  expect((await screen.findByRole("alert")).textContent).toContain("The comparison finished without a result.");
+  expect(screen.queryByText("Guardrails passed")).toBeNull();
+  expect(screen.queryByText("run-wrong")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+});
+
 it("makes both recorded held-out evaluation fixtures inspectable in Memory Lab", async () => {
   installFetch();
   renderAt("/repos/repo-acme-commerce/lab");

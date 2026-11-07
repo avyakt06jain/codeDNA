@@ -15,6 +15,8 @@ The deterministic evaluator passes only when:
 
 The UI displays normalized persisted run IDs, timings, findings, categories, citations, and every guardrail. Each memory/baseline column shows only an ID accepted by the bounded `review-...` or `run-...` frontend grammar; invalid values are omitted. These are correlation handles outside live regions, not authorization. The UI does not claim that a passing comparison proves general review accuracy.
 
+If optional `evaluation.run_ids` metadata is present, each supplied value must pass that same grammar and exactly equal its nested memory/baseline review ID. A malformed container, invalid ID, or mismatch rejects the comparison; an active completed job surfaces the existing terminal missing-result error and renders no guardrails. The metadata may be absent because nested persisted runs remain authoritative.
+
 ## Labeled cases
 
 - Acme Commerce: historical PR #103 → held-out PR #120 → active `DEC-0103`.

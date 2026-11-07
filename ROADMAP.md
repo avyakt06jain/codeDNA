@@ -171,7 +171,8 @@
 - **Verified:** When active discovery stays empty but a completed review/comparison first appears during manual creation-status reconciliation, each workspace restores it through the latest-result GET, focuses its result heading, performs no job-status poll, and sends no replacement POST.
 - **Verified:** Review Workspace labels initial, manual creation-status, and missing-job latest-result recovery as `Latest saved review restored`; newly polled completion remains `Review complete`, and the restored label is emitted once through the persistent live region.
 - **Verified:** Review Workspace and both Memory Lab columns display bounded normalized `review-...`/`run-...` correlation IDs outside live regions. Invalid or overlong IDs normalize to absent, and evaluation-level run IDs use the same boundary.
-- **Next:** Validate that optional Memory Lab `evaluation.run_ids` match the normalized nested memory/baseline run IDs; reject mismatched correlation metadata instead of displaying a structurally inconsistent comparison.
+- **Verified:** Optional Memory Lab `evaluation.run_ids` must be a record whose present IDs are valid and equal the normalized nested memory/baseline runs. Absent metadata is accepted; malformed/mismatched metadata rejects the comparison, and a completed job surfaces a terminal error instead of contradictory output.
+- **Next:** Distinguish a missing latest comparison from a present-but-invalid stored comparison so recovery shows an actionable integrity error instead of silently presenting the normal empty state.
 
 ## Documentation and version-control policy
 

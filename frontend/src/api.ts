@@ -401,7 +401,7 @@ export function normalizeReview(raw: Record<string, unknown>): Review {
   };
 }
 
-function normalizeComparison(raw: unknown): Comparison | null {
+export function normalizeComparison(raw: unknown): Comparison | null {
   if (!isRecord(raw)) return null;
   const evaluation = isRecord(raw.evaluation) ? raw.evaluation : null;
   const memory = isRecord(raw.memory) ? raw.memory : null;
@@ -419,21 +419,27 @@ function normalizeComparison(raw: unknown): Comparison | null {
       if (typeof value === "number") counts[key] = value;
     }
   }
+  if (evaluation.run_ids != null && !isRecord(evaluation.run_ids)) return null;
   const runIds = isRecord(evaluation.run_ids) ? evaluation.run_ids : undefined;
+  const memoryReview = normalizeReview(memory);
+  const baselineReview = normalizeReview(baseline);
+  let normalizedRunIds: { memory?: string; baseline?: string } | undefined;
+  if (runIds) {
+    const memoryRunId = runIds.memory == null ? undefined : normalizeRunId(runIds.memory);
+    const baselineRunId = runIds.baseline == null ? undefined : normalizeRunId(runIds.baseline);
+    if (runIds.memory != null && (!memoryRunId || memoryRunId !== memoryReview.run_id)) return null;
+    if (runIds.baseline != null && (!baselineRunId || baselineRunId !== baselineReview.run_id)) return null;
+    if (memoryRunId || baselineRunId) normalizedRunIds = { memory: memoryRunId, baseline: baselineRunId };
+  }
   return {
     evaluation: {
       passed: typeof evaluation.passed === "boolean" ? evaluation.passed : undefined,
       checks,
       counts: Object.keys(counts).length > 0 ? counts : undefined,
-      run_ids: runIds
-        ? {
-            memory: normalizeRunId(runIds.memory) || undefined,
-            baseline: normalizeRunId(runIds.baseline) || undefined,
-          }
-        : undefined,
+      run_ids: normalizedRunIds,
     },
-    memory: normalizeReview(memory),
-    baseline: normalizeReview(baseline),
+    memory: memoryReview,
+    baseline: baselineReview,
   };
 }
 

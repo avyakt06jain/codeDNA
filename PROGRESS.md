@@ -93,10 +93,11 @@
 - Unresolved creation uncertainty now exposes an exact-PR/kind `Check creation status` action. It checks active work and then the latest persisted result through GET only, keeps creation disabled after read failure, and restores deterministic keyboard focus after resolution.
 - Review Workspace now labels latest-result recovery as `Latest saved review restored` across initial load, manual creation-status reconciliation, and missing-job fallback; only a job completion observed through polling says `Review complete`.
 - Review Workspace and Memory Lab now display bounded normalized persisted review run IDs in their result summaries. Invalid/overlong IDs are omitted, and the identifiers remain outside live regions and authorization decisions.
+- Memory Lab now rejects optional evaluation-level run-ID metadata unless each present ID is valid and matches its nested memory/baseline run. An active completed job with contradictory metadata surfaces a terminal missing-result error and renders no guardrails or misleading ID.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by reconciling optional comparison-level run-ID metadata with the normalized nested memory/baseline results.
+- Post-MVP trust hardening continues by distinguishing absent stored comparisons from present-but-invalid persisted comparison payloads during recovery.
 
 ## Blocked
 
@@ -120,9 +121,19 @@
 
 ## Next Action
 
-Require optional `evaluation.run_ids` to match the normalized memory and baseline review IDs when present. Add valid, absent, malformed, and mismatch cases; fail closed without fabricating or rewriting identifiers.
+When `/comparisons/latest` returns a non-null comparison that fails normalization, surface a task-specific integrity error and keep the ordinary empty state reserved for a genuinely null result. Cover initial and manual recovery without any POST/provider work.
 
 ## Session Log
+
+### 2026-11-07 — Comparison run-ID correlation integrity
+
+- Goal: Prevent Memory Lab from presenting evaluation correlation metadata that contradicts the two persisted runs it summarizes.
+- Implemented: comparison normalization now treats optional `evaluation.run_ids` as a consistency check. Every present memory/baseline ID must pass the bounded run-ID grammar and exactly match the corresponding normalized nested review. Absent metadata remains valid; malformed containers, invalid IDs, and mismatches reject the comparison. A completed job with rejected metadata follows the existing terminal missing-result path and renders no guardrails or contradictory ID.
+- Focused checks: `npm test -- --run src/text.test.ts src/ui.test.tsx -t "comparison run correlation|evaluation run IDs contradict"` → **2 passed, 71 skipped across 2 files**. Unit cases cover valid, absent, malformed, invalid, and mismatched metadata; the product case verifies a terminal alert and no misleading result rendering.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **81 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 331.58 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: API health remained `ok`, Hindsight truthfully remained `unavailable`, and Memory Lab returned HTTP 200 after Vite hot reload.
+- Provider safety: validation occurs entirely in the browser against an existing response and adds no request, provider call, or paid usage.
+- Next: make invalid persisted latest-comparison payloads visibly distinct from a legitimate no-result response.
 
 ### 2026-11-07 — Inspectable bounded review run IDs
 
