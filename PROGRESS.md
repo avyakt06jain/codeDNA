@@ -96,10 +96,11 @@
 - Memory Lab now rejects optional evaluation-level run-ID metadata unless each present ID is valid and matches its nested memory/baseline run. An active completed job with contradictory metadata surfaces a terminal missing-result error and renders no guardrails or misleading ID.
 - Memory Lab latest-result recovery now treats only an explicit null comparison as empty. A present result that fails correlation validation surfaces a task-specific integrity alert; manual creation-status reconciliation remains fail-closed, focused, and GET-only.
 - Review Workspace latest-result recovery now treats only an explicit null review as empty. A present result must be an object with a valid bounded run ID; otherwise initial/manual recovery surfaces a task-specific integrity alert and renders no findings.
+- Completed active-review jobs now pass the same bounded run-ID integrity check. Failure is terminal, clears the active locator, renders no findings, and performs no latest-result fallback or replacement POST.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by applying the valid-run-ID boundary to completed active-job review payloads.
+- Post-MVP trust hardening continues by requiring valid nested run IDs on every Memory Lab comparison, including payloads without optional evaluation-level correlation metadata.
 
 ## Blocked
 
@@ -123,9 +124,19 @@
 
 ## Next Action
 
-Reject a completed active review job whose non-null review payload lacks a valid bounded run ID. Surface the existing terminal job error instead of rendering uncorrelated findings, and prove the locator clears without a replacement POST/provider call.
+Require both nested memory and baseline reviews in every comparison to carry valid bounded run IDs, even when `evaluation.run_ids` is absent. Reject invalid latest and active-job results without rendering guardrails or starting replacement work.
 
 ## Session Log
+
+### 2026-11-08 — Active-review correlation integrity
+
+- Goal: Prevent a completed background review job from rendering findings that cannot be correlated to a valid persisted review run.
+- Implemented: `api.reviewJob` now normalizes a completed review and requires its `run_id` to pass the bounded correlation grammar. Failure raises `TerminalJobError`, so Review Workspace renders the explicit integrity error, clears the active session locator and diagnostics, and never falls back to the latest-result endpoint or creates replacement work. The HTTP fixture now supports an independently malformed completed review payload.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "active job result without a valid review correlation"` → **1 passed, 67 skipped**. The regression verifies one active-job GET, zero latest-result GETs, zero POSTs, no findings, and locator cleanup.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **86 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 332.03 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: API health returned `ok`, Hindsight truthfully remained `unavailable`, and Review Workspace returned HTTP 200 after Vite hot reload.
+- Provider safety: this is a deterministic client trust-boundary check on an existing job response. It adds no request and starts no Hindsight/Gemini or paid usage.
+- Next: require valid nested memory and baseline run IDs for every comparison payload, even when optional evaluation correlation metadata is absent.
 
 ### 2026-11-08 — Truthful invalid-review recovery
 

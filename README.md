@@ -43,6 +43,7 @@ CodeDNA separates memory from authority:
 - Fail-closed Memory Lab correlation checks: optional evaluation run IDs must match the persisted memory/baseline runs or the comparison is rejected
 - Truthful latest-comparison recovery: a null result is empty, while a present payload that fails correlation validation produces an actionable integrity alert instead of `No comparison yet`
 - Truthful latest-review recovery: a null result is empty, while a present review must carry a valid bounded run ID or produce an actionable integrity alert instead of rendering uncorrelated findings
+- Fail-closed active review completion: a terminal job without a valid bounded review run ID clears its recovery locator and renders an integrity error instead of findings
 - Safe stale-job recovery that clears a missing locator and restores the latest persisted same-PR result without rerunning providers
 - Read-only same-PR active-job discovery after tab/session loss, before any completed-result fallback
 - Atomic same-PR active-job reuse so simultaneous tabs schedule only one provider task

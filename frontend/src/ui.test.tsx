@@ -140,6 +140,7 @@ function installFetch(options?: {
   interruptedJobs?: number;
   decisionsWrapped?: boolean;
   comparison?: Record<string, unknown>;
+  completedReview?: Record<string, unknown>;
   latestComparison?: Record<string, unknown>;
   latestReview?: boolean | Record<string, unknown>;
   latestReviewAfterRead?: number;
@@ -384,7 +385,14 @@ function installFetch(options?: {
         reviewPollFailures -= 1;
         return json({ detail: "temporary outage" }, 503);
       }
-      return json({ status: "complete", stage: "complete", error_code: null, created_at: jobCreatedAt, updated_at: jobUpdatedAt, review });
+      return json({
+        status: "complete",
+        stage: "complete",
+        error_code: null,
+        created_at: jobCreatedAt,
+        updated_at: jobUpdatedAt,
+        review: options?.completedReview ?? review,
+      });
     }
     if (path.endsWith("/comparison") && method === "POST") {
       if (options?.comparisonCreationHangs) {
@@ -555,6 +563,21 @@ it("reattaches to an active review after refresh without starting another job", 
   expect(await screen.findByRole("article", { name: "Direct status write skips the service" }, { timeout: 3000 })).toBeTruthy();
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(2);
+  expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
+});
+
+it("rejects an active job result without a valid review correlation ID", async () => {
+  const fetchMock = installFetch({
+    activeReviewJob: true,
+    completedReview: { ...review, run_id: "invalid id" },
+  });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("The review finished with invalid correlation metadata.");
+  expect(screen.queryByRole("article", { name: "Direct status write skips the service" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
 });
 

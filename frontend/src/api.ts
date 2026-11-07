@@ -613,7 +613,11 @@ export const api = {
     if (!job) return null;
     if (job.status === "failed") throw jobFailure(job, "The review failed");
     if (!isRecord(job.review)) throw new TerminalJobError("The review finished without a result.");
-    return normalizeReview(job.review);
+    const review = normalizeReview(job.review);
+    if (!review.run_id) {
+      throw new TerminalJobError("The review finished with invalid correlation metadata.");
+    }
+    return review;
   },
   async review(prId: string, memoryEnabled: boolean, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
     const started = await api.startReview(prId, memoryEnabled);

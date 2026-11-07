@@ -174,7 +174,8 @@
 - **Verified:** Optional Memory Lab `evaluation.run_ids` must be a record whose present IDs are valid and equal the normalized nested memory/baseline runs. Absent metadata is accepted; malformed/mismatched metadata rejects the comparison, and a completed job surfaces a terminal error instead of contradictory output.
 - **Verified:** Latest-comparison recovery reserves the ordinary empty state for an explicit null result. A present payload that fails structural or run-correlation normalization surfaces an actionable integrity error during initial and manual creation-status recovery, with no replacement POST or provider work.
 - **Verified:** Latest-review recovery reserves the ordinary empty state for an explicit null result. A present payload must be an object with a valid bounded run ID or initial/manual recovery surfaces an actionable integrity error, renders no findings, and starts no replacement provider work.
-- **Next:** Enforce the same valid-run-ID requirement on reviews returned by completed active-job polling so a malformed terminal job cannot render uncorrelated findings.
+- **Verified:** Completed active-review jobs must return a review with a valid bounded run ID. Invalid correlation metadata produces a terminal integrity error, renders no findings, clears the active locator, and makes no latest-result or replacement creation request.
+- **Next:** Require valid nested memory and baseline run IDs for every comparison, even when optional evaluation-level correlation metadata is absent, so guardrails cannot render against uncorrelated runs.
 
 ## Documentation and version-control policy
 
