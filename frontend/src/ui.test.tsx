@@ -159,6 +159,8 @@ function installFetch(options?: {
   repositoryActiveJobsCompleteAfter?: number;
   repositoryActiveJobFailures?: number;
   reusedReviewStart?: boolean;
+  reviewCreationHangs?: boolean;
+  reviewCreationClaimVisible?: boolean;
   reusedComparisonStart?: boolean;
   pollDelayMs?: number;
   reviewPollGate?: Promise<void>;
@@ -182,6 +184,7 @@ function installFetch(options?: {
   let evaluationCaseFailures = options?.evaluationCaseFailures ?? 0;
   let evaluationCaseReads = 0;
   let healthFailures = options?.healthFailures ?? 0;
+  let reviewCreationClaimed = false;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const url = new URL(raw, "http://localhost");
@@ -286,7 +289,7 @@ function installFetch(options?: {
       }
       const jobId = kind === "comparison"
         ? options?.activeComparisonJob ? "job-cmp" : null
-        : options?.activeReviewJob ? "job-review" : null;
+        : options?.activeReviewJob || reviewCreationClaimed ? "job-review" : null;
       return json({
         pr_id: "pr-acme-87",
         kind,
@@ -322,6 +325,12 @@ function installFetch(options?: {
     }
     if (path.includes("/decisions")) return json(options?.decisionsWrapped ? { items: decisions } : decisions);
     if (path.endsWith("/review-jobs") && method === "POST") {
+      if (options?.reviewCreationHangs) {
+        reviewCreationClaimed = options.reviewCreationClaimVisible !== false;
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+        });
+      }
       return json({ job_id: "job-review", status: "queued", stage: "queued", reused: options?.reusedReviewStart === true, created_at: jobCreatedAt, updated_at: jobCreatedAt }, 202);
     }
     if (path === "/api/review-jobs/job-review") {
@@ -528,6 +537,32 @@ it("announces when starting a review reuses existing provider work", async () =>
   }
   expect(await screen.findByRole("article", { name: "Direct status write skips the service" })).toBeTruthy();
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+});
+
+it("reconciles a lost review-creation response through the backend claim", async () => {
+  const fetchMock = installFetch({ reviewCreationHangs: true, pollDelayMs: 50 });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const run = screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  expect((await screen.findAllByText("Existing review found. Reattached without starting another provider call.")).length).toBeGreaterThan(0);
+  expect(await screen.findByRole("article", { name: "Direct status write skips the service" }, { timeout: 3000 })).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=review"))).toHaveLength(2);
+});
+
+it("fails closed when a lost creation response has no visible backend claim", async () => {
+  const fetchMock = installFetch({ reviewCreationHangs: true, reviewCreationClaimVisible: false });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const run = screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("The review creation response was lost and no active job is visible yet.");
+  expect(alert.textContent).toContain("Reload this page to reconcile before trying again.");
+  expect(run.disabled).toBe(true);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=review"))).toHaveLength(4);
 });
 
 it("keeps review creation disabled until persisted recovery completes", async () => {

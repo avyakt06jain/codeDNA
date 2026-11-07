@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { api, isTransientRequestError, MissingJobError, PollingUnavailableError, TerminalJobError, type Comparison, type EvaluationCase, type JobTiming, type PullRequestSummary, type Review } from "../api";
+import { api, CreationOutcomeUnknownError, isTransientRequestError, MissingJobError, PollingUnavailableError, TerminalJobError, type Comparison, type EvaluationCase, type JobTiming, type PullRequestSummary, type Review } from "../api";
 import { clearActiveJob, loadActiveJob, saveActiveJob } from "../activeJobs";
 import { ActiveJobDetails } from "../components/ActiveJobDetails";
 import { FindingArticle } from "../components/FindingArticle";
@@ -372,6 +372,7 @@ export function MemoryLabPage() {
       refreshCatalogAfterComparison();
     } catch (reason) {
       if (!alive.current) return;
+      if (reason instanceof CreationOutcomeUnknownError) setRecoveredPrId("");
       terminal = reason instanceof TerminalJobError;
       if (reason instanceof PollingUnavailableError && jobId) setRetryJobId(jobId);
       setError(reason instanceof Error ? reason.message : "Comparison failed");

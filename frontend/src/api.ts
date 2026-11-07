@@ -190,6 +190,8 @@ const POLL_ATTEMPTS = 360;
 const POLL_DELAY_MS = 1000;
 const POLL_RETRY_DELAYS_MS = import.meta.env.MODE === "test" ? [1, 2, 4] as const : [1000, 2000, 4000] as const;
 const JOB_READ_TIMEOUT_MS = import.meta.env.MODE === "test" ? 50 : 10_000;
+const CREATION_RESPONSE_TIMEOUT_MS = import.meta.env.MODE === "test" ? 50 : 10_000;
+const CREATION_RECONCILE_DELAYS_MS = import.meta.env.MODE === "test" ? [0, 1, 2] as const : [0, 250, 750] as const;
 const SAFE_JOB_ID = /^job-[A-Za-z0-9_-]{1,80}$/;
 
 class ApiRequestError extends Error {
@@ -262,6 +264,25 @@ async function requestJobRead<T>(path: string): Promise<T> {
     return await request<T>(path, { signal: controller.signal });
   } catch (reason) {
     if (timedOut) throw new TypeError("The background-job read timed out.");
+    throw reason;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+class CreationResponseTimeoutError extends Error {}
+
+async function requestCreation<T>(path: string, init: RequestInit): Promise<T> {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeout = window.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, CREATION_RESPONSE_TIMEOUT_MS);
+  try {
+    return await request<T>(path, { ...init, signal: controller.signal });
+  } catch (reason) {
+    if (timedOut) throw new CreationResponseTimeoutError("The job creation response timed out.");
     throw reason;
   } finally {
     window.clearTimeout(timeout);
@@ -461,10 +482,26 @@ async function pollReviewJob(
 export class TerminalJobError extends Error {}
 export class MissingJobError extends TerminalJobError {}
 export class PollingUnavailableError extends Error {}
+export class CreationOutcomeUnknownError extends Error {}
 
 function jobFailure(job: ReviewJob, fallback: string): TerminalJobError {
   const code = job.error_code?.trim();
   return new TerminalJobError(code ? `${fallback} (${code}).` : fallback);
+}
+
+async function reconcileTimedOutCreation(prId: string, kind: "review" | "comparison"): Promise<StartedJob> {
+  for (const delayMs of CREATION_RECONCILE_DELAYS_MS) {
+    if (delayMs > 0) await delay(delayMs);
+    try {
+      const active = await api.activeJob(prId, kind);
+      if (active) return { ...active, reused: true };
+    } catch {
+      // A later bounded read may still observe the backend's atomic claim.
+    }
+  }
+  throw new CreationOutcomeUnknownError(
+    `The ${kind} creation response was lost and no active job is visible yet. Reload this page to reconcile before trying again.`,
+  );
 }
 
 export const api = {
@@ -522,10 +559,16 @@ export const api = {
     });
   },
   async startReview(prId: string, memoryEnabled: boolean) {
-    const created = await request<ReviewJob & { reused?: boolean }>(`/api/prs/${prId}/review-jobs`, {
-      method: "POST",
-      body: JSON.stringify({ memory_enabled: memoryEnabled }),
-    });
+    let created: ReviewJob & { reused?: boolean };
+    try {
+      created = await requestCreation<ReviewJob & { reused?: boolean }>(`/api/prs/${prId}/review-jobs`, {
+        method: "POST",
+        body: JSON.stringify({ memory_enabled: memoryEnabled }),
+      });
+    } catch (reason) {
+      if (reason instanceof CreationResponseTimeoutError) return reconcileTimedOutCreation(prId, "review");
+      throw reason;
+    }
     const jobId = jobIdFrom(created.job_id || created.id);
     if (!jobId) throw new Error("The review did not return a job.");
     return { jobId, reused: created.reused === true, ...jobTimingFrom(created) } satisfies StartedJob;
@@ -568,7 +611,13 @@ export const api = {
     return { id: String(row.id ?? ""), binding: row.binding === true };
   },
   async startComparison(prId: string) {
-    const created = await request<ReviewJob & Record<string, unknown>>(`/api/prs/${prId}/comparison`, { method: "POST" });
+    let created: ReviewJob & Record<string, unknown>;
+    try {
+      created = await requestCreation<ReviewJob & Record<string, unknown>>(`/api/prs/${prId}/comparison`, { method: "POST" });
+    } catch (reason) {
+      if (reason instanceof CreationResponseTimeoutError) return reconcileTimedOutCreation(prId, "comparison");
+      throw reason;
+    }
     const jobId = jobIdFrom(created.job_id || created.id);
     if (!jobId) throw new Error("The comparison did not return a job.");
     return { jobId, reused: created.reused === true, ...jobTimingFrom(created) } satisfies StartedJob;

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { api, MissingJobError, PollingUnavailableError, TerminalJobError, type Decision, type Finding, type JobTiming, type PullRequest, type Review } from "../api";
+import { api, CreationOutcomeUnknownError, MissingJobError, PollingUnavailableError, TerminalJobError, type Decision, type Finding, type JobTiming, type PullRequest, type Review } from "../api";
 import { clearActiveJob, loadActiveJob, saveActiveJob } from "../activeJobs";
 import { DiffView } from "../components/DiffView";
 import { ActiveJobDetails } from "../components/ActiveJobDetails";
@@ -239,6 +239,7 @@ export function ReviewPage() {
       setStage("complete");
     } catch (reason) {
       if (!alive.current) return;
+      if (reason instanceof CreationOutcomeUnknownError) setRecoveredPrId("");
       terminal = reason instanceof TerminalJobError;
       if (reason instanceof PollingUnavailableError && jobId) setRetryJobId(jobId);
       setError(reason instanceof Error ? reason.message : "Review failed");

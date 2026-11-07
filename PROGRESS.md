@@ -89,10 +89,11 @@
 - An unknown memory state now offers `Check health again`; the single-flight read cancels pending backoff, disables its control while pending, and returns focus to the persistent result status without starting provider work.
 - Application-health reads now abort after 10 seconds; timeout enters the same unknown/backoff state, releases the single-flight/manual retry guard, preserves prior successful evidence, and cleanup aborts an outstanding read.
 - Read-only review/comparison status, active-job discovery, latest-result recovery, and repository active-summary requests now abort after 10 seconds. Status timeout enters the existing transient reconnect loop for the same locator; saved recovery remains actionable and issues no POST.
+- Review and comparison creation responses now time out after 10 seconds without replay: three bounded active-claim GETs reattach a visible backend job, while an unresolved claim clears exact-PR readiness and disables another creation attempt until reconciliation.
 
 ## In Progress
 
-- Post-MVP work continues by safely reconciling an ambiguous job-creation response through the backend's atomic active-job claim before another creation attempt is permitted.
+- Post-MVP work continues by making unresolved creation uncertainty recheckable through an explicit GET-only action instead of requiring a page reload.
 
 ## Blocked
 
@@ -116,9 +117,20 @@
 
 ## Next Action
 
-Design and implement ambiguous creation-response recovery: if a creation response is lost or hangs, query the same PR/kind active-job claim before allowing another POST, preserve truthful UI wording, and never blindly replay provider work.
+Add an explicit `Check creation status` action after unresolved creation uncertainty. It must query only the same PR/kind active claim and latest persisted result, preserve keyboard focus, and keep creation disabled until that read boundary resolves.
 
 ## Session Log
+
+### 2026-11-07 — Ambiguity-safe creation response recovery
+
+- Goal: Bound a lost or hung creation response without risking a duplicate review/comparison POST or provider call.
+- Implemented: review and comparison creation responses abort after 10 seconds, then perform three short GET-only same-PR/same-kind active-claim checks. A visible claim is returned as reattached work and normal same-ID polling continues. If no claim is visible, a dedicated uncertainty error clears the page's exact-PR readiness marker, disables creation, and instructs the user to reload for reconciliation; the client never automatically replays the POST.
+- Focused checks: `npm test -- --run src/ui.test.tsx -t "lost review-creation|lost creation response"` → **2 passed, 53 skipped**. Tests prove a lost response with a committed claim completes after exactly one POST and one reconciliation read beyond initial recovery; the no-claim case performs exactly one POST plus three reconciliation reads, displays the truthful uncertainty, and leaves creation disabled.
+- Build: `npm run build` → **PASS**, 40 modules, 330.05 kB JavaScript and 16.36 kB CSS before gzip.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **71 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 330.05 kB JavaScript and 16.36 kB CSS before gzip.
+- Live app: after Vite hot reload, the existing API returned `ok`, Hindsight truthfully remained `unavailable`, and Review Workspace returned HTTP 200.
+- Provider safety: reconciliation reads application-owned SQLite job state only. No timeout path issues a second creation request, starts a second provider branch, or treats absence during an outage as proof that no backend work exists.
+- Next: replace the reload requirement with an explicit GET-only creation-status reconciliation action.
 
 ### 2026-11-07 — Bounded background-job read lifetime
 
