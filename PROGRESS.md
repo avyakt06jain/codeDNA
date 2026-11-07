@@ -90,10 +90,11 @@
 - Application-health reads now abort after 10 seconds; timeout enters the same unknown/backoff state, releases the single-flight/manual retry guard, preserves prior successful evidence, and cleanup aborts an outstanding read.
 - Read-only review/comparison status, active-job discovery, latest-result recovery, and repository active-summary requests now abort after 10 seconds. Status timeout enters the existing transient reconnect loop for the same locator; saved recovery remains actionable and issues no POST.
 - Review and comparison creation responses now time out after 10 seconds without replay: three bounded active-claim GETs reattach a visible backend job, while an unresolved claim clears exact-PR readiness and disables another creation attempt until reconciliation.
+- Unresolved creation uncertainty now exposes an exact-PR/kind `Check creation status` action. It checks active work and then the latest persisted result through GET only, keeps creation disabled after read failure, and restores deterministic keyboard focus after resolution.
 
 ## In Progress
 
-- Post-MVP work continues by making unresolved creation uncertainty recheckable through an explicit GET-only action instead of requiring a page reload.
+- Post-MVP reliability work continues by broadening failure/late-claim coverage for the explicit creation-status boundary without weakening its no-replay guarantee.
 
 ## Blocked
 
@@ -117,9 +118,20 @@
 
 ## Next Action
 
-Add an explicit `Check creation status` action after unresolved creation uncertainty. It must query only the same PR/kind active claim and latest persisted result, preserve keyboard focus, and keep creation disabled until that read boundary resolves.
+Add focused regressions for a failed manual creation-status read and an active claim that becomes visible only during that manual check, covering both Review Workspace and Memory Lab while asserting exactly one creation POST.
 
 ## Session Log
+
+### 2026-11-07 — Explicit creation-status reconciliation
+
+- Goal: Resolve a lost creation response without requiring a page reload or risking another provider request.
+- Implemented: Review Workspace and Memory Lab now expose `Check creation status` only for an unresolved creation outcome. The action reruns the existing bounded same-PR/kind active lookup and latest-result fallback through GET only. It reattaches visible work, restores completed work, or truthfully reports an empty boundary and reenables the explicit run control; read failure keeps the control disabled. Manual resolution focuses the restored result, named workspace, or recreated check action.
+- Focused checks: `npm test -- --run src/ui.test.tsx -t "lost review creation|lost comparison creation"` → **2 passed, 54 skipped**. Both cases prove one timed-out creation POST, three automatic claim reads, one explicit active/latest reconciliation, no replacement POST, reenabled creation after a successful empty boundary, and focus on the named workspace.
+- Build: `npm run build` → **PASS**, 40 modules, 330.95 kB JavaScript and 16.36 kB CSS before gzip.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **72 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 331.01 kB JavaScript and 16.36 kB CSS before gzip.
+- Live app: the prior local listeners were no longer running, so the API and Vite were restarted with provider autostart disabled. API health returned `ok`, Hindsight truthfully remained `unavailable`, and Review Workspace plus Memory Lab each returned HTTP 200.
+- Provider safety: the manual action calls only application-owned status/result GETs. It cannot start Hindsight, Gemini, a review, or either comparison branch.
+- Next: cover a failed manual status read and a claim that appears during that manual boundary in both workspaces.
 
 ### 2026-11-07 — Ambiguity-safe creation response recovery
 

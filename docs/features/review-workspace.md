@@ -26,6 +26,8 @@ If the manual retry succeeds but finds neither an active job nor a persisted rev
 
 The creation endpoint also closes the simultaneous-tab race: if another ordinary review is already queued/running for the PR, it returns that job with `reused: true` and schedules no second provider task. The workspace preserves that response field and visibly announces reattachment before polling the existing job.
 
+If the creation response is lost and three automatic active-claim reads remain empty, the run control stays disabled and `Check creation status` becomes the only recovery action. It performs same-PR review active discovery followed by latest-result restoration only when no active claim exists. A job is reattached, a completed review is restored, or a successful empty result reenables the explicit run control; read failure keeps the boundary closed. The action sends no POST and restores keyboard focus to findings, the workspace, or its recreated action.
+
 During a transient polling failure, the persistent live region and visible stage explain that CodeDNA is reconnecting to the existing review. The bounded retry does not enable the run action or create another job.
 
 If all bounded attempts fail, the workspace preserves the active job locator and shows `Check review again`. Activating it polls that same job through GET only; it does not submit the diff or invoke the provider again.

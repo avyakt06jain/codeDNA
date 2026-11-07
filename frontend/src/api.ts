@@ -500,7 +500,7 @@ async function reconcileTimedOutCreation(prId: string, kind: "review" | "compari
     }
   }
   throw new CreationOutcomeUnknownError(
-    `The ${kind} creation response was lost and no active job is visible yet. Reload this page to reconcile before trying again.`,
+    `The ${kind} creation response was lost and no active job is visible yet. Use Check creation status before trying again.`,
   );
 }
 

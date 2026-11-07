@@ -166,7 +166,8 @@
 - **Verified:** Every application-health GET is aborted after 10 seconds; timeout enters the existing unknown/backoff path, releases the single-flight guard, preserves last-known-good context, and remains manually recoverable.
 - **Verified:** Background-job status, active discovery, latest-result recovery, and repository active-summary GETs abort after 10 seconds. Status timeout is transient and retries the same job ID; recovery remains actionable and GET-only; creation POSTs are never replayed.
 - **Verified:** A creation response that exceeds 10 seconds triggers three bounded GET-only checks for the backend's atomic same-PR/same-kind claim. A discovered job is reattached and polled after exactly one POST; an unresolved outcome disables another creation attempt until page reconciliation.
-- **Next:** Replace the unresolved-creation reload instruction with an explicit GET-only `Check creation status` action that preserves keyboard focus and never sends another POST.
+- **Verified:** An unresolved outcome exposes `Check creation status`, which performs only exact-PR/kind active and latest-result GETs. Active or completed work is resumed, an empty successful boundary safely reenables creation, failures remain fail-closed, and focus moves to the resolved workspace/result or retry action.
+- **Next:** Add transport-failure and newly-visible-active-claim regressions for the manual creation-status action in both workspaces, without changing its GET-only contract.
 
 ## Documentation and version-control policy
 

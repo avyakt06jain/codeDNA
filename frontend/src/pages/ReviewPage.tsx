@@ -26,6 +26,7 @@ export function ReviewPage() {
   const [recoveryFailed, setRecoveryFailed] = useState(false);
   const [recoveryMessage, setRecoveryMessage] = useState("");
   const [recoveryRetryKey, setRecoveryRetryKey] = useState(0);
+  const [creationUncertainPrId, setCreationUncertainPrId] = useState("");
   const [error, setError] = useState("");
   const [memoryEnabled, setMemoryEnabled] = useState(true);
   const [running, setRunning] = useState(false);
@@ -59,6 +60,7 @@ export function ReviewPage() {
 
   useEffect(() => {
     recoveryRetryRequested.current = false;
+    setCreationUncertainPrId("");
   }, [prId]);
 
   useEffect(() => {
@@ -81,12 +83,12 @@ export function ReviewPage() {
     setFeedbackMessage("");
     setDiffFocus({ line: null, request: 0 });
 
-    function observeJob(jobId: string, timing: JobTiming = {}) {
+    function observeJob(jobId: string, timing: JobTiming = {}, reattached = false) {
       setActiveJobId(jobId);
       setJobTiming(timing);
       saveActiveJob("review", prId, jobId);
       setRunning(true);
-      setStage("queued");
+      setStage(reattached ? "review_reattached" : "queued");
       let terminal = false;
       void api.reviewJob(
         jobId,
@@ -145,6 +147,8 @@ export function ReviewPage() {
         review: job ? null : await api.latestReview(prId, "memory"),
       }));
 
+    const reconcilingCreation = creationUncertainPrId === prId;
+    let recoveryRejected = false;
     Promise.allSettled([api.pr(prId), recovery])
       .then(([pullRequestResult, recoveryResult]) => {
         if (cancelled) return;
@@ -155,22 +159,30 @@ export function ReviewPage() {
           setError(pullRequestResult.reason instanceof Error ? pullRequestResult.reason.message : "Pull request unavailable.");
         }
         if (recoveryResult.status === "rejected") {
+          recoveryRejected = true;
           const detail = recoveryResult.reason instanceof Error ? recoveryResult.reason.message : "Saved review recovery failed.";
-          setError(`Review recovery unavailable: ${detail} No review or provider call was started. Use the controls to start a new review when dependencies are ready.`);
+          setError(reconcilingCreation
+            ? `Review creation status is still unavailable: ${detail} No review or provider call was started by this check. Check creation status again before trying another review.`
+            : `Review recovery unavailable: ${detail} No review or provider call was started. Use the controls to start a new review when dependencies are ready.`);
           setRecoveryFailed(true);
-        } else if (recoveryResult.value.job) {
-          observeJob(recoveryResult.value.job.jobId, recoveryResult.value.job);
-        } else if (recoveryResult.value.review) {
-          setReview(recoveryResult.value.review);
-          setStage("complete");
-        } else if (recoveryRetryRequested.current) {
-          setRecoveryMessage("Saved review recovery completed. No persisted review was found, and no provider work was started.");
+        } else {
+          if (reconcilingCreation) setCreationUncertainPrId("");
+          if (recoveryResult.value.job) {
+            observeJob(recoveryResult.value.job.jobId, recoveryResult.value.job, reconcilingCreation);
+          } else if (recoveryResult.value.review) {
+            setReview(recoveryResult.value.review);
+            setStage("complete");
+          } else if (recoveryRetryRequested.current) {
+            setRecoveryMessage(reconcilingCreation
+              ? "Creation status checked. No active or completed review was found, and no provider work was started by this check. You can start a new review."
+              : "Saved review recovery completed. No persisted review was found, and no provider work was started.");
+          }
         }
       })
       .finally(() => {
         if (!cancelled) {
           setLoading(false);
-          setRecoveredPrId(prId);
+          if (!reconcilingCreation || !recoveryRejected) setRecoveredPrId(prId);
         }
       });
     return () => {
@@ -239,7 +251,11 @@ export function ReviewPage() {
       setStage("complete");
     } catch (reason) {
       if (!alive.current) return;
-      if (reason instanceof CreationOutcomeUnknownError) setRecoveredPrId("");
+      if (reason instanceof CreationOutcomeUnknownError) {
+        setCreationUncertainPrId(prId);
+        setRecoveryFailed(true);
+        setRecoveredPrId("");
+      }
       terminal = reason instanceof TerminalJobError;
       if (reason instanceof PollingUnavailableError && jobId) setRetryJobId(jobId);
       setError(reason instanceof Error ? reason.message : "Review failed");
@@ -370,7 +386,7 @@ export function ReviewPage() {
       {error ? <ErrorNote>{error}</ErrorNote> : null}
       {recoveryFailed ? (
         <button ref={recoveryRetryButton} type="button" className="secondary" disabled={loading || running} onClick={retrySavedRecovery}>
-          Retry saved review recovery
+          {creationUncertainPrId === prId ? "Check creation status" : "Retry saved review recovery"}
         </button>
       ) : null}
       <ActiveJobDetails jobId={activeJobId} status={stageLabel(stage)} {...jobTiming} />

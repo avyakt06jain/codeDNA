@@ -83,6 +83,7 @@ export function MemoryLabPage() {
   const [recoveryFailed, setRecoveryFailed] = useState(false);
   const [recoveryMessage, setRecoveryMessage] = useState("");
   const [recoveryRetryKey, setRecoveryRetryKey] = useState(0);
+  const [creationUncertainPrId, setCreationUncertainPrId] = useState("");
   const [running, setRunning] = useState(false);
   const [activeJobId, setActiveJobId] = useState("");
   const [jobTiming, setJobTiming] = useState<JobTiming>({});
@@ -107,6 +108,7 @@ export function MemoryLabPage() {
 
   useEffect(() => {
     recoveryRetryRequested.current = false;
+    setCreationUncertainPrId("");
   }, [prId]);
 
   useEffect(() => {
@@ -200,13 +202,13 @@ export function MemoryLabPage() {
       };
     }
 
-    function observeJob(jobId: string, timing: JobTiming = {}) {
+    function observeJob(jobId: string, timing: JobTiming = {}, reattached = false) {
       setRestoring(false);
       setActiveJobId(jobId);
       setJobTiming(timing);
       saveActiveJob("comparison", prId, jobId);
       setRunning(true);
-      setStage("queued");
+      setStage(reattached ? "comparison_reattached" : "queued");
       setError("");
       let terminal = false;
       void api.comparisonJob(
@@ -262,6 +264,8 @@ export function MemoryLabPage() {
 
     setRestoring(true);
     setError("");
+    const reconcilingCreation = creationUncertainPrId === prId;
+    let recoveryRejected = false;
     void (async () => {
       try {
         const activeJob = savedJobId
@@ -269,27 +273,34 @@ export function MemoryLabPage() {
           : await api.activeJob(prId, "comparison");
         if (cancelled) return;
         if (activeJob) {
-          observeJob(activeJob.jobId, activeJob);
+          if (reconcilingCreation) setCreationUncertainPrId("");
+          observeJob(activeJob.jobId, activeJob, reconcilingCreation);
           return;
         }
         const result = await api.latestComparison(prId);
         if (!cancelled) {
+          if (reconcilingCreation) setCreationUncertainPrId("");
           setComparison(result);
           setStage(result ? "comparison_restored" : "");
           if (!result && recoveryRetryRequested.current) {
-            setRecoveryMessage("Saved comparison recovery completed. No persisted comparison was found, and no provider branch was started.");
+            setRecoveryMessage(reconcilingCreation
+              ? "Creation status checked. No active or completed comparison was found, and no provider branch was started by this check. You can start a new comparison."
+              : "Saved comparison recovery completed. No persisted comparison was found, and no provider branch was started.");
           }
         }
       } catch (reason) {
         if (!cancelled) {
+          recoveryRejected = true;
           const detail = reason instanceof Error ? reason.message : "Saved comparison recovery failed.";
-          setError(`Comparison recovery unavailable: ${detail} No comparison or provider branch was started. Run a new comparison when memory is connected.`);
+          setError(reconcilingCreation
+            ? `Comparison creation status is still unavailable: ${detail} No comparison or provider branch was started by this check. Check creation status again before trying another comparison.`
+            : `Comparison recovery unavailable: ${detail} No comparison or provider branch was started. Run a new comparison when memory is connected.`);
           setRecoveryFailed(true);
         }
       } finally {
         if (!cancelled) {
           setRestoring(false);
-          setRecoveredPrId(prId);
+          if (!reconcilingCreation || !recoveryRejected) setRecoveredPrId(prId);
         }
       }
     })();
@@ -372,7 +383,11 @@ export function MemoryLabPage() {
       refreshCatalogAfterComparison();
     } catch (reason) {
       if (!alive.current) return;
-      if (reason instanceof CreationOutcomeUnknownError) setRecoveredPrId("");
+      if (reason instanceof CreationOutcomeUnknownError) {
+        setCreationUncertainPrId(selected);
+        setRecoveryFailed(true);
+        setRecoveredPrId("");
+      }
       terminal = reason instanceof TerminalJobError;
       if (reason instanceof PollingUnavailableError && jobId) setRetryJobId(jobId);
       setError(reason instanceof Error ? reason.message : "Comparison failed");
@@ -531,7 +546,7 @@ export function MemoryLabPage() {
         {error ? <ErrorNote>{error}</ErrorNote> : null}
         {recoveryFailed ? (
           <button ref={recoveryRetryButton} type="button" className="secondary" disabled={loading || restoring || running} onClick={retrySavedRecovery}>
-            Retry saved comparison recovery
+            {creationUncertainPrId === selected ? "Check creation status" : "Retry saved comparison recovery"}
           </button>
         ) : null}
         <ActiveJobDetails jobId={activeJobId} status={comparisonStageLabel(stage)} {...jobTiming} />

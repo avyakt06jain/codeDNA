@@ -64,6 +64,8 @@ If the manual retry succeeds but finds neither an active job nor a persisted com
 
 Comparison creation uses the same atomic claim. Concurrent requests for the same PR receive one comparison job ID, and only its creator schedules the memory/baseline branches. A reused response produces an immediate visible and polite reattachment announcement before polling resumes, explicitly stating that neither provider branch was started again.
 
+If the creation response is lost and automatic claim reads remain empty, `Run comparison` stays disabled and `Check creation status` performs only same-PR comparison active discovery plus latest paired-result restoration when no claim exists. It resumes a visible job, restores a completed comparison, or reenables an explicit new run after a successful empty boundary. Read failure remains fail-closed. The action sends no POST, starts neither provider branch, and returns focus to Guardrails, the named workspace, or the recreated check action.
+
 Memory Lab uses one persistent polite/atomic live region for loading, restoration, and background comparison stages. Comparison-specific labels distinguish memory-assisted work, baseline work, completion, and persisted-result restoration instead of announcing these as a generic review.
 
 Transient status-poll failures display and announce that CodeDNA is reconnecting to the existing comparison. The bounded retry reuses its job ID and does not rerun either model branch.

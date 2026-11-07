@@ -162,6 +162,8 @@ function installFetch(options?: {
   reviewCreationHangs?: boolean;
   reviewCreationClaimVisible?: boolean;
   reusedComparisonStart?: boolean;
+  comparisonCreationHangs?: boolean;
+  comparisonCreationClaimVisible?: boolean;
   pollDelayMs?: number;
   reviewPollGate?: Promise<void>;
   latestReviewGate?: Promise<void>;
@@ -185,6 +187,7 @@ function installFetch(options?: {
   let evaluationCaseReads = 0;
   let healthFailures = options?.healthFailures ?? 0;
   let reviewCreationClaimed = false;
+  let comparisonCreationClaimed = false;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const url = new URL(raw, "http://localhost");
@@ -288,7 +291,7 @@ function installFetch(options?: {
         });
       }
       const jobId = kind === "comparison"
-        ? options?.activeComparisonJob ? "job-cmp" : null
+        ? options?.activeComparisonJob || comparisonCreationClaimed ? "job-cmp" : null
         : options?.activeReviewJob || reviewCreationClaimed ? "job-review" : null;
       return json({
         pr_id: "pr-acme-87",
@@ -350,6 +353,12 @@ function installFetch(options?: {
       return json({ status: "complete", stage: "complete", error_code: null, created_at: jobCreatedAt, updated_at: jobUpdatedAt, review });
     }
     if (path.endsWith("/comparison") && method === "POST") {
+      if (options?.comparisonCreationHangs) {
+        comparisonCreationClaimed = options.comparisonCreationClaimVisible !== false;
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+        });
+      }
       return json({ job_id: "job-cmp", status: "queued", stage: "queued", reused: options?.reusedComparisonStart === true, created_at: jobCreatedAt, updated_at: jobCreatedAt }, 202);
     }
     if (path === "/api/review-jobs/job-cmp") {
@@ -551,7 +560,7 @@ it("reconciles a lost review-creation response through the backend claim", async
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=review"))).toHaveLength(2);
 });
 
-it("fails closed when a lost creation response has no visible backend claim", async () => {
+it("fails closed, then reconciles a lost review creation through GET-only status", async () => {
   const fetchMock = installFetch({ reviewCreationHangs: true, reviewCreationClaimVisible: false });
   renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
   const run = screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement;
@@ -559,10 +568,20 @@ it("fails closed when a lost creation response has no visible backend claim", as
   fireEvent.click(run);
   const alert = await screen.findByRole("alert");
   expect(alert.textContent).toContain("The review creation response was lost and no active job is visible yet.");
-  expect(alert.textContent).toContain("Reload this page to reconcile before trying again.");
+  expect(alert.textContent).toContain("Use Check creation status before trying again.");
   expect(run.disabled).toBe(true);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=review"))).toHaveLength(4);
+  const check = screen.getByRole("button", { name: "Check creation status" });
+  check.focus();
+  fireEvent.click(check);
+  expect(await screen.findByText(/Creation status checked\. No active or completed review was found/)).toBeTruthy();
+  await waitFor(() => expect(run.disabled).toBe(false));
+  expect(document.activeElement).toBe(screen.getByRole("region", { name: "Review workspace" }));
+  expect(screen.queryByRole("button", { name: "Check creation status" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=review"))).toHaveLength(5);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(2);
 });
 
 it("keeps review creation disabled until persisted recovery completes", async () => {
@@ -1198,6 +1217,28 @@ it("announces when starting a comparison reuses existing provider work", async (
   }
   expect(await screen.findByText("Guardrails passed")).toBeTruthy();
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+});
+
+it("reconciles a lost comparison creation through an explicit GET-only check", async () => {
+  const fetchMock = installFetch({ comparisonCreationHangs: true, comparisonCreationClaimVisible: false });
+  renderAt("/repos/repo-acme-commerce/lab");
+  await screen.findByRole("option", { name: /Update order status/ });
+  const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("The comparison creation response was lost and no active job is visible yet.");
+  expect(run.disabled).toBe(true);
+  const check = screen.getByRole("button", { name: "Check creation status" });
+  check.focus();
+  fireEvent.click(check);
+  expect(await screen.findByText(/Creation status checked\. No active or completed comparison was found/)).toBeTruthy();
+  await waitFor(() => expect(run.disabled).toBe(false));
+  expect(document.activeElement).toBe(screen.getByRole("region", { name: "Comparison workspace" }));
+  expect(screen.queryByRole("button", { name: "Check creation status" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=comparison"))).toHaveLength(5);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(2);
 });
 
 it("keeps comparison creation disabled until persisted recovery completes", async () => {
