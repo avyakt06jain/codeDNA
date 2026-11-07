@@ -201,6 +201,7 @@ textarea { width: 100%; resize: vertical; }
 .feedback-result, .pass-line { background: var(--green-soft); color: #0d5b36; }
 .fail-line { background: #fde8e4; color: #9f2d3a; }
 .run-summary { display: flex; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 12px; padding: 0 18px 8px; }
+.run-summary code, .lab-column code { color: var(--ink); overflow-wrap: anywhere; }
 .finding-list { display: grid; gap: 12px; padding: 0 14px 14px; }
 .finding, .evidence-card, .timeline-item { border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: white; }
 .finding { border-left-width: 3px; }

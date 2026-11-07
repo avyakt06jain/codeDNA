@@ -13,7 +13,7 @@ The deterministic evaluator passes only when:
 - a memory team finding cites only a retrieved, validated decision;
 - baseline contains neither evidence IDs nor a team-convention finding.
 
-The UI displays raw run IDs, timings, findings, categories, citations, and every guardrail. It does not claim that a passing comparison proves general review accuracy.
+The UI displays normalized persisted run IDs, timings, findings, categories, citations, and every guardrail. Each memory/baseline column shows only an ID accepted by the bounded `review-...` or `run-...` frontend grammar; invalid values are omitted. These are correlation handles outside live regions, not authorization. The UI does not claim that a passing comparison proves general review accuracy.
 
 ## Labeled cases
 

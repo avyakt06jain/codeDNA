@@ -92,10 +92,11 @@
 - Review and comparison creation responses now time out after 10 seconds without replay: three bounded active-claim GETs reattach a visible backend job, while an unresolved claim clears exact-PR readiness and disables another creation attempt until reconciliation.
 - Unresolved creation uncertainty now exposes an exact-PR/kind `Check creation status` action. It checks active work and then the latest persisted result through GET only, keeps creation disabled after read failure, and restores deterministic keyboard focus after resolution.
 - Review Workspace now labels latest-result recovery as `Latest saved review restored` across initial load, manual creation-status reconciliation, and missing-job fallback; only a job completion observed through polling says `Review complete`.
+- Review Workspace and Memory Lab now display bounded normalized persisted review run IDs in their result summaries. Invalid/overlong IDs are omitted, and the identifiers remain outside live regions and authorization decisions.
 
 ## In Progress
 
-- Post-MVP observability work continues by exposing persisted review run IDs in the visible result summaries with bounded display validation.
+- Post-MVP trust hardening continues by reconciling optional comparison-level run-ID metadata with the normalized nested memory/baseline results.
 
 ## Blocked
 
@@ -119,9 +120,19 @@
 
 ## Next Action
 
-Display validated persisted run IDs in Review Workspace and the memory/baseline Memory Lab columns. Keep them out of live regions, reject malformed/unbounded identifiers in the API normalizer, and add focused rendering/validation tests.
+Require optional `evaluation.run_ids` to match the normalized memory and baseline review IDs when present. Add valid, absent, malformed, and mismatch cases; fail closed without fabricating or rewriting identifiers.
 
 ## Session Log
+
+### 2026-11-07 — Inspectable bounded review run IDs
+
+- Goal: Let judges correlate visible Review Workspace and Memory Lab results with persisted API runs without rendering unbounded server strings.
+- Implemented: added a shared run-ID normalizer accepting only bounded `review-...` or `run-...` identifiers. Review payloads and optional comparison evaluation metadata use it. Review Workspace renders the accepted ID in its run summary; each Memory Lab column renders its own accepted ID. Invalid IDs are omitted, code text wraps safely, and the values remain outside live regions.
+- Focused checks: `npm test -- --run src/text.test.ts src/ui.test.tsx -t "bounded review run identifiers|design mismatch and a general|memory-lab trace"` → **3 passed, 68 skipped across 2 files**. Coverage includes valid, markup-like, and overlong normalization plus both product surfaces.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **79 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 331.39 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: API health remained `ok`, Hindsight truthfully remained `unavailable`, and Review Workspace plus Memory Lab each returned HTTP 200 after Vite hot reload.
+- Provider safety: this slice only validates and renders identifiers already present in application responses. It adds no HTTP request, Hindsight/Gemini call, or paid usage.
+- Next: fail closed when optional evaluation-level run-ID correlation disagrees with the two nested comparison runs.
 
 ### 2026-11-07 — Truthful restored-review stage
 

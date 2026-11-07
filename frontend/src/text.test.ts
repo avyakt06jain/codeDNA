@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeJobTimestamp } from "./api";
+import { normalizeJobTimestamp, normalizeReview, normalizeRunId } from "./api";
 import { JOB_STALE_AFTER_MS, isStaleJob } from "./components/ActiveJobDetails";
 import { bindingCopy, comparisonStageLabel, feedbackPayload, formatSeconds, memoryLabel, preferredPullRequestId, stageLabel, traceSteps } from "./text";
 
@@ -22,6 +22,14 @@ describe("memory and timings", () => {
     expect(normalizeJobTimestamp("2026-10-30T06:05:00Z")).toBe("2026-10-30T06:05:00.000Z");
     expect(normalizeJobTimestamp("not-a-time")).toBeUndefined();
     expect(normalizeJobTimestamp(123)).toBeUndefined();
+  });
+
+  it("accepts only bounded review run identifiers", () => {
+    expect(normalizeRunId("review-06a7ee6cdd874e6d")).toBe("review-06a7ee6cdd874e6d");
+    expect(normalizeRunId("run-memory_1")).toBe("run-memory_1");
+    expect(normalizeRunId("<script>alert(1)</script>")).toBe("");
+    expect(normalizeRunId(`run-${"a".repeat(101)}`)).toBe("");
+    expect(normalizeReview({ run_id: "invalid id", findings: [] }).run_id).toBe("");
   });
 
   it("marks a job stale only after three minutes without an update", () => {

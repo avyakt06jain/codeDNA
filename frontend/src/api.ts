@@ -193,6 +193,7 @@ const JOB_READ_TIMEOUT_MS = import.meta.env.MODE === "test" ? 50 : 10_000;
 const CREATION_RESPONSE_TIMEOUT_MS = import.meta.env.MODE === "test" ? 50 : 10_000;
 const CREATION_RECONCILE_DELAYS_MS = import.meta.env.MODE === "test" ? [0, 1, 2] as const : [0, 250, 750] as const;
 const SAFE_JOB_ID = /^job-[A-Za-z0-9_-]{1,80}$/;
+const SAFE_RUN_ID = /^(?:review|run)-[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/;
 
 class ApiRequestError extends Error {
   constructor(message: string, readonly status: number) {
@@ -222,6 +223,11 @@ export function normalizeJobTimestamp(value: unknown): string | undefined {
   if (!raw) return undefined;
   const timestamp = Date.parse(raw);
   return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : undefined;
+}
+
+export function normalizeRunId(value: unknown): string {
+  const runId = asString(value) ?? "";
+  return SAFE_RUN_ID.test(runId) ? runId : "";
 }
 
 function jobTimingFrom(raw: Record<string, unknown>): JobTiming {
@@ -377,7 +383,7 @@ export function normalizeReview(raw: Record<string, unknown>): Review {
   const validation = isRecord(raw.validation) ? raw.validation : undefined;
   const mode = raw.mode === "baseline" ? "baseline" : "memory";
   return {
-    run_id: String(raw.run_id ?? ""),
+    run_id: normalizeRunId(raw.run_id),
     status: String(raw.status ?? ""),
     mode,
     model: asString(raw.model),
@@ -421,8 +427,8 @@ function normalizeComparison(raw: unknown): Comparison | null {
       counts: Object.keys(counts).length > 0 ? counts : undefined,
       run_ids: runIds
         ? {
-            memory: asString(runIds.memory),
-            baseline: asString(runIds.baseline),
+            memory: normalizeRunId(runIds.memory) || undefined,
+            baseline: normalizeRunId(runIds.baseline) || undefined,
           }
         : undefined,
     },

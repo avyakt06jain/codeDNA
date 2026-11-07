@@ -454,6 +454,7 @@ export function ReviewPage() {
               {review ? (
                 <div className="run-summary">
                   <span>{review.mode === "memory" ? "Memory review" : "Baseline review"}</span>
+                  {review.run_id ? <span>Run <code>{review.run_id}</code></span> : null}
                   <span>{review.findings.length} findings</span>
                   {typeof review.elapsed_ms === "number" ? <span>{formatSeconds(review.elapsed_ms)}</span> : null}
                   {review.model ? <span>{review.model}</span> : null}

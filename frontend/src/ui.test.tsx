@@ -504,6 +504,7 @@ it("labels a team finding as a design mismatch and a general finding as general"
   expect(general.textContent?.toLowerCase()).not.toContain("historical evidence");
   expect(within(general).queryByRole("button", { name: "View evidence" })).toBeNull();
   expect(within(team).getByRole("button", { name: "View evidence" })).toBeTruthy();
+  expect(screen.getByText("run-1", { selector: "code" })).toBeTruthy();
   expect(screen.queryByText(/apply suggestion/i)).toBeNull();
   expect(screen.queryByText(/view on github/i)).toBeNull();
 });
@@ -1071,6 +1072,8 @@ it("shows a memory-lab trace only for recorded timings and lists guardrails", as
   const baseline = screen.getByRole("region", { name: "Memory disabled" });
   expect(within(memory).getByText("Design mismatch")).toBeTruthy();
   expect(within(baseline).getByText("General")).toBeTruthy();
+  expect(within(memory).getByText("run-m", { selector: "code" })).toBeTruthy();
+  expect(within(baseline).getByText("run-b", { selector: "code" })).toBeTruthy();
   expect(baseline.textContent?.toLowerCase()).not.toContain("historical evidence");
 });
 

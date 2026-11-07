@@ -39,6 +39,7 @@ CodeDNA separates memory from authority:
 - Bounded reconnect for transient job-status failures, with visible review/comparison-specific status and no replacement POST
 - Ten-second client timeout for read-only job status/recovery requests; timeout preserves the existing locator or actionable GET-only recovery and never replays creation
 - Ambiguity-safe creation timeout with a GET-only `Check creation status` action that resolves active, completed, empty, and failed boundaries without replaying the POST; late-claim, read-outage, and just-completed result behavior is regression tested
+- Bounded persisted run IDs in Review Workspace and both Memory Lab columns for inspectable result correlation without placing identifiers in live status output
 - Safe stale-job recovery that clears a missing locator and restores the latest persisted same-PR result without rerunning providers
 - Read-only same-PR active-job discovery after tab/session loss, before any completed-result fallback
 - Atomic same-PR active-job reuse so simultaneous tabs schedule only one provider task

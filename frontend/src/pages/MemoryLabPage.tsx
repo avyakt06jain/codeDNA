@@ -45,6 +45,7 @@ function RunColumn({ title, note, review }: { title: string; note: string; revie
         {typeof review.elapsed_ms === "number" ? <span>{formatSeconds(review.elapsed_ms)}</span> : null}
       </div>
       {review.model ? <p className="quiet pad-x">{review.model}</p> : null}
+      {review.run_id ? <p className="quiet pad-x">Run <code>{review.run_id}</code></p> : null}
       {review.findings.length === 0 ? <EmptyNote title="No validated findings" /> : (
         <div className="finding-list">
           {review.findings.map((finding) => <FindingArticle key={finding.id} finding={finding} />)}

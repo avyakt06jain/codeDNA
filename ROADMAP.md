@@ -170,7 +170,8 @@
 - **Verified:** Review Workspace and Memory Lab regressions prove that a claim first visible during the manual check is reattached after exactly one POST, while a manual status-read failure keeps creation disabled, recreates/focuses the action, and performs no latest-result read.
 - **Verified:** When active discovery stays empty but a completed review/comparison first appears during manual creation-status reconciliation, each workspace restores it through the latest-result GET, focuses its result heading, performs no job-status poll, and sends no replacement POST.
 - **Verified:** Review Workspace labels initial, manual creation-status, and missing-job latest-result recovery as `Latest saved review restored`; newly polled completion remains `Review complete`, and the restored label is emitted once through the persistent live region.
-- **Next:** Surface persisted review run IDs in Review Workspace and both Memory Lab columns so judges can correlate visible results with API evidence; validate/sanitize the display and correct the existing feature-doc claim.
+- **Verified:** Review Workspace and both Memory Lab columns display bounded normalized `review-...`/`run-...` correlation IDs outside live regions. Invalid or overlong IDs normalize to absent, and evaluation-level run IDs use the same boundary.
+- **Next:** Validate that optional Memory Lab `evaluation.run_ids` match the normalized nested memory/baseline run IDs; reject mismatched correlation metadata instead of displaying a structurally inconsistent comparison.
 
 ## Documentation and version-control policy
 

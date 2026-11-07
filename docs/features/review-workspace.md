@@ -14,6 +14,8 @@ After the backend accepts a review, the page keeps its validated opaque job ID i
 
 A review returned by that latest-result fallback is visibly and politely labeled `Latest saved review restored` through the frontend-only `review_restored` stage. Initial refresh restoration, manual creation-status restoration, and missing-job fallback use the same label. A review that reaches terminal completion while its job is actively polled remains `Review complete`, preventing saved evidence from being presented as newly generated work.
 
+The result summary shows the persisted review run ID only after the API client accepts the bounded `review-...` or `run-...` grammar. Invalid and overlong values are omitted. The ID is correlation text, not authorization, and sits outside the page's live status region.
+
 `Run CodeDNA Review` stays disabled until pull-request loading and that recovery sequence have both completed for the exact route PR. Route changes clear the recovery marker before the control can create work. Tests hold latest-result recovery and reused-job polling behind explicit promise gates, proving the control barrier, zero recovery POSTs, and the reattachment announcement without wall-clock delays.
 
 The page exposes one named `Review workspace` region with `aria-busy=true` for that combined load/recovery boundary and `false` after it settles. The visible loading note remains present, while the existing polite/atomic live region is the only element with status semantics for the loading message. This busy state adds no request, focus movement, or provider work.
