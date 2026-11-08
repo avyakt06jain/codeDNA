@@ -179,7 +179,8 @@
 - **Verified:** Completed comparison polling distinguishes a structurally missing payload from present-but-invalid correlation metadata with separate terminal errors. Both render no guardrails, clear the active locator, and send no replacement request.
 - **Verified:** Every comparison requires exact nested role identity: `memory.mode` is `memory` and `baseline.mode` is `baseline`. Swapped, missing, or malformed modes fail closed across active and latest/manual recovery without guardrails or replacement work.
 - **Verified:** Both nested comparison runs must report terminal `complete` status before guardrails render. Partial, failed, or missing branch status fails closed across active and latest/manual recovery without replacement work.
-- **Next:** Fail closed when a present evaluation `passed` flag contradicts its normalized guardrail checks, so the comparison headline cannot disagree with its details.
+- **Verified:** A present evaluation `passed` flag must equal the conjunction of normalized Boolean guardrail checks. Contradictory headlines fail closed across active and latest/manual recovery without replacement work.
+- **Next:** Require the comparison evaluation to contain the full expected guardrail key set before rendering a completed ablation, preventing a partial evaluator payload from appearing complete.
 
 ## Documentation and version-control policy
 

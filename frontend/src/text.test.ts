@@ -80,6 +80,18 @@ describe("memory and timings", () => {
       ...comparison,
       baseline: { run_id: "run-baseline", mode: "baseline", findings: [] },
     })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      evaluation: { passed: true, checks: { same_candidate: false } },
+    })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      evaluation: { passed: false, checks: { same_candidate: true } },
+    })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      evaluation: { passed: false, checks: { same_candidate: true, grounded: false } },
+    })?.evaluation.passed).toBe(false);
   });
 
   it("marks a job stale only after three minutes without an update", () => {

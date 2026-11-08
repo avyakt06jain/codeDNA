@@ -101,10 +101,11 @@
 - Completed comparison polling now distinguishes an absent payload from present-but-invalid correlation metadata. Both are terminal and clear the locator, but only the latter reports the specific integrity error.
 - Every Memory Lab comparison now requires exact nested roles: the memory slot explicitly declares `memory` and the baseline slot explicitly declares `baseline`. Swapped or missing modes fail closed across active and latest/manual recovery.
 - Every Memory Lab comparison now requires both nested runs to report `complete`. Partial, failed, or missing branch status fails closed across active and latest/manual recovery without rendering guardrails or replaying work.
+- Memory Lab now rejects a present evaluation pass headline unless it equals the conjunction of its normalized Boolean guardrail checks. Contradictory active/latest/manual payloads render no guardrails and start no replacement work.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by reconciling the evaluation headline with its detailed guardrail checks.
+- Post-MVP trust hardening continues by requiring the complete expected guardrail key set before rendering a completed ablation.
 
 ## Blocked
 
@@ -128,9 +129,19 @@
 
 ## Next Action
 
-Fail closed when a present evaluation `passed` flag contradicts the normalized guardrail checks, so the comparison headline cannot disagree with its details.
+Require completed comparisons to contain the full expected guardrail key set before rendering, preventing a partial evaluator payload from appearing complete.
 
 ## Session Log
+
+### 2026-11-09 — Consistent Memory Lab evaluation outcome
+
+- Goal: Prevent the Memory Lab pass/fail headline from contradicting the guardrail details displayed beneath it.
+- Implemented: `normalizeComparison` now derives the conjunction of normalized Boolean guardrail checks and rejects a present `evaluation.passed` value that disagrees. Both contradiction directions fail closed; a consistent failed evaluation remains inspectable. Active completion stays terminal and clears its locator, while initial and manual latest-result recovery remain actionable and GET-only. Rejected payloads render no guardrails or correlation handles.
+- Focused checks: `npm test -- --run src/text.test.ts src/ui.test.tsx -t "comparison run correlation|pass headline contradicts|contradictory guardrails"` → **4 passed, 81 skipped across 2 files**. Unit cases cover both contradiction directions and a consistent failure; product cases cover active completion plus initial and manual latest-result recovery.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **93 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 332.48 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: API health returned `ok`, Hindsight truthfully remained `unavailable`, and Memory Lab returned HTTP 200 after Vite hot reload.
+- Provider safety: this is deterministic validation of existing response metadata and adds no request, Hindsight/Gemini call, or paid usage.
+- Next: require the full expected guardrail key set before a completed comparison can render.
 
 ### 2026-11-08 — Complete Memory Lab branch status
 

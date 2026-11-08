@@ -415,6 +415,8 @@ export function normalizeComparison(raw: unknown): Comparison | null {
       if (typeof value === "boolean") checks[key] = value;
     }
   }
+  const passed = typeof evaluation.passed === "boolean" ? evaluation.passed : undefined;
+  if (passed !== undefined && passed !== Object.values(checks).every(Boolean)) return null;
   const counts: Record<string, number> = {};
   if (isRecord(evaluation.counts)) {
     for (const [key, value] of Object.entries(evaluation.counts)) {
@@ -436,7 +438,7 @@ export function normalizeComparison(raw: unknown): Comparison | null {
   }
   return {
     evaluation: {
-      passed: typeof evaluation.passed === "boolean" ? evaluation.passed : undefined,
+      passed,
       checks,
       counts: Object.keys(counts).length > 0 ? counts : undefined,
       run_ids: normalizedRunIds,
