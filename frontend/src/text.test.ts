@@ -45,8 +45,8 @@ describe("memory and timings", () => {
   it("fails closed when comparison run correlation metadata is malformed or mismatched", () => {
     const comparison = {
       evaluation: { passed: true, checks: comparisonChecks(), run_ids: { memory: "run-memory", baseline: "run-baseline" } },
-      memory: { run_id: "run-memory", status: "complete", mode: "memory", findings: [] },
-      baseline: { run_id: "run-baseline", status: "complete", mode: "baseline", findings: [] },
+      memory: { run_id: "run-memory", status: "complete", mode: "memory", pr_id: "pr-87", provider: "gemini", model: "gemini-test", findings: [] },
+      baseline: { run_id: "run-baseline", status: "complete", mode: "baseline", pr_id: "pr-87", provider: "gemini", model: "gemini-test", findings: [] },
     };
     expect(normalizeComparison(comparison)?.evaluation.run_ids).toEqual({ memory: "run-memory", baseline: "run-baseline" });
     expect(normalizeComparison({ ...comparison, evaluation: { passed: true, checks: comparisonChecks() } })).not.toBeNull();
@@ -62,21 +62,21 @@ describe("memory and timings", () => {
     expect(normalizeComparison({
       ...comparison,
       evaluation: { passed: true, checks: comparisonChecks() },
-      memory: { run_id: "invalid id", status: "complete", mode: "memory", findings: [] },
+      memory: { ...comparison.memory, run_id: "invalid id" },
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
       evaluation: { passed: true, checks: comparisonChecks() },
-      baseline: { status: "complete", mode: "baseline", findings: [] },
+      baseline: { ...comparison.baseline, run_id: undefined },
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      memory: { run_id: "run-memory", status: "complete", mode: "baseline", findings: [] },
-      baseline: { run_id: "run-baseline", status: "complete", mode: "memory", findings: [] },
+      memory: { ...comparison.memory, mode: "baseline" },
+      baseline: { ...comparison.baseline, mode: "memory" },
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      baseline: { run_id: "run-baseline", status: "complete", findings: [] },
+      baseline: { ...comparison.baseline, mode: undefined },
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
@@ -88,7 +88,7 @@ describe("memory and timings", () => {
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      baseline: { run_id: "run-baseline", mode: "baseline", findings: [] },
+      baseline: { ...comparison.baseline, status: undefined },
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
@@ -110,6 +110,26 @@ describe("memory and timings", () => {
     expect(normalizeComparison({
       ...comparison,
       evaluation: { checks: comparisonChecks() },
+    })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      memory: { ...comparison.memory, pr_id: "pr-other" },
+    })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      baseline: { ...comparison.baseline, provider: "other-provider" },
+    })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      baseline: { ...comparison.baseline, model: "other-model" },
+    })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      memory: { ...comparison.memory, pr_id: undefined },
+    })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      evaluation: { passed: false, checks: comparisonChecks({ same_model: false }) },
     })).toBeNull();
   });
 

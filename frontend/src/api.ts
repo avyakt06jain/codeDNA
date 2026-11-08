@@ -117,6 +117,7 @@ export type Review = {
   status: string;
   mode: "baseline" | "memory";
   model?: string;
+  provider?: string;
   elapsed_ms?: number;
   pr_id?: string;
   retrieval?: {
@@ -395,6 +396,7 @@ export function normalizeReview(raw: Record<string, unknown>): Review {
     status: String(raw.status ?? ""),
     mode,
     model: asString(raw.model),
+    provider: asString(raw.provider),
     elapsed_ms: asNumber(raw.elapsed_ms),
     pr_id: asString(raw.pr_id),
     retrieval: retrieval
@@ -417,6 +419,15 @@ export function normalizeComparison(raw: unknown): Comparison | null {
   if (!evaluation || !memory || !baseline) return null;
   if (memory.mode !== "memory" || baseline.mode !== "baseline") return null;
   if (memory.status !== "complete" || baseline.status !== "complete") return null;
+  const memoryPrId = asString(memory.pr_id);
+  const baselinePrId = asString(baseline.pr_id);
+  const memoryProvider = asString(memory.provider);
+  const baselineProvider = asString(baseline.provider);
+  const memoryModel = asString(memory.model);
+  const baselineModel = asString(baseline.model);
+  if (!memoryPrId || memoryPrId !== baselinePrId
+    || !memoryProvider || memoryProvider !== baselineProvider
+    || !memoryModel || memoryModel !== baselineModel) return null;
   const rawChecks = evaluation.checks;
   if (!isRecord(rawChecks)
     || REQUIRED_COMPARISON_CHECKS.some((key) => typeof rawChecks[key] !== "boolean")) return null;
@@ -424,6 +435,7 @@ export function normalizeComparison(raw: unknown): Comparison | null {
   for (const [key, value] of Object.entries(rawChecks)) {
     if (typeof value === "boolean") checks[key] = value;
   }
+  if (!checks.same_candidate || !checks.same_model) return null;
   if (typeof evaluation.passed !== "boolean") return null;
   const passed = evaluation.passed;
   if (passed !== Object.values(checks).every(Boolean)) return null;

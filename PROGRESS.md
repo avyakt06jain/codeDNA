@@ -104,10 +104,11 @@
 - Memory Lab now rejects a present evaluation pass headline unless it equals the conjunction of its normalized Boolean guardrail checks. Contradictory active/latest/manual payloads render no guardrails and start no replacement work.
 - Memory Lab now requires all six backend-defined Boolean guardrails before accepting a comparison. Partial or non-Boolean required sets fail closed across active/latest/manual recovery without rendering incomplete evidence.
 - Memory Lab now requires an explicit Boolean overall evaluation outcome. Missing outcomes fail closed across active/latest/manual recovery without rendering an outcome-less comparison.
+- Memory Lab now independently compares non-empty nested PR/provider/model identities and requires the matching candidate/model guardrails to be true. Missing or mismatched identities fail closed across active/latest/manual recovery.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by independently reconciling nested candidate/provider/model identities instead of trusting guardrail Booleans alone.
+- Post-MVP trust hardening continues by making the evaluation-to-nested-run ID correlation block mandatory.
 
 ## Blocked
 
@@ -131,9 +132,19 @@
 
 ## Next Action
 
-Require and compare nested review `pr_id`, `provider`, and `model` identities before accepting a same-candidate/same-model ablation.
+Require both `evaluation.run_ids` entries to be present, valid, and equal their nested persisted run IDs instead of accepting an omitted correlation block.
 
 ## Session Log
+
+### 2026-11-09 — Independently matched Memory Lab inputs
+
+- Goal: Prove the compared branches actually use the same candidate and model configuration instead of trusting evaluation Booleans alone.
+- Implemented: `normalizeComparison` now requires both nested reviews to carry equal non-empty `pr_id`, `provider`, and `model` values before normalization, exposes the normalized provider on the review contract, and requires `same_candidate` plus `same_model` to be true. Missing/mismatched identity or contradictory identity checks enter the existing correlation-integrity path. Active completion stays terminal and clears its locator; initial and manual latest-result recovery remain actionable and GET-only. Rejected payloads render no guardrails or correlation handles.
+- Focused checks: `npm test -- --run src/text.test.ts src/ui.test.tsx -t "comparison run correlation|candidate identities differ|provider identities differ|mismatched models"` → **4 passed, 90 skipped across 2 files**; `npm run build` → **PASS**, 40 modules, 332.86 kB JavaScript and 16.43 kB CSS before gzip. Unit cases cover missing/mismatched PR/provider/model and false identity guardrails; product coverage distributes the three mismatch types across active completion plus initial and manual latest-result recovery.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; first `npm test -- --run` → **101 passed, 1 failed** when the unrelated fixture-catalog retry focus assertion timed out; its focused rerun → **1 passed**; a complete rerun → **102 passed across 5 files**. `npm run build` → **PASS**, 40 modules, 332.90 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: API health returned `ok`, Hindsight truthfully remained `unavailable`, and Memory Lab returned HTTP 200 after Vite hot reload.
+- Provider safety: this is deterministic validation of existing response metadata and adds no request, Hindsight/Gemini call, or paid usage.
+- Next: require the evaluation run-ID block and both entries instead of accepting it as optional.
 
 ### 2026-11-09 — Explicit Memory Lab overall outcome
 
