@@ -444,8 +444,12 @@ export function normalizeComparison(raw: unknown): Comparison | null {
   };
 }
 
-function comparisonFromJob(job: ReviewJob & Record<string, unknown>): Comparison | null {
-  return normalizeComparison(job.comparison) ?? normalizeComparison(job);
+function comparisonFromJob(job: ReviewJob & Record<string, unknown>): { present: boolean; comparison: Comparison | null } {
+  if (job.comparison != null) {
+    return { present: true, comparison: normalizeComparison(job.comparison) };
+  }
+  const present = job.evaluation != null || job.memory != null || job.baseline != null;
+  return { present, comparison: present ? normalizeComparison(job) : null };
 }
 
 function delay(ms: number) {
@@ -666,9 +670,12 @@ export const api = {
     }
     if (!job) return null;
     if (job.status === "failed") throw jobFailure(job, "The comparison failed");
-    const comparison = comparisonFromJob(job);
-    if (!comparison) throw new TerminalJobError("The comparison finished without a result.");
-    return comparison;
+    const result = comparisonFromJob(job);
+    if (!result.present) throw new TerminalJobError("The comparison finished without a result.");
+    if (!result.comparison) {
+      throw new TerminalJobError("The comparison finished with invalid correlation metadata.");
+    }
+    return result.comparison;
   },
   async comparison(prId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
     const started = await api.startComparison(prId);

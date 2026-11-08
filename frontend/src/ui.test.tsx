@@ -1157,7 +1157,7 @@ it("rejects a completed comparison whose evaluation run IDs contradict its neste
   const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
   await waitFor(() => expect(run.disabled).toBe(false));
   fireEvent.click(run);
-  expect((await screen.findByRole("alert")).textContent).toContain("The comparison finished without a result.");
+  expect((await screen.findByRole("alert")).textContent).toContain("The comparison finished with invalid correlation metadata.");
   expect(screen.queryByText("Guardrails passed")).toBeNull();
   expect(screen.queryByText("run-wrong")).toBeNull();
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
@@ -1176,9 +1176,23 @@ it("rejects a completed comparison whose nested runs lack valid correlation IDs"
   const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
   await waitFor(() => expect(run.disabled).toBe(false));
   fireEvent.click(run);
-  expect((await screen.findByRole("alert")).textContent).toContain("The comparison finished without a result.");
+  expect((await screen.findByRole("alert")).textContent).toContain("The comparison finished with invalid correlation metadata.");
   expect(screen.queryByText("Guardrails passed")).toBeNull();
   expect(screen.queryByText("run-b", { selector: "code" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+  expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
+});
+
+it("keeps a structurally missing completed comparison distinct from invalid correlation", async () => {
+  const fetchMock = installFetch();
+  renderAt("/repos/repo-acme-commerce/lab");
+  await screen.findByRole("option", { name: /Update order status/ });
+  const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  expect((await screen.findByRole("alert")).textContent).toContain("The comparison finished without a result.");
+  expect(screen.queryByText("invalid correlation metadata")).toBeNull();
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(1);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
   expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
