@@ -136,7 +136,7 @@ export type Comparison = {
     passed: boolean;
     checks: Record<string, boolean>;
     counts?: Record<string, number>;
-    run_ids?: { memory?: string; baseline?: string };
+    run_ids: { memory: string; baseline: string };
   };
   memory: Review;
   baseline: Review;
@@ -445,25 +445,21 @@ export function normalizeComparison(raw: unknown): Comparison | null {
       if (typeof value === "number") counts[key] = value;
     }
   }
-  if (evaluation.run_ids != null && !isRecord(evaluation.run_ids)) return null;
-  const runIds = isRecord(evaluation.run_ids) ? evaluation.run_ids : undefined;
+  if (!isRecord(evaluation.run_ids)) return null;
+  const runIds = evaluation.run_ids;
   const memoryReview = normalizeReview(memory);
   const baselineReview = normalizeReview(baseline);
   if (!memoryReview.run_id || !baselineReview.run_id) return null;
-  let normalizedRunIds: { memory?: string; baseline?: string } | undefined;
-  if (runIds) {
-    const memoryRunId = runIds.memory == null ? undefined : normalizeRunId(runIds.memory);
-    const baselineRunId = runIds.baseline == null ? undefined : normalizeRunId(runIds.baseline);
-    if (runIds.memory != null && (!memoryRunId || memoryRunId !== memoryReview.run_id)) return null;
-    if (runIds.baseline != null && (!baselineRunId || baselineRunId !== baselineReview.run_id)) return null;
-    if (memoryRunId || baselineRunId) normalizedRunIds = { memory: memoryRunId, baseline: baselineRunId };
-  }
+  const memoryRunId = normalizeRunId(runIds.memory);
+  const baselineRunId = normalizeRunId(runIds.baseline);
+  if (!memoryRunId || memoryRunId !== memoryReview.run_id
+    || !baselineRunId || baselineRunId !== baselineReview.run_id) return null;
   return {
     evaluation: {
       passed,
       checks,
       counts: Object.keys(counts).length > 0 ? counts : undefined,
-      run_ids: normalizedRunIds,
+      run_ids: { memory: memoryRunId, baseline: baselineRunId },
     },
     memory: memoryReview,
     baseline: baselineReview,

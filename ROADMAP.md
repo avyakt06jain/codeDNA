@@ -183,7 +183,8 @@
 - **Verified:** Completed comparisons must contain all six backend-defined Boolean guardrail checks. Missing or non-Boolean required checks fail closed across active and latest/manual recovery without partial rendering or replacement work.
 - **Verified:** Every completed comparison must contain a Boolean `evaluation.passed` consistent with its full guardrail set. Missing outcomes fail closed across active and latest/manual recovery without replacement work.
 - **Verified:** Nested memory/baseline reviews must carry matching non-empty `pr_id`, `provider`, and `model` values, while `same_candidate` and `same_model` must be true. Identity mismatches fail closed across active and latest/manual recovery without replacement work.
-- **Next:** Require both `evaluation.run_ids` entries to be present, valid, and equal their nested persisted run IDs instead of treating that correlation block as optional.
+- **Verified:** Both `evaluation.run_ids` entries are mandatory, bounded, and must equal their nested persisted run IDs. Missing/invalid/mismatched correlation fails closed across active and latest/manual recovery without replacement work.
+- **Next:** Validate the evaluation count block as complete, finite, non-negative integers consistent with the nested findings/evidence before rendering numeric comparison details.
 
 ## Documentation and version-control policy
 

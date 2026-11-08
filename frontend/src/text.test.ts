@@ -48,25 +48,26 @@ describe("memory and timings", () => {
       memory: { run_id: "run-memory", status: "complete", mode: "memory", pr_id: "pr-87", provider: "gemini", model: "gemini-test", findings: [] },
       baseline: { run_id: "run-baseline", status: "complete", mode: "baseline", pr_id: "pr-87", provider: "gemini", model: "gemini-test", findings: [] },
     };
+    const evaluation = (overrides: Record<string, unknown> = {}) => ({ ...comparison.evaluation, ...overrides });
     expect(normalizeComparison(comparison)?.evaluation.run_ids).toEqual({ memory: "run-memory", baseline: "run-baseline" });
-    expect(normalizeComparison({ ...comparison, evaluation: { passed: true, checks: comparisonChecks() } })).not.toBeNull();
-    expect(normalizeComparison({ ...comparison, evaluation: { passed: true, checks: comparisonChecks(), run_ids: "run-memory" } })).toBeNull();
+    expect(normalizeComparison({ ...comparison, evaluation: evaluation() })).not.toBeNull();
+    expect(normalizeComparison({ ...comparison, evaluation: evaluation({ run_ids: "run-memory" }) })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { passed: true, checks: comparisonChecks(), run_ids: { memory: "run-other", baseline: "run-baseline" } },
+      evaluation: evaluation({ run_ids: { memory: "run-other", baseline: "run-baseline" } }),
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { passed: true, checks: comparisonChecks(), run_ids: { memory: "<invalid>", baseline: "run-baseline" } },
+      evaluation: evaluation({ run_ids: { memory: "<invalid>", baseline: "run-baseline" } }),
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { passed: true, checks: comparisonChecks() },
+      evaluation: evaluation(),
       memory: { ...comparison.memory, run_id: "invalid id" },
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { passed: true, checks: comparisonChecks() },
+      evaluation: evaluation(),
       baseline: { ...comparison.baseline, run_id: undefined },
     })).toBeNull();
     expect(normalizeComparison({
@@ -92,24 +93,24 @@ describe("memory and timings", () => {
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { passed: true, checks: comparisonChecks({ same_candidate: false }) },
+      evaluation: evaluation({ passed: true, checks: comparisonChecks({ same_candidate: false }) }),
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { passed: false, checks: comparisonChecks() },
+      evaluation: evaluation({ passed: false, checks: comparisonChecks() }),
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { passed: false, checks: comparisonChecks({ memory_produced_grounded_team_finding: false }) },
+      evaluation: evaluation({ passed: false, checks: comparisonChecks({ memory_produced_grounded_team_finding: false }) }),
     })?.evaluation.passed).toBe(false);
     const { same_model: _missing, ...partialChecks } = comparisonChecks();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { passed: true, checks: partialChecks },
+      evaluation: evaluation({ passed: true, checks: partialChecks }),
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { checks: comparisonChecks() },
+      evaluation: evaluation({ passed: undefined }),
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
@@ -129,7 +130,15 @@ describe("memory and timings", () => {
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { passed: false, checks: comparisonChecks({ same_model: false }) },
+      evaluation: evaluation({ passed: false, checks: comparisonChecks({ same_model: false }) }),
+    })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      evaluation: evaluation({ run_ids: undefined }),
+    })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      evaluation: evaluation({ run_ids: { memory: "run-memory" } }),
     })).toBeNull();
   });
 
