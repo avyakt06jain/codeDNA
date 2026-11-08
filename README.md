@@ -42,6 +42,7 @@ CodeDNA separates memory from authority:
 - Bounded persisted run IDs in Review Workspace and both Memory Lab columns for inspectable result correlation without placing identifiers in live status output
 - Fail-closed Memory Lab correlation checks: optional evaluation run IDs must match the persisted memory/baseline runs or the comparison is rejected
 - Mandatory paired-run correlation: every Memory Lab result requires valid bounded memory and baseline run IDs even when optional evaluation correlation metadata is absent
+- Exact ablation roles: the paired memory slot must explicitly be memory-assisted and the baseline slot memory-disabled; missing or swapped mode labels reject the comparison
 - Precise completed-comparison failures: a missing payload and rejected correlation metadata have distinct terminal errors while both clear recovery state without replaying work
 - Truthful latest-comparison recovery: a null result is empty, while a present payload that fails correlation validation produces an actionable integrity alert instead of `No comparison yet`
 - Truthful latest-review recovery: a null result is empty, while a present review must carry a valid bounded run ID or produce an actionable integrity alert instead of rendering uncorrelated findings

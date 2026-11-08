@@ -99,10 +99,11 @@
 - Completed active-review jobs now pass the same bounded run-ID integrity check. Failure is terminal, clears the active locator, renders no findings, and performs no latest-result fallback or replacement POST.
 - Every Memory Lab comparison now requires valid bounded IDs on both nested persisted runs, independent of optional evaluation metadata. Invalid active/latest/manual payloads render no guardrails; active completion clears its locator and recovery starts no replacement work.
 - Completed comparison polling now distinguishes an absent payload from present-but-invalid correlation metadata. Both are terminal and clear the locator, but only the latter reports the specific integrity error.
+- Every Memory Lab comparison now requires exact nested roles: the memory slot explicitly declares `memory` and the baseline slot explicitly declares `baseline`. Swapped or missing modes fail closed across active and latest/manual recovery.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by enforcing exact memory/baseline role identity on paired comparison runs.
+- Post-MVP trust hardening continues by requiring both nested comparison runs to report terminal `complete` status.
 
 ## Blocked
 
@@ -126,9 +127,19 @@
 
 ## Next Action
 
-Require the nested memory review to declare `mode: memory` and the nested baseline review to declare `mode: baseline`. Reject swapped, missing, or malformed roles without guardrails or replacement work.
+Require `memory.status` and `baseline.status` to equal `complete` before accepting any comparison. Reject partial, failed, or missing branch status without guardrails or replacement work.
 
 ## Session Log
+
+### 2026-11-08 — Exact Memory Lab branch roles
+
+- Goal: Prevent swapped or unlabeled paired runs from being presented as a valid memory-versus-baseline ablation.
+- Implemented: `normalizeComparison` now validates raw role identity before the general review normalizer can default it: `memory.mode` must equal `memory` and `baseline.mode` must equal `baseline`. Swapped and missing modes enter the existing correlation-integrity failure path. Active completion remains terminal and clears its locator; initial and manual latest-result recovery remain actionable and GET-only. No rejected payload renders guardrails or run IDs.
+- Focused checks: `npm test -- --run src/text.test.ts src/ui.test.tsx -t "comparison run correlation|memory and baseline roles are swapped|invalid stored comparison"` → **4 passed, 77 skipped across 2 files**. Unit cases reject swapped and missing roles; product cases cover active completion plus initial and manual latest-result recovery.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **89 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 332.36 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: API health returned `ok`, Hindsight truthfully remained `unavailable`, and Memory Lab returned HTTP 200 after Vite hot reload.
+- Provider safety: this is deterministic validation of existing response metadata and adds no request, Hindsight/Gemini call, or paid usage.
+- Next: require both nested comparison branches to report terminal `complete` status before rendering guardrails.
 
 ### 2026-11-08 — Precise completed-comparison integrity errors
 

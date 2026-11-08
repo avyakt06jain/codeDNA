@@ -59,6 +59,15 @@ describe("memory and timings", () => {
       evaluation: { checks: {} },
       baseline: { mode: "baseline", findings: [] },
     })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      memory: { run_id: "run-memory", mode: "baseline", findings: [] },
+      baseline: { run_id: "run-baseline", mode: "memory", findings: [] },
+    })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      baseline: { run_id: "run-baseline", findings: [] },
+    })).toBeNull();
   });
 
   it("marks a job stale only after three minutes without an update", () => {

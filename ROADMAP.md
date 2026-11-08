@@ -177,7 +177,8 @@
 - **Verified:** Completed active-review jobs must return a review with a valid bounded run ID. Invalid correlation metadata produces a terminal integrity error, renders no findings, clears the active locator, and makes no latest-result or replacement creation request.
 - **Verified:** Every comparison now requires valid bounded nested memory and baseline run IDs, even without optional evaluation-level metadata. Invalid active/latest/manual results render no guardrails; active completion clears its locator and no recovery path starts replacement work.
 - **Verified:** Completed comparison polling distinguishes a structurally missing payload from present-but-invalid correlation metadata with separate terminal errors. Both render no guardrails, clear the active locator, and send no replacement request.
-- **Next:** Validate that nested comparison roles are exactly memory-assisted and baseline, preventing swapped or mislabeled runs from satisfying ablation guardrails.
+- **Verified:** Every comparison requires exact nested role identity: `memory.mode` is `memory` and `baseline.mode` is `baseline`. Swapped, missing, or malformed modes fail closed across active and latest/manual recovery without guardrails or replacement work.
+- **Next:** Require both nested comparison runs to report terminal `complete` status before guardrails can render, preventing partial or failed branch payloads from appearing as a finished ablation.
 
 ## Documentation and version-control policy
 

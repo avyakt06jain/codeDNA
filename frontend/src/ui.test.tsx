@@ -1184,6 +1184,28 @@ it("rejects a completed comparison whose nested runs lack valid correlation IDs"
   expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
 });
 
+it("rejects a completed comparison whose memory and baseline roles are swapped", async () => {
+  const fetchMock = installFetch({
+    comparison: {
+      evaluation: { passed: true, checks: { same_candidate: true } },
+      memory: { run_id: "run-m", status: "complete", mode: "baseline", findings: [teamFinding] },
+      baseline: { run_id: "run-b", status: "complete", mode: "memory", findings: [generalFinding] },
+    },
+  });
+  renderAt("/repos/repo-acme-commerce/lab");
+  await screen.findByRole("option", { name: /Update order status/ });
+  const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  expect((await screen.findByRole("alert")).textContent).toContain("The comparison finished with invalid correlation metadata.");
+  expect(screen.queryByText("Guardrails passed")).toBeNull();
+  expect(screen.queryByText("run-m", { selector: "code" })).toBeNull();
+  expect(screen.queryByText("run-b", { selector: "code" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+  expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
+});
+
 it("keeps a structurally missing completed comparison distinct from invalid correlation", async () => {
   const fetchMock = installFetch();
   renderAt("/repos/repo-acme-commerce/lab");
@@ -1383,7 +1405,7 @@ it("surfaces an invalid stored comparison instead of treating it as missing", as
       passed: true,
       checks: { same_candidate: true },
     },
-    memory: { run_id: "invalid id", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
+    memory: { run_id: "run-stored-memory", status: "complete", mode: "baseline", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-stored-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
   };
   const fetchMock = installFetch({ latestComparison: invalid });
@@ -1583,7 +1605,7 @@ it("keeps creation uncertain when manual reconciliation finds an invalid stored 
       passed: true,
       checks: { same_candidate: true },
     },
-    memory: { run_id: "invalid id", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
+    memory: { run_id: "run-stored-memory", status: "complete", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-stored-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
   };
   const fetchMock = installFetch({
