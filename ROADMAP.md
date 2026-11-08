@@ -175,7 +175,8 @@
 - **Verified:** Latest-comparison recovery reserves the ordinary empty state for an explicit null result. A present payload that fails structural or run-correlation normalization surfaces an actionable integrity error during initial and manual creation-status recovery, with no replacement POST or provider work.
 - **Verified:** Latest-review recovery reserves the ordinary empty state for an explicit null result. A present payload must be an object with a valid bounded run ID or initial/manual recovery surfaces an actionable integrity error, renders no findings, and starts no replacement provider work.
 - **Verified:** Completed active-review jobs must return a review with a valid bounded run ID. Invalid correlation metadata produces a terminal integrity error, renders no findings, clears the active locator, and makes no latest-result or replacement creation request.
-- **Next:** Require valid nested memory and baseline run IDs for every comparison, even when optional evaluation-level correlation metadata is absent, so guardrails cannot render against uncorrelated runs.
+- **Verified:** Every comparison now requires valid bounded nested memory and baseline run IDs, even without optional evaluation-level metadata. Invalid active/latest/manual results render no guardrails; active completion clears its locator and no recovery path starts replacement work.
+- **Next:** Distinguish an invalid completed comparison job from a structurally missing result with a specific terminal integrity error, matching latest-comparison recovery clarity.
 
 ## Documentation and version-control policy
 

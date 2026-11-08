@@ -423,6 +423,7 @@ export function normalizeComparison(raw: unknown): Comparison | null {
   const runIds = isRecord(evaluation.run_ids) ? evaluation.run_ids : undefined;
   const memoryReview = normalizeReview(memory);
   const baselineReview = normalizeReview(baseline);
+  if (!memoryReview.run_id || !baselineReview.run_id) return null;
   let normalizedRunIds: { memory?: string; baseline?: string } | undefined;
   if (runIds) {
     const memoryRunId = runIds.memory == null ? undefined : normalizeRunId(runIds.memory);

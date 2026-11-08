@@ -97,10 +97,11 @@
 - Memory Lab latest-result recovery now treats only an explicit null comparison as empty. A present result that fails correlation validation surfaces a task-specific integrity alert; manual creation-status reconciliation remains fail-closed, focused, and GET-only.
 - Review Workspace latest-result recovery now treats only an explicit null review as empty. A present result must be an object with a valid bounded run ID; otherwise initial/manual recovery surfaces a task-specific integrity alert and renders no findings.
 - Completed active-review jobs now pass the same bounded run-ID integrity check. Failure is terminal, clears the active locator, renders no findings, and performs no latest-result fallback or replacement POST.
+- Every Memory Lab comparison now requires valid bounded IDs on both nested persisted runs, independent of optional evaluation metadata. Invalid active/latest/manual payloads render no guardrails; active completion clears its locator and recovery starts no replacement work.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by requiring valid nested run IDs on every Memory Lab comparison, including payloads without optional evaluation-level correlation metadata.
+- Post-MVP trust hardening continues by giving invalid completed comparison jobs a specific terminal integrity error instead of the generic missing-result error.
 
 ## Blocked
 
@@ -124,9 +125,19 @@
 
 ## Next Action
 
-Require both nested memory and baseline reviews in every comparison to carry valid bounded run IDs, even when `evaluation.run_ids` is absent. Reject invalid latest and active-job results without rendering guardrails or starting replacement work.
+Distinguish a structurally absent completed comparison from one rejected for invalid correlation metadata. Surface a specific terminal integrity error for the latter while preserving locator cleanup, zero guardrails, and zero replacement work.
 
 ## Session Log
+
+### 2026-11-08 — Mandatory paired comparison correlation
+
+- Goal: Prevent Memory Lab from rendering guardrails for a comparison whose nested memory or baseline review cannot be correlated to a persisted run.
+- Implemented: `normalizeComparison` now requires both normalized nested reviews to carry valid bounded run IDs before optional evaluation-level correlation is considered. Evaluation metadata may remain absent, but cannot substitute for missing nested identity. Initial/manual latest-result recovery enters the existing actionable integrity path; active completion remains terminal, clears its locator, and renders no guardrails. Existing recovery fixtures now exercise invalid nested identity without evaluation metadata.
+- Focused checks: `npm test -- --run src/text.test.ts src/ui.test.tsx -t "comparison run correlation|nested runs lack valid|invalid stored comparison"` → **4 passed, 75 skipped across 2 files**. Unit coverage rejects invalid memory and missing baseline IDs; product coverage covers active completion plus initial and manual latest-result recovery.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **87 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 332.07 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: prior listeners were absent, so the API and Vite were restarted as hidden local processes with Hindsight autostart disabled. API health returned `ok`, Hindsight truthfully reported `unavailable`, and Memory Lab returned HTTP 200.
+- Provider safety: all validation is deterministic client-side handling of existing application payloads. No Hindsight/Gemini request or paid usage was enabled.
+- Next: give invalid completed comparison jobs a specific terminal integrity error distinct from a structurally missing result.
 
 ### 2026-11-08 — Active-review correlation integrity
 
