@@ -135,7 +135,7 @@ export type Comparison = {
   evaluation: {
     passed: boolean;
     checks: Record<string, boolean>;
-    counts?: Record<string, number>;
+    counts: Record<string, number>;
     run_ids: { memory: string; baseline: string };
   };
   memory: Review;
@@ -202,6 +202,15 @@ const REQUIRED_COMPARISON_CHECKS = [
   "memory_produced_grounded_team_finding",
   "baseline_has_no_memory_citations",
   "baseline_has_no_team_policy_finding",
+] as const;
+const REQUIRED_COMPARISON_COUNTS = [
+  "validated_memory_sources",
+  "memory_findings",
+  "memory_team_findings",
+  "memory_citations",
+  "baseline_findings",
+  "baseline_team_findings",
+  "baseline_citations",
 ] as const;
 
 class ApiRequestError extends Error {
@@ -439,17 +448,31 @@ export function normalizeComparison(raw: unknown): Comparison | null {
   if (typeof evaluation.passed !== "boolean") return null;
   const passed = evaluation.passed;
   if (passed !== Object.values(checks).every(Boolean)) return null;
+  const rawCounts = evaluation.counts;
+  if (!isRecord(rawCounts)
+    || REQUIRED_COMPARISON_COUNTS.some((key) => {
+      const value = rawCounts[key];
+      return typeof value !== "number" || !Number.isInteger(value) || value < 0;
+    })) return null;
   const counts: Record<string, number> = {};
-  if (isRecord(evaluation.counts)) {
-    for (const [key, value] of Object.entries(evaluation.counts)) {
-      if (typeof value === "number") counts[key] = value;
-    }
+  for (const [key, value] of Object.entries(rawCounts)) {
+    if (typeof value === "number" && Number.isInteger(value) && value >= 0) counts[key] = value;
   }
   if (!isRecord(evaluation.run_ids)) return null;
   const runIds = evaluation.run_ids;
   const memoryReview = normalizeReview(memory);
   const baselineReview = normalizeReview(baseline);
   if (!memoryReview.run_id || !baselineReview.run_id) return null;
+  const expectedCounts: Record<(typeof REQUIRED_COMPARISON_COUNTS)[number], number> = {
+    validated_memory_sources: memoryReview.retrieval?.validated_evidence?.length ?? 0,
+    memory_findings: memoryReview.findings.length,
+    memory_team_findings: memoryReview.findings.filter((finding) => finding.category === "team_convention").length,
+    memory_citations: new Set(memoryReview.findings.flatMap((finding) => finding.evidence_ids)).size,
+    baseline_findings: baselineReview.findings.length,
+    baseline_team_findings: baselineReview.findings.filter((finding) => finding.category === "team_convention").length,
+    baseline_citations: new Set(baselineReview.findings.flatMap((finding) => finding.evidence_ids)).size,
+  };
+  if (REQUIRED_COMPARISON_COUNTS.some((key) => counts[key] !== expectedCounts[key])) return null;
   const memoryRunId = normalizeRunId(runIds.memory);
   const baselineRunId = normalizeRunId(runIds.baseline);
   if (!memoryRunId || memoryRunId !== memoryReview.run_id
@@ -458,7 +481,7 @@ export function normalizeComparison(raw: unknown): Comparison | null {
     evaluation: {
       passed,
       checks,
-      counts: Object.keys(counts).length > 0 ? counts : undefined,
+      counts,
       run_ids: { memory: memoryRunId, baseline: baselineRunId },
     },
     memory: memoryReview,

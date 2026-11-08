@@ -106,10 +106,11 @@
 - Memory Lab now requires an explicit Boolean overall evaluation outcome. Missing outcomes fail closed across active/latest/manual recovery without rendering an outcome-less comparison.
 - Memory Lab now independently compares non-empty nested PR/provider/model identities and requires the matching candidate/model guardrails to be true. Missing or mismatched identities fail closed across active/latest/manual recovery.
 - Memory Lab now requires both evaluation run IDs to be present, bounded, and equal their nested persisted run IDs. Missing/invalid/mismatched correlation fails closed across active/latest/manual recovery.
+- Memory Lab now requires all seven evaluation counts to be finite non-negative integers matching normalized nested evidence/findings/citations. Missing, invalid, or inconsistent counts fail closed across active/latest/manual recovery.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by validating evaluation counts against the nested result details.
+- Post-MVP trust hardening continues by independently recomputing the four evidence/content guardrails from nested results.
 
 ## Blocked
 
@@ -133,9 +134,20 @@
 
 ## Next Action
 
-Validate the evaluation count block as complete, finite, non-negative integers consistent with nested findings/evidence before rendering numeric details.
+Independently recompute validated-source, grounded-finding, baseline-citation, and baseline-policy guardrails from the normalized nested results.
 
 ## Session Log
+
+### 2026-11-09 — Reconciled Memory Lab evaluation counts
+
+- Goal: Prevent numeric comparison details from contradicting the nested evidence and findings they summarize.
+- Implemented: `normalizeComparison` now requires all seven backend-defined counts as finite non-negative integers, recomputes them from normalized validated evidence, findings, team findings, and unique citations, and rejects any mismatch. The public comparison type now reflects mandatory counts. Missing, partial, invalid, or inconsistent counts enter the existing correlation-integrity path. Active completion stays terminal and clears its locator; initial and manual latest-result recovery remain actionable and GET-only. Rejected payloads render no guardrails, counts, or correlation handles.
+- Focused checks: `npm test -- --run src/text.test.ts src/ui.test.tsx -t "comparison run correlation|without evaluation counts|invalid evaluation count|inconsistent counts"` → **4 passed, 96 skipped across 2 files**; `npm run build` → **PASS**, 40 modules, 333.50 kB JavaScript and 16.43 kB CSS before gzip. Unit cases cover missing, negative, and inconsistent counts; product coverage distributes missing, invalid, and mismatched counts across active completion plus initial and manual latest-result recovery.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **108 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 333.50 kB JavaScript and 16.43 kB CSS before gzip.
+- Final normalization refactor check: `npm test -- --run src/text.test.ts -t "comparison run correlation"` → **1 passed, 9 skipped**; `npm run build` → **PASS**, 40 modules, 333.48 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: API health returned `ok`, Hindsight truthfully remained `unavailable`, and Memory Lab returned HTTP 200 after Vite hot reload.
+- Provider safety: this is deterministic validation of existing response metadata and adds no request, Hindsight/Gemini call, or paid usage.
+- Next: independently recompute the four evidence/content guardrails from normalized nested results.
 
 ### 2026-11-09 — Mandatory Memory Lab evaluation correlation
 

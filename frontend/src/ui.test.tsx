@@ -24,11 +24,28 @@ function withComparisonIdentity(comparison: Record<string, unknown> | undefined)
   const memory = comparison.memory as Record<string, unknown> | undefined;
   const baseline = comparison.baseline as Record<string, unknown> | undefined;
   const evaluation = comparison.evaluation as Record<string, unknown> | undefined;
+  const memoryFindings = Array.isArray(memory?.findings) ? memory.findings as Array<Record<string, unknown>> : [];
+  const baselineFindings = Array.isArray(baseline?.findings) ? baseline.findings as Array<Record<string, unknown>> : [];
+  const retrieval = memory?.retrieval as Record<string, unknown> | undefined;
+  const defaultCounts = {
+    validated_memory_sources: Array.isArray(retrieval?.validated_evidence) ? retrieval.validated_evidence.length : 0,
+    memory_findings: memoryFindings.length,
+    memory_team_findings: memoryFindings.filter((finding) => finding.category === "team_convention").length,
+    memory_citations: new Set(memoryFindings.flatMap((finding) => Array.isArray(finding.evidence_ids) ? finding.evidence_ids.map(String) : [])).size,
+    baseline_findings: baselineFindings.length,
+    baseline_team_findings: baselineFindings.filter((finding) => finding.category === "team_convention").length,
+    baseline_citations: new Set(baselineFindings.flatMap((finding) => Array.isArray(finding.evidence_ids) ? finding.evidence_ids.map(String) : [])).size,
+  };
+  const suppliedCounts = evaluation?.counts;
+  const counts = suppliedCounts && typeof suppliedCounts === "object" && !Array.isArray(suppliedCounts)
+    ? { ...defaultCounts, ...suppliedCounts }
+    : suppliedCounts === undefined ? defaultCounts : suppliedCounts;
   return {
     ...comparison,
     evaluation: evaluation ? {
       run_ids: { memory: memory?.run_id, baseline: baseline?.run_id },
       ...evaluation,
+      counts,
     } : evaluation,
     memory: memory ? { pr_id: "pr-acme-87", provider: "gemini", model: "gemini-test", ...memory } : memory,
     baseline: baseline ? { pr_id: "pr-acme-87", provider: "gemini", model: "gemini-test", ...baseline } : baseline,
@@ -1363,6 +1380,27 @@ it("rejects a completed comparison without evaluation run IDs", async () => {
   expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
 });
 
+it("rejects a completed comparison without evaluation counts", async () => {
+  const fetchMock = installFetch({
+    comparison: {
+      evaluation: { passed: true, checks: comparisonChecks(), counts: null },
+      memory: { run_id: "run-m", status: "complete", mode: "memory", findings: [teamFinding] },
+      baseline: { run_id: "run-b", status: "complete", mode: "baseline", findings: [generalFinding] },
+    },
+  });
+  renderAt("/repos/repo-acme-commerce/lab");
+  await screen.findByRole("option", { name: /Update order status/ });
+  const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  expect((await screen.findByRole("alert")).textContent).toContain("The comparison finished with invalid correlation metadata.");
+  expect(screen.queryByText("Guardrails passed")).toBeNull();
+  expect(screen.queryByText("run-m", { selector: "code" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+  expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
+});
+
 it("keeps a structurally missing completed comparison distinct from invalid correlation", async () => {
   const fetchMock = installFetch();
   renderAt("/repos/repo-acme-commerce/lab");
@@ -1640,6 +1678,21 @@ it("rejects a stored comparison whose nested provider identities differ", async 
 it("rejects a stored comparison with a missing evaluation run ID", async () => {
   const invalid = {
     evaluation: { passed: true, checks: comparisonChecks(), run_ids: { memory: "run-stored-memory" } },
+    memory: { run_id: "run-stored-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
+    baseline: { run_id: "run-stored-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
+  };
+  const fetchMock = installFetch({ latestComparison: invalid });
+  renderAt("/repos/repo-acme-commerce/lab");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("Comparison recovery unavailable: The stored comparison failed correlation validation.");
+  expect(screen.queryByText("Guardrails passed")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
+it("rejects a stored comparison with an invalid evaluation count", async () => {
+  const invalid = {
+    evaluation: { passed: true, checks: comparisonChecks(), counts: { baseline_citations: -1 } },
     memory: { run_id: "run-stored-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-stored-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
   };
@@ -1971,6 +2024,32 @@ it("keeps creation uncertain when manual reconciliation finds mismatched models"
 it("keeps creation uncertain when manual reconciliation finds mismatched run IDs", async () => {
   const invalid = {
     evaluation: { passed: true, checks: comparisonChecks(), run_ids: { memory: "run-stored-memory", baseline: "run-other" } },
+    memory: { run_id: "run-stored-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
+    baseline: { run_id: "run-stored-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
+  };
+  const fetchMock = installFetch({
+    comparisonCreationHangs: true,
+    comparisonCreationClaimVisible: false,
+    latestComparison: invalid,
+    latestComparisonAfterRead: 2,
+  });
+  renderAt("/repos/repo-acme-commerce/lab");
+  await screen.findByRole("option", { name: /Update order status/ });
+  const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  fireEvent.click(await screen.findByRole("button", { name: "Check creation status" }));
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("Comparison creation status is still unavailable: The stored comparison failed correlation validation.");
+  expect(run.disabled).toBe(true);
+  expect(screen.queryByText("Guardrails passed")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(2);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+});
+
+it("keeps creation uncertain when manual reconciliation finds inconsistent counts", async () => {
+  const invalid = {
+    evaluation: { passed: true, checks: comparisonChecks(), counts: { memory_findings: 99 } },
     memory: { run_id: "run-stored-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-stored-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
   };

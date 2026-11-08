@@ -44,7 +44,20 @@ describe("memory and timings", () => {
 
   it("fails closed when comparison run correlation metadata is malformed or mismatched", () => {
     const comparison = {
-      evaluation: { passed: true, checks: comparisonChecks(), run_ids: { memory: "run-memory", baseline: "run-baseline" } },
+      evaluation: {
+        passed: true,
+        checks: comparisonChecks(),
+        counts: {
+          validated_memory_sources: 0,
+          memory_findings: 0,
+          memory_team_findings: 0,
+          memory_citations: 0,
+          baseline_findings: 0,
+          baseline_team_findings: 0,
+          baseline_citations: 0,
+        },
+        run_ids: { memory: "run-memory", baseline: "run-baseline" },
+      },
       memory: { run_id: "run-memory", status: "complete", mode: "memory", pr_id: "pr-87", provider: "gemini", model: "gemini-test", findings: [] },
       baseline: { run_id: "run-baseline", status: "complete", mode: "baseline", pr_id: "pr-87", provider: "gemini", model: "gemini-test", findings: [] },
     };
@@ -139,6 +152,18 @@ describe("memory and timings", () => {
     expect(normalizeComparison({
       ...comparison,
       evaluation: evaluation({ run_ids: { memory: "run-memory" } }),
+    })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      evaluation: evaluation({ counts: undefined }),
+    })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      evaluation: evaluation({ counts: { ...comparison.evaluation.counts, baseline_citations: -1 } }),
+    })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      evaluation: evaluation({ counts: { ...comparison.evaluation.counts, memory_findings: 1 } }),
     })).toBeNull();
   });
 
