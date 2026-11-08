@@ -44,29 +44,29 @@ describe("memory and timings", () => {
 
   it("fails closed when comparison run correlation metadata is malformed or mismatched", () => {
     const comparison = {
-      evaluation: { checks: comparisonChecks(), run_ids: { memory: "run-memory", baseline: "run-baseline" } },
+      evaluation: { passed: true, checks: comparisonChecks(), run_ids: { memory: "run-memory", baseline: "run-baseline" } },
       memory: { run_id: "run-memory", status: "complete", mode: "memory", findings: [] },
       baseline: { run_id: "run-baseline", status: "complete", mode: "baseline", findings: [] },
     };
     expect(normalizeComparison(comparison)?.evaluation.run_ids).toEqual({ memory: "run-memory", baseline: "run-baseline" });
-    expect(normalizeComparison({ ...comparison, evaluation: { checks: comparisonChecks() } })).not.toBeNull();
-    expect(normalizeComparison({ ...comparison, evaluation: { checks: comparisonChecks(), run_ids: "run-memory" } })).toBeNull();
+    expect(normalizeComparison({ ...comparison, evaluation: { passed: true, checks: comparisonChecks() } })).not.toBeNull();
+    expect(normalizeComparison({ ...comparison, evaluation: { passed: true, checks: comparisonChecks(), run_ids: "run-memory" } })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { checks: comparisonChecks(), run_ids: { memory: "run-other", baseline: "run-baseline" } },
+      evaluation: { passed: true, checks: comparisonChecks(), run_ids: { memory: "run-other", baseline: "run-baseline" } },
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { checks: comparisonChecks(), run_ids: { memory: "<invalid>", baseline: "run-baseline" } },
+      evaluation: { passed: true, checks: comparisonChecks(), run_ids: { memory: "<invalid>", baseline: "run-baseline" } },
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { checks: comparisonChecks() },
+      evaluation: { passed: true, checks: comparisonChecks() },
       memory: { run_id: "invalid id", status: "complete", mode: "memory", findings: [] },
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { checks: comparisonChecks() },
+      evaluation: { passed: true, checks: comparisonChecks() },
       baseline: { status: "complete", mode: "baseline", findings: [] },
     })).toBeNull();
     expect(normalizeComparison({
@@ -106,6 +106,10 @@ describe("memory and timings", () => {
     expect(normalizeComparison({
       ...comparison,
       evaluation: { passed: true, checks: partialChecks },
+    })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      evaluation: { checks: comparisonChecks() },
     })).toBeNull();
   });
 

@@ -46,6 +46,7 @@ CodeDNA separates memory from authority:
 - Complete ablation branches: both paired runs must explicitly report `complete`; partial, failed, or missing branch status rejects the comparison before guardrails render
 - Consistent ablation outcome: when the evaluation includes a pass headline, it must equal the conjunction of its Boolean guardrail checks or the comparison is rejected
 - Complete guardrail evidence: a completed ablation must include all six backend-defined Boolean checks; partial or non-Boolean check sets are rejected before rendering
+- Explicit ablation outcome: every completed comparison must include a Boolean pass/fail result consistent with its guardrails; a missing outcome is rejected
 - Precise completed-comparison failures: a missing payload and rejected correlation metadata have distinct terminal errors while both clear recovery state without replaying work
 - Truthful latest-comparison recovery: a null result is empty, while a present payload that fails correlation validation produces an actionable integrity alert instead of `No comparison yet`
 - Truthful latest-review recovery: a null result is empty, while a present review must carry a valid bounded run ID or produce an actionable integrity alert instead of rendering uncorrelated findings

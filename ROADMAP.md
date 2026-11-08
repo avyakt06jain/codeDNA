@@ -181,7 +181,8 @@
 - **Verified:** Both nested comparison runs must report terminal `complete` status before guardrails render. Partial, failed, or missing branch status fails closed across active and latest/manual recovery without replacement work.
 - **Verified:** A present evaluation `passed` flag must equal the conjunction of normalized Boolean guardrail checks. Contradictory headlines fail closed across active and latest/manual recovery without replacement work.
 - **Verified:** Completed comparisons must contain all six backend-defined Boolean guardrail checks. Missing or non-Boolean required checks fail closed across active and latest/manual recovery without partial rendering or replacement work.
-- **Next:** Require `evaluation.passed` to be present and Boolean on every completed comparison, so a full check set cannot render without an explicit overall outcome.
+- **Verified:** Every completed comparison must contain a Boolean `evaluation.passed` consistent with its full guardrail set. Missing outcomes fail closed across active and latest/manual recovery without replacement work.
+- **Next:** Independently require and compare the nested review `pr_id`, `provider`, and `model` identities before accepting a same-candidate/same-model ablation, rather than trusting guardrail Booleans alone.
 
 ## Documentation and version-control policy
 
