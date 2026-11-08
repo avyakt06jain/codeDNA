@@ -180,7 +180,8 @@
 - **Verified:** Every comparison requires exact nested role identity: `memory.mode` is `memory` and `baseline.mode` is `baseline`. Swapped, missing, or malformed modes fail closed across active and latest/manual recovery without guardrails or replacement work.
 - **Verified:** Both nested comparison runs must report terminal `complete` status before guardrails render. Partial, failed, or missing branch status fails closed across active and latest/manual recovery without replacement work.
 - **Verified:** A present evaluation `passed` flag must equal the conjunction of normalized Boolean guardrail checks. Contradictory headlines fail closed across active and latest/manual recovery without replacement work.
-- **Next:** Require the comparison evaluation to contain the full expected guardrail key set before rendering a completed ablation, preventing a partial evaluator payload from appearing complete.
+- **Verified:** Completed comparisons must contain all six backend-defined Boolean guardrail checks. Missing or non-Boolean required checks fail closed across active and latest/manual recovery without partial rendering or replacement work.
+- **Next:** Require `evaluation.passed` to be present and Boolean on every completed comparison, so a full check set cannot render without an explicit overall outcome.
 
 ## Documentation and version-control policy
 

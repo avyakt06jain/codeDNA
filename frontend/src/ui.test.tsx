@@ -4,6 +4,21 @@ import { MemoryRouter } from "react-router-dom";
 import App from "./App";
 import { loadActiveJob, saveActiveJob } from "./activeJobs";
 
+const comparisonChecks = (overrides: Record<string, boolean> = {}) => ({
+  same_candidate: true,
+  same_model: true,
+  memory_retrieved_validated_source: true,
+  memory_produced_grounded_team_finding: true,
+  baseline_has_no_memory_citations: true,
+  baseline_has_no_team_policy_finding: true,
+  ...overrides,
+});
+
+const partialComparisonChecks = () => {
+  const { same_model: _missing, ...checks } = comparisonChecks();
+  return checks;
+};
+
 const repositories = [
   { id: "repo-acme-commerce", slug: "acme-commerce", display_name: "Acme Commerce" },
 ];
@@ -1095,7 +1110,7 @@ it("shows a memory-lab trace only for recorded timings and lists guardrails", as
     comparison: {
       evaluation: {
         passed: false,
-        checks: { same_model: true, baseline_has_no_memory_citations: false },
+        checks: comparisonChecks({ baseline_has_no_memory_citations: false }),
         counts: { memory_findings: 1 },
       },
       memory: {
@@ -1145,7 +1160,7 @@ it("rejects a completed comparison whose evaluation run IDs contradict its neste
     comparison: {
       evaluation: {
         passed: true,
-        checks: { same_candidate: true },
+        checks: comparisonChecks(),
         run_ids: { memory: "run-wrong", baseline: "run-b" },
       },
       memory: { run_id: "run-m", status: "complete", mode: "memory", findings: [teamFinding] },
@@ -1166,7 +1181,7 @@ it("rejects a completed comparison whose evaluation run IDs contradict its neste
 it("rejects a completed comparison whose nested runs lack valid correlation IDs", async () => {
   const fetchMock = installFetch({
     comparison: {
-      evaluation: { passed: true, checks: { same_candidate: true } },
+      evaluation: { passed: true, checks: comparisonChecks() },
       memory: { run_id: "invalid id", status: "complete", mode: "memory", findings: [teamFinding] },
       baseline: { run_id: "run-b", status: "complete", mode: "baseline", findings: [generalFinding] },
     },
@@ -1187,7 +1202,7 @@ it("rejects a completed comparison whose nested runs lack valid correlation IDs"
 it("rejects a completed comparison whose memory and baseline roles are swapped", async () => {
   const fetchMock = installFetch({
     comparison: {
-      evaluation: { passed: true, checks: { same_candidate: true } },
+      evaluation: { passed: true, checks: comparisonChecks() },
       memory: { run_id: "run-m", status: "complete", mode: "baseline", findings: [teamFinding] },
       baseline: { run_id: "run-b", status: "complete", mode: "memory", findings: [generalFinding] },
     },
@@ -1209,7 +1224,7 @@ it("rejects a completed comparison whose memory and baseline roles are swapped",
 it("rejects a completed comparison with an incomplete nested branch", async () => {
   const fetchMock = installFetch({
     comparison: {
-      evaluation: { passed: true, checks: { same_candidate: true } },
+      evaluation: { passed: true, checks: comparisonChecks() },
       memory: { run_id: "run-m", status: "running", mode: "memory", findings: [teamFinding] },
       baseline: { run_id: "run-b", status: "complete", mode: "baseline", findings: [generalFinding] },
     },
@@ -1230,7 +1245,28 @@ it("rejects a completed comparison with an incomplete nested branch", async () =
 it("rejects a completed comparison whose pass headline contradicts its guardrails", async () => {
   const fetchMock = installFetch({
     comparison: {
-      evaluation: { passed: true, checks: { same_candidate: true, baseline_has_no_memory_citations: false } },
+      evaluation: { passed: true, checks: comparisonChecks({ baseline_has_no_memory_citations: false }) },
+      memory: { run_id: "run-m", status: "complete", mode: "memory", findings: [teamFinding] },
+      baseline: { run_id: "run-b", status: "complete", mode: "baseline", findings: [generalFinding] },
+    },
+  });
+  renderAt("/repos/repo-acme-commerce/lab");
+  await screen.findByRole("option", { name: /Update order status/ });
+  const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  expect((await screen.findByRole("alert")).textContent).toContain("The comparison finished with invalid correlation metadata.");
+  expect(screen.queryByText("Guardrails passed")).toBeNull();
+  expect(screen.queryByText("run-m", { selector: "code" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+  expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
+});
+
+it("rejects a completed comparison with a partial guardrail set", async () => {
+  const fetchMock = installFetch({
+    comparison: {
+      evaluation: { passed: true, checks: partialComparisonChecks() },
       memory: { run_id: "run-m", status: "complete", mode: "memory", findings: [teamFinding] },
       baseline: { run_id: "run-b", status: "complete", mode: "baseline", findings: [generalFinding] },
     },
@@ -1343,7 +1379,7 @@ it("preserves the last fixture catalog when refresh recovery is exhausted", asyn
 
 it("refreshes the fixture catalog after its comparison completes", async () => {
   const comparison = {
-    evaluation: { passed: true, checks: { same_candidate: true }, counts: { memory_findings: 1 } },
+    evaluation: { passed: true, checks: comparisonChecks(), counts: { memory_findings: 1 } },
     memory: { run_id: "run-case-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-case-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
   };
@@ -1362,7 +1398,7 @@ it("refreshes the fixture catalog after its comparison completes", async () => {
 
 it("does not announce an unchanged fixture result after comparison completion", async () => {
   const comparison = {
-    evaluation: { passed: true, checks: { same_candidate: true }, counts: { memory_findings: 1 } },
+    evaluation: { passed: true, checks: comparisonChecks(), counts: { memory_findings: 1 } },
     memory: { run_id: "run-case-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-case-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
   };
@@ -1414,7 +1450,7 @@ it("restores the latest completed comparison without starting a new job", async 
   const restored = {
     evaluation: {
       passed: true,
-      checks: { same_candidate: true, baseline_has_no_memory_citations: true },
+      checks: comparisonChecks(),
       counts: { memory_findings: 1 },
     },
     memory: {
@@ -1445,7 +1481,7 @@ it("surfaces an invalid stored comparison instead of treating it as missing", as
   const invalid = {
     evaluation: {
       passed: true,
-      checks: { same_candidate: true },
+      checks: comparisonChecks(),
     },
     memory: { run_id: "run-stored-memory", status: "running", mode: "memory", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-stored-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
@@ -1464,7 +1500,22 @@ it("surfaces an invalid stored comparison instead of treating it as missing", as
 
 it("rejects a stored comparison whose pass headline contradicts its guardrails", async () => {
   const invalid = {
-    evaluation: { passed: false, checks: { same_candidate: true } },
+    evaluation: { passed: false, checks: comparisonChecks() },
+    memory: { run_id: "run-stored-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
+    baseline: { run_id: "run-stored-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
+  };
+  const fetchMock = installFetch({ latestComparison: invalid });
+  renderAt("/repos/repo-acme-commerce/lab");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("Comparison recovery unavailable: The stored comparison failed correlation validation.");
+  expect(screen.queryByText("Guardrails passed")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
+it("rejects a stored comparison with a partial guardrail set", async () => {
+  const invalid = {
+    evaluation: { passed: true, checks: partialComparisonChecks() },
     memory: { run_id: "run-stored-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-stored-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
   };
@@ -1481,7 +1532,7 @@ it("reattaches to an active comparison after refresh without starting another jo
   const resumed = {
     evaluation: {
       passed: true,
-      checks: { same_candidate: true, baseline_has_no_memory_citations: true },
+      checks: comparisonChecks(),
       counts: { memory_findings: 1 },
     },
     memory: {
@@ -1511,7 +1562,7 @@ it("reattaches to an active comparison after refresh without starting another jo
 
 it("discovers an active comparison after tab storage is lost without starting another job", async () => {
   const resumed = {
-    evaluation: { passed: true, checks: { same_candidate: true }, counts: { memory_findings: 1 } },
+    evaluation: { passed: true, checks: comparisonChecks(), counts: { memory_findings: 1 } },
     memory: { run_id: "run-discovered-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-discovered-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
   };
@@ -1531,7 +1582,7 @@ it("announces when starting a comparison reuses existing provider work", async (
     releaseComparisonPoll = resolve;
   });
   const comparison = {
-    evaluation: { passed: true, checks: { same_candidate: true }, counts: { memory_findings: 1 } },
+    evaluation: { passed: true, checks: comparisonChecks(), counts: { memory_findings: 1 } },
     memory: { run_id: "run-reused-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-reused-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
   };
@@ -1578,7 +1629,7 @@ it("reattaches when a comparison claim appears during the manual creation-status
     releaseComparisonPoll = resolve;
   });
   const comparison = {
-    evaluation: { passed: true, checks: { same_candidate: true }, counts: { memory_findings: 1 } },
+    evaluation: { passed: true, checks: comparisonChecks(), counts: { memory_findings: 1 } },
     memory: { run_id: "run-late-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-late-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
   };
@@ -1631,7 +1682,7 @@ it("keeps comparison creation disabled when the manual creation-status read fail
 
 it("restores a completed comparison found during manual creation-status reconciliation", async () => {
   const completed = {
-    evaluation: { passed: true, checks: { same_candidate: true }, counts: { memory_findings: 1 } },
+    evaluation: { passed: true, checks: comparisonChecks(), counts: { memory_findings: 1 } },
     memory: { run_id: "run-restored-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-restored-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
   };
@@ -1660,7 +1711,7 @@ it("keeps creation uncertain when manual reconciliation finds an invalid stored 
   const invalid = {
     evaluation: {
       passed: true,
-      checks: { same_candidate: true },
+      checks: comparisonChecks(),
     },
     memory: { run_id: "run-stored-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-stored-baseline", status: "failed", mode: "baseline", findings: [generalFinding], retrieval: {} },
@@ -1691,7 +1742,33 @@ it("keeps creation uncertain when manual reconciliation finds an invalid stored 
 
 it("keeps creation uncertain when manual reconciliation finds contradictory guardrails", async () => {
   const invalid = {
-    evaluation: { passed: true, checks: { same_candidate: false } },
+    evaluation: { passed: true, checks: comparisonChecks({ same_candidate: false }) },
+    memory: { run_id: "run-stored-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
+    baseline: { run_id: "run-stored-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
+  };
+  const fetchMock = installFetch({
+    comparisonCreationHangs: true,
+    comparisonCreationClaimVisible: false,
+    latestComparison: invalid,
+    latestComparisonAfterRead: 2,
+  });
+  renderAt("/repos/repo-acme-commerce/lab");
+  await screen.findByRole("option", { name: /Update order status/ });
+  const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  fireEvent.click(await screen.findByRole("button", { name: "Check creation status" }));
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("Comparison creation status is still unavailable: The stored comparison failed correlation validation.");
+  expect(run.disabled).toBe(true);
+  expect(screen.queryByText("Guardrails passed")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(2);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+});
+
+it("keeps creation uncertain when manual reconciliation finds partial guardrails", async () => {
+  const invalid = {
+    evaluation: { passed: true, checks: partialComparisonChecks() },
     memory: { run_id: "run-stored-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-stored-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
   };
@@ -1756,7 +1833,7 @@ it("leaves an actionable comparison state when persisted recovery fails", async 
 
 it("retries saved comparison recovery through GET only", async () => {
   const restored = {
-    evaluation: { passed: true, checks: { same_candidate: true }, counts: { memory_findings: 1 } },
+    evaluation: { passed: true, checks: comparisonChecks(), counts: { memory_findings: 1 } },
     memory: { run_id: "run-retry-saved-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-retry-saved-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
   };
@@ -1788,7 +1865,7 @@ it("announces an empty saved comparison recovery without starting work", async (
 
 it("checks an existing comparison again after bounded polling is exhausted", async () => {
   const resumed = {
-    evaluation: { passed: true, checks: { same_candidate: true }, counts: { memory_findings: 1 } },
+    evaluation: { passed: true, checks: comparisonChecks(), counts: { memory_findings: 1 } },
     memory: { run_id: "run-retry-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-retry-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
   };
@@ -1817,7 +1894,7 @@ it("clears a missing active comparison and restores the latest completed result"
   const restored = {
     evaluation: {
       passed: true,
-      checks: { same_candidate: true, baseline_has_no_memory_citations: true },
+      checks: comparisonChecks(),
       counts: { memory_findings: 1 },
     },
     memory: {

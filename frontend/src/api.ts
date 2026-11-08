@@ -194,6 +194,14 @@ const CREATION_RESPONSE_TIMEOUT_MS = import.meta.env.MODE === "test" ? 50 : 10_0
 const CREATION_RECONCILE_DELAYS_MS = import.meta.env.MODE === "test" ? [0, 1, 2] as const : [0, 250, 750] as const;
 const SAFE_JOB_ID = /^job-[A-Za-z0-9_-]{1,80}$/;
 const SAFE_RUN_ID = /^(?:review|run)-[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/;
+const REQUIRED_COMPARISON_CHECKS = [
+  "same_candidate",
+  "same_model",
+  "memory_retrieved_validated_source",
+  "memory_produced_grounded_team_finding",
+  "baseline_has_no_memory_citations",
+  "baseline_has_no_team_policy_finding",
+] as const;
 
 class ApiRequestError extends Error {
   constructor(message: string, readonly status: number) {
@@ -409,11 +417,12 @@ export function normalizeComparison(raw: unknown): Comparison | null {
   if (!evaluation || !memory || !baseline) return null;
   if (memory.mode !== "memory" || baseline.mode !== "baseline") return null;
   if (memory.status !== "complete" || baseline.status !== "complete") return null;
+  const rawChecks = evaluation.checks;
+  if (!isRecord(rawChecks)
+    || REQUIRED_COMPARISON_CHECKS.some((key) => typeof rawChecks[key] !== "boolean")) return null;
   const checks: Record<string, boolean> = {};
-  if (isRecord(evaluation.checks)) {
-    for (const [key, value] of Object.entries(evaluation.checks)) {
-      if (typeof value === "boolean") checks[key] = value;
-    }
+  for (const [key, value] of Object.entries(rawChecks)) {
+    if (typeof value === "boolean") checks[key] = value;
   }
   const passed = typeof evaluation.passed === "boolean" ? evaluation.passed : undefined;
   if (passed !== undefined && passed !== Object.values(checks).every(Boolean)) return null;

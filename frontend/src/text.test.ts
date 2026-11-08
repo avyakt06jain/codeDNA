@@ -3,6 +3,16 @@ import { normalizeComparison, normalizeJobTimestamp, normalizeReview, normalizeR
 import { JOB_STALE_AFTER_MS, isStaleJob } from "./components/ActiveJobDetails";
 import { bindingCopy, comparisonStageLabel, feedbackPayload, formatSeconds, memoryLabel, preferredPullRequestId, stageLabel, traceSteps } from "./text";
 
+const comparisonChecks = (overrides: Record<string, boolean> = {}) => ({
+  same_candidate: true,
+  same_model: true,
+  memory_retrieved_validated_source: true,
+  memory_produced_grounded_team_finding: true,
+  baseline_has_no_memory_citations: true,
+  baseline_has_no_team_policy_finding: true,
+  ...overrides,
+});
+
 describe("feedback reasons", () => {
   it("maps each dismiss choice to a stored action and keeps the label", () => {
     expect(feedbackPayload("not_applicable", "")).toEqual({ action: "not_applicable", reason: "Not applicable to this change" });
@@ -34,29 +44,29 @@ describe("memory and timings", () => {
 
   it("fails closed when comparison run correlation metadata is malformed or mismatched", () => {
     const comparison = {
-      evaluation: { checks: {}, run_ids: { memory: "run-memory", baseline: "run-baseline" } },
+      evaluation: { checks: comparisonChecks(), run_ids: { memory: "run-memory", baseline: "run-baseline" } },
       memory: { run_id: "run-memory", status: "complete", mode: "memory", findings: [] },
       baseline: { run_id: "run-baseline", status: "complete", mode: "baseline", findings: [] },
     };
     expect(normalizeComparison(comparison)?.evaluation.run_ids).toEqual({ memory: "run-memory", baseline: "run-baseline" });
-    expect(normalizeComparison({ ...comparison, evaluation: { checks: {} } })).not.toBeNull();
-    expect(normalizeComparison({ ...comparison, evaluation: { checks: {}, run_ids: "run-memory" } })).toBeNull();
+    expect(normalizeComparison({ ...comparison, evaluation: { checks: comparisonChecks() } })).not.toBeNull();
+    expect(normalizeComparison({ ...comparison, evaluation: { checks: comparisonChecks(), run_ids: "run-memory" } })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { checks: {}, run_ids: { memory: "run-other", baseline: "run-baseline" } },
+      evaluation: { checks: comparisonChecks(), run_ids: { memory: "run-other", baseline: "run-baseline" } },
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { checks: {}, run_ids: { memory: "<invalid>", baseline: "run-baseline" } },
+      evaluation: { checks: comparisonChecks(), run_ids: { memory: "<invalid>", baseline: "run-baseline" } },
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { checks: {} },
+      evaluation: { checks: comparisonChecks() },
       memory: { run_id: "invalid id", status: "complete", mode: "memory", findings: [] },
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { checks: {} },
+      evaluation: { checks: comparisonChecks() },
       baseline: { status: "complete", mode: "baseline", findings: [] },
     })).toBeNull();
     expect(normalizeComparison({
@@ -82,16 +92,21 @@ describe("memory and timings", () => {
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { passed: true, checks: { same_candidate: false } },
+      evaluation: { passed: true, checks: comparisonChecks({ same_candidate: false }) },
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { passed: false, checks: { same_candidate: true } },
+      evaluation: { passed: false, checks: comparisonChecks() },
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: { passed: false, checks: { same_candidate: true, grounded: false } },
+      evaluation: { passed: false, checks: comparisonChecks({ memory_produced_grounded_team_finding: false }) },
     })?.evaluation.passed).toBe(false);
+    const { same_model: _missing, ...partialChecks } = comparisonChecks();
+    expect(normalizeComparison({
+      ...comparison,
+      evaluation: { passed: true, checks: partialChecks },
+    })).toBeNull();
   });
 
   it("marks a job stale only after three minutes without an update", () => {
