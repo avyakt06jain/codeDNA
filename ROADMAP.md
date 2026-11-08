@@ -178,7 +178,8 @@
 - **Verified:** Every comparison now requires valid bounded nested memory and baseline run IDs, even without optional evaluation-level metadata. Invalid active/latest/manual results render no guardrails; active completion clears its locator and no recovery path starts replacement work.
 - **Verified:** Completed comparison polling distinguishes a structurally missing payload from present-but-invalid correlation metadata with separate terminal errors. Both render no guardrails, clear the active locator, and send no replacement request.
 - **Verified:** Every comparison requires exact nested role identity: `memory.mode` is `memory` and `baseline.mode` is `baseline`. Swapped, missing, or malformed modes fail closed across active and latest/manual recovery without guardrails or replacement work.
-- **Next:** Require both nested comparison runs to report terminal `complete` status before guardrails can render, preventing partial or failed branch payloads from appearing as a finished ablation.
+- **Verified:** Both nested comparison runs must report terminal `complete` status before guardrails render. Partial, failed, or missing branch status fails closed across active and latest/manual recovery without replacement work.
+- **Next:** Fail closed when a present evaluation `passed` flag contradicts its normalized guardrail checks, so the comparison headline cannot disagree with its details.
 
 ## Documentation and version-control policy
 

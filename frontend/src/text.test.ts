@@ -35,8 +35,8 @@ describe("memory and timings", () => {
   it("fails closed when comparison run correlation metadata is malformed or mismatched", () => {
     const comparison = {
       evaluation: { checks: {}, run_ids: { memory: "run-memory", baseline: "run-baseline" } },
-      memory: { run_id: "run-memory", mode: "memory", findings: [] },
-      baseline: { run_id: "run-baseline", mode: "baseline", findings: [] },
+      memory: { run_id: "run-memory", status: "complete", mode: "memory", findings: [] },
+      baseline: { run_id: "run-baseline", status: "complete", mode: "baseline", findings: [] },
     };
     expect(normalizeComparison(comparison)?.evaluation.run_ids).toEqual({ memory: "run-memory", baseline: "run-baseline" });
     expect(normalizeComparison({ ...comparison, evaluation: { checks: {} } })).not.toBeNull();
@@ -52,21 +52,33 @@ describe("memory and timings", () => {
     expect(normalizeComparison({
       ...comparison,
       evaluation: { checks: {} },
-      memory: { run_id: "invalid id", mode: "memory", findings: [] },
+      memory: { run_id: "invalid id", status: "complete", mode: "memory", findings: [] },
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
       evaluation: { checks: {} },
-      baseline: { mode: "baseline", findings: [] },
+      baseline: { status: "complete", mode: "baseline", findings: [] },
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      memory: { run_id: "run-memory", mode: "baseline", findings: [] },
-      baseline: { run_id: "run-baseline", mode: "memory", findings: [] },
+      memory: { run_id: "run-memory", status: "complete", mode: "baseline", findings: [] },
+      baseline: { run_id: "run-baseline", status: "complete", mode: "memory", findings: [] },
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      baseline: { run_id: "run-baseline", findings: [] },
+      baseline: { run_id: "run-baseline", status: "complete", findings: [] },
+    })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      memory: { ...comparison.memory, status: "running" },
+    })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      baseline: { ...comparison.baseline, status: "failed" },
+    })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      baseline: { run_id: "run-baseline", mode: "baseline", findings: [] },
     })).toBeNull();
   });
 

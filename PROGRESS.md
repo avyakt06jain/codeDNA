@@ -100,10 +100,11 @@
 - Every Memory Lab comparison now requires valid bounded IDs on both nested persisted runs, independent of optional evaluation metadata. Invalid active/latest/manual payloads render no guardrails; active completion clears its locator and recovery starts no replacement work.
 - Completed comparison polling now distinguishes an absent payload from present-but-invalid correlation metadata. Both are terminal and clear the locator, but only the latter reports the specific integrity error.
 - Every Memory Lab comparison now requires exact nested roles: the memory slot explicitly declares `memory` and the baseline slot explicitly declares `baseline`. Swapped or missing modes fail closed across active and latest/manual recovery.
+- Every Memory Lab comparison now requires both nested runs to report `complete`. Partial, failed, or missing branch status fails closed across active and latest/manual recovery without rendering guardrails or replaying work.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by requiring both nested comparison runs to report terminal `complete` status.
+- Post-MVP trust hardening continues by reconciling the evaluation headline with its detailed guardrail checks.
 
 ## Blocked
 
@@ -127,9 +128,19 @@
 
 ## Next Action
 
-Require `memory.status` and `baseline.status` to equal `complete` before accepting any comparison. Reject partial, failed, or missing branch status without guardrails or replacement work.
+Fail closed when a present evaluation `passed` flag contradicts the normalized guardrail checks, so the comparison headline cannot disagree with its details.
 
 ## Session Log
+
+### 2026-11-08 — Complete Memory Lab branch status
+
+- Goal: Prevent a partial or failed nested run from being presented as a finished memory-versus-baseline ablation.
+- Implemented: `normalizeComparison` now requires raw `memory.status` and `baseline.status` to equal `complete` before review normalization. Partial, failed, and missing statuses enter the existing correlation-integrity path. Active completion remains terminal and clears its locator; initial and manual latest-result recovery remain actionable and GET-only. Rejected payloads render no guardrails or correlation handles.
+- Focused checks: `npm test -- --run src/text.test.ts src/ui.test.tsx -t "comparison run correlation|incomplete nested branch|invalid stored comparison"` → **4 passed, 78 skipped across 2 files**. Unit cases cover running, failed, and missing statuses; product cases cover active completion plus initial and manual latest-result recovery.
+- Full regression: `CODEDNA_HINDSIGHT_AUTOSTART=0 .\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **90 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 332.41 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: API health returned `ok`, Hindsight truthfully remained `unavailable`, and Memory Lab returned HTTP 200 after Vite hot reload.
+- Provider safety: this is deterministic validation of existing response metadata and adds no request, Hindsight/Gemini call, or paid usage.
+- Next: fail closed when an evaluation headline contradicts its detailed guardrail checks.
 
 ### 2026-11-08 — Exact Memory Lab branch roles
 

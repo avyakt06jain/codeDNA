@@ -408,6 +408,7 @@ export function normalizeComparison(raw: unknown): Comparison | null {
   const baseline = isRecord(raw.baseline) ? raw.baseline : null;
   if (!evaluation || !memory || !baseline) return null;
   if (memory.mode !== "memory" || baseline.mode !== "baseline") return null;
+  if (memory.status !== "complete" || baseline.status !== "complete") return null;
   const checks: Record<string, boolean> = {};
   if (isRecord(evaluation.checks)) {
     for (const [key, value] of Object.entries(evaluation.checks)) {
