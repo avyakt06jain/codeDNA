@@ -112,10 +112,11 @@
 - Review Workspace now binds active and latest single-review results to the route/request PR. Missing or different result identity fails closed across active/latest/manual recovery.
 - Review Workspace now requires explicit terminal completion and valid memory/baseline mode on single-review results. Latest and known-mode jobs must match the requested mode; invalid state fails closed across active/latest/manual recovery.
 - Review Workspace now trims provider/model identity and enforces the backend's 80/160-character storage limits on single-review results. Missing, blank, or overlong identity fails closed across active/latest/manual recovery.
+- Review Workspace now requires an explicit findings array containing only object entries on completed single-review results. Missing/malformed collections fail closed rather than appearing as a legitimate empty review.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by requiring an explicit findings array on completed single-review results.
+- Post-MVP trust hardening continues by validating required finding fields and enums before normalization.
 
 ## Blocked
 
@@ -139,9 +140,19 @@
 
 ## Next Action
 
-Require an explicit findings array on completed single-review results.
+Validate required finding fields and enums before normalizing completed single-review results.
 
 ## Session Log
+
+### 2026-11-09 — Explicit single-review findings collection
+
+- Goal: Distinguish a legitimate zero-finding review from a malformed result whose findings were absent or silently discarded.
+- Implemented: the shared single-review boundary now requires `findings` to be an array and every entry to be an object before normalization. A genuine empty array remains valid. Missing/non-array collections and malformed entries reuse the existing initial, active, and manual fail-closed paths; rejected results render no findings and trigger no replacement POST.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "without a findings array|malformed findings array|invalid finding entry"` → **3 passed, 108 skipped**.
+- Full serial checks: `.\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **129 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 334.56 kB JavaScript and 16.43 kB CSS before gzip.
+- Live check: API health remained `status=ok`, `hindsight=ready`, and `interrupted_jobs=0`; Review Workspace returned HTTP 200 after Vite hot reload. No review or provider work was started.
+- Provider safety: the slice validates existing response structure only; it adds no request, Hindsight/Gemini call, or paid usage.
+- Next: validate required finding fields and enums before allowing finding normalization defaults.
 
 ### 2026-11-09 — Bounded single-review model identity
 

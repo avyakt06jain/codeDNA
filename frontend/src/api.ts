@@ -431,6 +431,7 @@ function normalizeReviewForPr(
   if (raw.status !== "complete") return null;
   if (raw.mode !== "memory" && raw.mode !== "baseline") return null;
   if (expectedMode !== undefined && raw.mode !== expectedMode) return null;
+  if (!Array.isArray(raw.findings) || !raw.findings.every(isRecord)) return null;
   const provider = asString(raw.provider)?.trim();
   const model = asString(raw.model)?.trim();
   if (!provider || provider.length > MAX_PROVIDER_ID_LENGTH

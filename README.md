@@ -59,6 +59,7 @@ CodeDNA separates memory from authority:
 - Request-bound reviews: active and latest single-review results must identify the route/request pull request before findings can render
 - Explicit review state: single-review results must declare terminal completion and a valid requested memory/baseline mode rather than relying on frontend defaults
 - Review model identity: single-review results require trimmed provider/model fields bounded to the backend's 80/160-character storage limits before findings can render
+- Explicit findings contract: completed single-review results require an array containing only finding objects; malformed collections cannot masquerade as a valid empty review
 - Safe stale-job recovery that clears a missing locator and restores the latest persisted same-PR result without rerunning providers
 - Read-only same-PR active-job discovery after tab/session loss, before any completed-result fallback
 - Atomic same-PR active-job reuse so simultaneous tabs schedule only one provider task

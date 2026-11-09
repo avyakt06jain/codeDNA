@@ -190,7 +190,8 @@
 - **Verified:** Single-review active/latest normalization is bound to the route/request PR. Missing or different result identity fails closed across active, initial latest, and manual latest recovery.
 - **Verified:** Single-review active/latest results must carry explicit `status: complete` and a valid `memory`/`baseline` mode; latest and known-mode job results must match the requested mode. Invalid state fails closed across active and latest/manual recovery.
 - **Verified:** Single-review active/latest results require trimmed provider/model identity bounded to the backend's 80/160-character storage limits. Missing, blank, or overlong identity fails closed across active and latest/manual recovery.
-- **Next:** Require an explicit findings array on completed single-review results so malformed payloads cannot normalize to a legitimate empty review.
+- **Verified:** Completed single-review results require an explicit findings array containing only object entries. Missing/malformed collections fail closed while a genuine empty array remains valid.
+- **Next:** Validate required finding fields and enums before normalization so malformed finding objects cannot become defaulted review content.
 
 ## Documentation and version-control policy
 
