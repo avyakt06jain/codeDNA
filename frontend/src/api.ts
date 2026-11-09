@@ -428,6 +428,7 @@ function normalizeReviewForPr(
   if (raw.status !== "complete") return null;
   if (raw.mode !== "memory" && raw.mode !== "baseline") return null;
   if (expectedMode !== undefined && raw.mode !== expectedMode) return null;
+  if (!asString(raw.provider)?.trim() || !asString(raw.model)?.trim()) return null;
   const review = normalizeReview(raw);
   return review.run_id && review.pr_id === expectedPrId ? review : null;
 }

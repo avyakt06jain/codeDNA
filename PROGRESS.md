@@ -111,10 +111,11 @@
 - Memory Lab now binds comparison normalization to the PR selected for start, polling, or restoration. Two mutually consistent branches for another candidate fail closed across active/latest/manual recovery.
 - Review Workspace now binds active and latest single-review results to the route/request PR. Missing or different result identity fails closed across active/latest/manual recovery.
 - Review Workspace now requires explicit terminal completion and valid memory/baseline mode on single-review results. Latest and known-mode jobs must match the requested mode; invalid state fails closed across active/latest/manual recovery.
+- Review Workspace now requires non-blank provider and model identity on single-review results. Missing or blank identity fails closed across active/latest/manual recovery.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by requiring provider/model identity on single-review results.
+- Post-MVP trust hardening continues by bounding provider/model identity lengths.
 
 ## Blocked
 
@@ -138,9 +139,18 @@
 
 ## Next Action
 
-Require non-empty provider and model identity on single-review results before rendering findings.
+Bound provider and model identity lengths at the frontend trust boundary.
 
 ## Session Log
+
+### 2026-11-09 — Required single-review provider and model identity
+
+- Goal: Prevent findings from rendering without an inspectable model configuration identity.
+- Implemented: the shared single-review trust boundary now requires provider and model fields containing non-whitespace text. Missing/blank identity enters the existing active/latest/manual integrity paths; active rejection remains terminal, stored recovery remains actionable and GET-only, and no rejected result renders findings.
+- Focused checks: `npm test -- --run src/ui.test.tsx -t "without provider identity|without model identity|blank provider identity"` → **3 passed, 102 skipped**; `npm run build` → **PASS**, 40 modules, 334.42 kB JavaScript and 16.43 kB CSS before gzip.
+- Full serial checks: `.\.venv\Scripts\python.exe -m pytest` → **33 passed**; `npm test -- --run` → **123 passed across 5 files**.
+- Live check: the running API returned `status=ok`, `hindsight=ready`, and `interrupted_jobs=0`; Review Workspace returned HTTP 200. This read-only check started no review or provider work.
+- Next: bound provider/model identity lengths before rendering them.
 
 ### 2026-11-09 — Required explicit single-review mode and completion
 

@@ -58,6 +58,7 @@ CodeDNA separates memory from authority:
 - Fail-closed active review completion: a terminal job without a valid bounded review run ID clears its recovery locator and renders an integrity error instead of findings
 - Request-bound reviews: active and latest single-review results must identify the route/request pull request before findings can render
 - Explicit review state: single-review results must declare terminal completion and a valid requested memory/baseline mode rather than relying on frontend defaults
+- Review model identity: single-review results require non-blank provider and model fields before findings can render
 - Safe stale-job recovery that clears a missing locator and restores the latest persisted same-PR result without rerunning providers
 - Read-only same-PR active-job discovery after tab/session loss, before any completed-result fallback
 - Atomic same-PR active-job reuse so simultaneous tabs schedule only one provider task
