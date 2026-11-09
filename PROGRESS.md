@@ -116,10 +116,11 @@
 - Review Workspace now validates each finding's required bounded text, line shape, enums, optional suggestion, and evidence-list shape before normalization. Invalid fields no longer become default category/severity/confidence or placeholder text.
 - Review Workspace now requires completed single-review elapsed time to be a finite non-negative integer. Missing, negative, fractional, or non-finite timing fails closed instead of rendering misleading telemetry.
 - Review Workspace now requires team-convention findings to cite evidence and general findings to remain uncited. Contradictory category/citation semantics fail closed rather than rendering misleading policy provenance.
+- Review Workspace now resolves every team citation against non-blank decision IDs in the same result's validated retrieval evidence. Missing, malformed, or unrelated evidence fails closed.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by resolving single-review team citations against same-result validated evidence.
+- Post-MVP trust hardening continues by validating source/bank fields on cited retrieval evidence.
 
 ## Blocked
 
@@ -143,9 +144,20 @@
 
 ## Next Action
 
-Resolve every single-review team citation against validated evidence returned in the same review.
+Validate source and bank provenance fields on cited single-review evidence records.
 
 ## Session Log
+
+### 2026-11-09 — Same-result citation resolution
+
+- Goal: Prevent a syntactically cited team-policy finding from rendering when its decision is absent from the review's validated retrieval evidence.
+- Implemented: single-review acceptance now builds the allowlist from non-blank `decision_id` values in same-result `retrieval.validated_evidence` and requires every team citation to resolve through it. Missing, malformed, or unrelated evidence uses the existing initial, active, and manual integrity paths; rejected results render no findings and issue no replacement POST.
+- Fixture correction: the shared valid review fixture now includes its two cited decisions in validated evidence, matching the real backend serialization contract.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "absent from validated evidence|malformed validated evidence|cannot resolve a team citation"` → **3 passed, 120 skipped**.
+- Full serial checks: `.\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **141 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 335.98 kB JavaScript and 16.43 kB CSS before gzip.
+- Live check: API health remained `status=ok`, `hindsight=ready`, and `interrupted_jobs=0`; Review Workspace returned HTTP 200 after Vite hot reload. No review or provider work was started.
+- Provider safety: same-payload citation resolution adds no request, Hindsight/Gemini call, or paid usage.
+- Next: validate the provenance shape of cited evidence, including source and bank identifiers.
 
 ### 2026-11-09 — Single-review category and citation integrity
 

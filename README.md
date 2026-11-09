@@ -63,6 +63,7 @@ CodeDNA separates memory from authority:
 - Fail-closed finding schema: required text bounds, location shape, category/severity/confidence enums, optional suggestion, and evidence IDs are validated before frontend normalization
 - Validated review timing: completed single-review elapsed time must be a finite non-negative integer before it is displayed
 - Category/citation integrity: team-convention findings require evidence IDs, while general findings cannot present policy evidence
+- Same-result citation resolution: every team-policy citation must match validated retrieval evidence returned with that review
 - Safe stale-job recovery that clears a missing locator and restores the latest persisted same-PR result without rerunning providers
 - Read-only same-PR active-job discovery after tab/session loss, before any completed-result fallback
 - Atomic same-PR active-job reuse so simultaneous tabs schedule only one provider task

@@ -458,6 +458,17 @@ function normalizeReviewForPr(
     || !Number.isFinite(raw.elapsed_ms)
     || !Number.isInteger(raw.elapsed_ms)
     || raw.elapsed_ms < 0) return null;
+  const teamCitations = raw.findings
+    .filter((finding) => finding.category === "team_convention")
+    .flatMap((finding) => finding.evidence_ids as string[]);
+  const validatedEvidence = isRecord(raw.retrieval) && Array.isArray(raw.retrieval.validated_evidence)
+    ? raw.retrieval.validated_evidence
+    : [];
+  const validatedDecisionIds = new Set(validatedEvidence
+    .filter(isRecord)
+    .map((evidence) => asString(evidence.decision_id)?.trim())
+    .filter((decisionId): decisionId is string => Boolean(decisionId)));
+  if (teamCitations.some((decisionId) => !validatedDecisionIds.has(decisionId))) return null;
   const provider = asString(raw.provider)?.trim();
   const model = asString(raw.model)?.trim();
   if (!provider || provider.length > MAX_PROVIDER_ID_LENGTH
