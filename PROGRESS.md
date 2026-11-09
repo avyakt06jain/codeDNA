@@ -115,10 +115,11 @@
 - Review Workspace now requires an explicit findings array containing only object entries on completed single-review results. Missing/malformed collections fail closed rather than appearing as a legitimate empty review.
 - Review Workspace now validates each finding's required bounded text, line shape, enums, optional suggestion, and evidence-list shape before normalization. Invalid fields no longer become default category/severity/confidence or placeholder text.
 - Review Workspace now requires completed single-review elapsed time to be a finite non-negative integer. Missing, negative, fractional, or non-finite timing fails closed instead of rendering misleading telemetry.
+- Review Workspace now requires team-convention findings to cite evidence and general findings to remain uncited. Contradictory category/citation semantics fail closed rather than rendering misleading policy provenance.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by enforcing citation/category semantics on single-review findings.
+- Post-MVP trust hardening continues by resolving single-review team citations against same-result validated evidence.
 
 ## Blocked
 
@@ -142,9 +143,19 @@
 
 ## Next Action
 
-Enforce citation/category semantics on single-review findings.
+Resolve every single-review team citation against validated evidence returned in the same review.
 
 ## Session Log
+
+### 2026-11-09 — Single-review category and citation integrity
+
+- Goal: Prevent a general observation from presenting policy evidence or a team-policy claim from appearing without provenance.
+- Implemented: finding validation now requires every `team_convention` finding to carry at least one evidence ID and every `general` finding to carry none, matching the backend review validator. Contradictions reuse the initial, active, and manual integrity paths; active rejection clears its locator and no path posts replacement work.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "general finding with policy evidence|team finding without policy evidence|uncited team finding"` → **3 passed, 117 skipped**.
+- Full serial checks: `.\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **138 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 335.69 kB JavaScript and 16.43 kB CSS before gzip.
+- Live check: API health remained `status=ok`, `hindsight=ready`, and `interrupted_jobs=0`; Review Workspace returned HTTP 200 after Vite hot reload. No review or provider work was started.
+- Provider safety: citation/category validation adds no request, Hindsight/Gemini call, or paid usage.
+- Next: require each team citation to resolve through validated evidence in the same review payload.
 
 ### 2026-11-09 — Validated single-review elapsed timing
 

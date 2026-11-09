@@ -697,6 +697,20 @@ it("rejects a stored review without elapsed timing", async () => {
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
+it("rejects a stored general finding with policy evidence", async () => {
+  const fetchMock = installFetch({
+    latestReview: { ...review, findings: [{ ...generalFinding, evidence_ids: ["DEC-0103"] }] },
+  });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain(
+    "Review recovery unavailable: The stored review failed correlation validation.",
+  );
+  expect(screen.queryByRole("article", { name: "Missing update reason check" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
 it("reattaches to an active review after refresh without starting another job", async () => {
   saveActiveJob("review", "pr-acme-87", "job-review");
   const fetchMock = installFetch({ reviewPollFailures: 1, pollDelayMs: 50 });
@@ -817,6 +831,21 @@ it("rejects an active review result with negative elapsed timing", async () => {
   const fetchMock = installFetch({
     activeReviewJob: true,
     completedReview: { ...review, elapsed_ms: -1 },
+  });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("The review finished with invalid correlation metadata.");
+  expect(screen.queryByRole("article", { name: "Direct status write skips the service" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+  expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
+});
+
+it("rejects an active team finding without policy evidence", async () => {
+  const fetchMock = installFetch({
+    activeReviewJob: true,
+    completedReview: { ...review, findings: [{ ...teamFinding, evidence_ids: [] }] },
   });
   renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
   const alert = await screen.findByRole("alert");
@@ -1150,6 +1179,30 @@ it("keeps creation uncertain when manual reconciliation finds fractional elapsed
     reviewCreationHangs: true,
     reviewCreationClaimVisible: false,
     latestReview: { ...review, elapsed_ms: 1.5 },
+    latestReviewAfterRead: 2,
+  });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const run = screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  fireEvent.click(await screen.findByRole("button", { name: "Check creation status" }));
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain(
+    "Review creation status is still unavailable: The stored review failed correlation validation.",
+  );
+  const retry = screen.getByRole("button", { name: "Check creation status" });
+  await waitFor(() => expect(document.activeElement).toBe(retry));
+  expect(run.disabled).toBe(true);
+  expect(screen.queryByRole("article", { name: "Direct status write skips the service" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(2);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+});
+
+it("keeps creation uncertain when manual reconciliation finds an uncited team finding", async () => {
+  const fetchMock = installFetch({
+    reviewCreationHangs: true,
+    reviewCreationClaimVisible: false,
+    latestReview: { ...review, findings: [{ ...teamFinding, evidence_ids: [] }] },
     latestReviewAfterRead: 2,
   });
   renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");

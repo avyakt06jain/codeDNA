@@ -406,7 +406,8 @@ function isValidFinding(raw: Record<string, unknown>): boolean {
       || (typeof raw.suggested_change === "string" && raw.suggested_change.length <= 2000))
     && typeof raw.confidence === "string" && FINDING_CONFIDENCES.has(raw.confidence)
     && Array.isArray(raw.evidence_ids) && raw.evidence_ids.length <= 5
-    && raw.evidence_ids.every((item) => typeof item === "string" && item.trim().length > 0);
+    && raw.evidence_ids.every((item) => typeof item === "string" && item.trim().length > 0)
+    && (raw.category === "team_convention" ? raw.evidence_ids.length > 0 : raw.evidence_ids.length === 0);
 }
 
 function normalizeTimings(raw: unknown): Timings | undefined {
