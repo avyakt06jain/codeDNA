@@ -4,7 +4,7 @@
 
 ## Current State
 
-- Date: 2026-11-08
+- Date: 2026-11-09
 - Phase: G0–G5 MVP gates complete; the evolved judge demo was exercised against a restarted local API.
 - Implementation: The retain → recall → validate → review → feedback → supersede → ablate loop is verified locally against real Hindsight and Gemini. `CODEDNA_DEMO_SCENE=evolved` leaves `DEC-0103` active and `DEC-0042` superseded.
 - Git: `main` is initialized, connected to GitHub, and verified checkpoints are pushed without rewriting published history.
@@ -111,11 +111,11 @@
 - Memory Lab now binds comparison normalization to the PR selected for start, polling, or restoration. Two mutually consistent branches for another candidate fail closed across active/latest/manual recovery.
 - Review Workspace now binds active and latest single-review results to the route/request PR. Missing or different result identity fails closed across active/latest/manual recovery.
 - Review Workspace now requires explicit terminal completion and valid memory/baseline mode on single-review results. Latest and known-mode jobs must match the requested mode; invalid state fails closed across active/latest/manual recovery.
-- Review Workspace now requires non-blank provider and model identity on single-review results. Missing or blank identity fails closed across active/latest/manual recovery.
+- Review Workspace now trims provider/model identity and enforces the backend's 80/160-character storage limits on single-review results. Missing, blank, or overlong identity fails closed across active/latest/manual recovery.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by bounding provider/model identity lengths.
+- Post-MVP trust hardening continues by requiring an explicit findings array on completed single-review results.
 
 ## Blocked
 
@@ -139,9 +139,19 @@
 
 ## Next Action
 
-Bound provider and model identity lengths at the frontend trust boundary.
+Require an explicit findings array on completed single-review results.
 
 ## Session Log
+
+### 2026-11-09 — Bounded single-review model identity
+
+- Goal: Prevent untrusted persisted provider/model text from producing oversized Review Workspace summaries.
+- Implemented: the shared single-review boundary now trims provider/model identity and rejects provider values over 80 characters or model values over 160 characters, matching the persisted `ReviewRun` schema. Accepted results render the trimmed identities. Initial latest recovery stays actionable and GET-only, active rejection stays terminal and clears its locator, and unresolved creation-status recovery stays fail-closed without another POST.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "overlong provider identity|overlong model identity|oversized provider identity"` → **3 passed, 105 skipped**.
+- Full serial checks: `.\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **126 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 334.51 kB JavaScript and 16.43 kB CSS before gzip.
+- Live check: the running API returned `status=ok`, `hindsight=ready`, and `interrupted_jobs=0`; Review Workspace returned HTTP 200. The initial sandboxed localhost attempt was denied by host socket policy; the approved read-only retry succeeded. No review or provider work was started.
+- Provider safety: this validates existing response metadata only; it adds no request, Hindsight/Gemini call, or paid usage.
+- Next: require an explicit findings array before accepting completed single-review results.
 
 ### 2026-11-09 — Required single-review provider and model identity
 

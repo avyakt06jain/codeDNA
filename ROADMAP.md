@@ -189,8 +189,8 @@
 - **Verified:** Comparison normalization is bound to the selected/requested PR. Two internally consistent branches for a different candidate fail closed across active and latest/manual recovery.
 - **Verified:** Single-review active/latest normalization is bound to the route/request PR. Missing or different result identity fails closed across active, initial latest, and manual latest recovery.
 - **Verified:** Single-review active/latest results must carry explicit `status: complete` and a valid `memory`/`baseline` mode; latest and known-mode job results must match the requested mode. Invalid state fails closed across active and latest/manual recovery.
-- **Verified:** Single-review active/latest results require non-blank provider and model identity. Missing or blank identity fails closed across active and latest/manual recovery.
-- **Next:** Bound provider/model identity lengths at the frontend trust boundary so untrusted persisted text cannot produce oversized result summaries.
+- **Verified:** Single-review active/latest results require trimmed provider/model identity bounded to the backend's 80/160-character storage limits. Missing, blank, or overlong identity fails closed across active and latest/manual recovery.
+- **Next:** Require an explicit findings array on completed single-review results so malformed payloads cannot normalize to a legitimate empty review.
 
 ## Documentation and version-control policy
 

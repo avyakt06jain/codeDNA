@@ -1,5 +1,8 @@
 export type HindsightState = "starting" | "ready" | "unavailable";
 
+const MAX_PROVIDER_ID_LENGTH = 80;
+const MAX_MODEL_ID_LENGTH = 160;
+
 export type Health = {
   status?: string;
   memory?: string;
@@ -428,9 +431,14 @@ function normalizeReviewForPr(
   if (raw.status !== "complete") return null;
   if (raw.mode !== "memory" && raw.mode !== "baseline") return null;
   if (expectedMode !== undefined && raw.mode !== expectedMode) return null;
-  if (!asString(raw.provider)?.trim() || !asString(raw.model)?.trim()) return null;
+  const provider = asString(raw.provider)?.trim();
+  const model = asString(raw.model)?.trim();
+  if (!provider || provider.length > MAX_PROVIDER_ID_LENGTH
+    || !model || model.length > MAX_MODEL_ID_LENGTH) return null;
   const review = normalizeReview(raw);
-  return review.run_id && review.pr_id === expectedPrId ? review : null;
+  return review.run_id && review.pr_id === expectedPrId
+    ? { ...review, provider, model }
+    : null;
 }
 
 export function normalizeComparison(raw: unknown, expectedPrId?: string): Comparison | null {
