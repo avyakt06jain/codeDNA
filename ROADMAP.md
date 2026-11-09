@@ -185,7 +185,8 @@
 - **Verified:** Nested memory/baseline reviews must carry matching non-empty `pr_id`, `provider`, and `model` values, while `same_candidate` and `same_model` must be true. Identity mismatches fail closed across active and latest/manual recovery without replacement work.
 - **Verified:** Both `evaluation.run_ids` entries are mandatory, bounded, and must equal their nested persisted run IDs. Missing/invalid/mismatched correlation fails closed across active and latest/manual recovery without replacement work.
 - **Verified:** All seven evaluation counts are mandatory finite non-negative integers and must match values derived from normalized nested evidence/findings/citations. Invalid or inconsistent counts fail closed across active and latest/manual recovery without replacement work.
-- **Next:** Independently recompute the remaining four evidence/content guardrails from normalized nested results so their Booleans cannot contradict the displayed evidence and findings.
+- **Verified:** The four evidence/content guardrails are independently recomputed from normalized nested evidence and findings. Contradictory validated-source, grounded-finding, baseline-citation, or baseline-policy claims fail closed across active and latest/manual recovery.
+- **Next:** Bind comparison normalization to the selected/requested PR so two internally matching branches for a different candidate cannot render in the current workspace.
 
 ## Documentation and version-control policy
 

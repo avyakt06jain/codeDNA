@@ -27,11 +27,16 @@ function withComparisonIdentity(comparison: Record<string, unknown> | undefined)
   const memoryFindings = Array.isArray(memory?.findings) ? memory.findings as Array<Record<string, unknown>> : [];
   const baselineFindings = Array.isArray(baseline?.findings) ? baseline.findings as Array<Record<string, unknown>> : [];
   const retrieval = memory?.retrieval as Record<string, unknown> | undefined;
+  const memoryCitations = new Set(memoryFindings.flatMap((finding) => Array.isArray(finding.evidence_ids) ? finding.evidence_ids.map(String) : []));
+  const effectiveRetrieval = {
+    validated_evidence: [...memoryCitations].map((decision_id) => ({ decision_id })),
+    ...retrieval,
+  };
   const defaultCounts = {
-    validated_memory_sources: Array.isArray(retrieval?.validated_evidence) ? retrieval.validated_evidence.length : 0,
+    validated_memory_sources: Array.isArray(effectiveRetrieval.validated_evidence) ? effectiveRetrieval.validated_evidence.length : 0,
     memory_findings: memoryFindings.length,
     memory_team_findings: memoryFindings.filter((finding) => finding.category === "team_convention").length,
-    memory_citations: new Set(memoryFindings.flatMap((finding) => Array.isArray(finding.evidence_ids) ? finding.evidence_ids.map(String) : [])).size,
+    memory_citations: memoryCitations.size,
     baseline_findings: baselineFindings.length,
     baseline_team_findings: baselineFindings.filter((finding) => finding.category === "team_convention").length,
     baseline_citations: new Set(baselineFindings.flatMap((finding) => Array.isArray(finding.evidence_ids) ? finding.evidence_ids.map(String) : [])).size,
@@ -47,7 +52,7 @@ function withComparisonIdentity(comparison: Record<string, unknown> | undefined)
       ...evaluation,
       counts,
     } : evaluation,
-    memory: memory ? { pr_id: "pr-acme-87", provider: "gemini", model: "gemini-test", ...memory } : memory,
+    memory: memory ? { pr_id: "pr-acme-87", provider: "gemini", model: "gemini-test", ...memory, retrieval: effectiveRetrieval } : memory,
     baseline: baseline ? { pr_id: "pr-acme-87", provider: "gemini", model: "gemini-test", ...baseline } : baseline,
   };
 }
@@ -1159,7 +1164,7 @@ it("shows a memory-lab trace only for recorded timings and lists guardrails", as
         status: "complete",
         mode: "baseline",
         elapsed_ms: 1200,
-        findings: [generalFinding],
+        findings: [{ ...generalFinding, evidence_ids: ["DEC-0103"] }],
         retrieval: {},
       },
     },
@@ -1396,6 +1401,26 @@ it("rejects a completed comparison without evaluation counts", async () => {
   expect((await screen.findByRole("alert")).textContent).toContain("The comparison finished with invalid correlation metadata.");
   expect(screen.queryByText("Guardrails passed")).toBeNull();
   expect(screen.queryByText("run-m", { selector: "code" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+  expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
+});
+
+it("rejects a completed comparison whose retrieved-source guardrail contradicts its evidence", async () => {
+  const fetchMock = installFetch({
+    comparison: {
+      evaluation: { passed: true, checks: comparisonChecks() },
+      memory: { run_id: "run-m", status: "complete", mode: "memory", findings: [teamFinding], retrieval: { validated_evidence: [] } },
+      baseline: { run_id: "run-b", status: "complete", mode: "baseline", findings: [generalFinding] },
+    },
+  });
+  renderAt("/repos/repo-acme-commerce/lab");
+  await screen.findByRole("option", { name: /Update order status/ });
+  const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  expect((await screen.findByRole("alert")).textContent).toContain("The comparison finished with invalid correlation metadata.");
+  expect(screen.queryByText("Guardrails passed")).toBeNull();
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(1);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
   expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
@@ -1695,6 +1720,26 @@ it("rejects a stored comparison with an invalid evaluation count", async () => {
     evaluation: { passed: true, checks: comparisonChecks(), counts: { baseline_citations: -1 } },
     memory: { run_id: "run-stored-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-stored-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
+  };
+  const fetchMock = installFetch({ latestComparison: invalid });
+  renderAt("/repos/repo-acme-commerce/lab");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("Comparison recovery unavailable: The stored comparison failed correlation validation.");
+  expect(screen.queryByText("Guardrails passed")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
+it("rejects a stored comparison whose baseline citation guardrail contradicts its findings", async () => {
+  const invalid = {
+    evaluation: { passed: true, checks: comparisonChecks() },
+    memory: { run_id: "run-stored-memory", status: "complete", mode: "memory", findings: [teamFinding] },
+    baseline: {
+      run_id: "run-stored-baseline",
+      status: "complete",
+      mode: "baseline",
+      findings: [{ ...generalFinding, evidence_ids: ["DEC-0103"] }],
+    },
   };
   const fetchMock = installFetch({ latestComparison: invalid });
   renderAt("/repos/repo-acme-commerce/lab");
@@ -2052,6 +2097,38 @@ it("keeps creation uncertain when manual reconciliation finds inconsistent count
     evaluation: { passed: true, checks: comparisonChecks(), counts: { memory_findings: 99 } },
     memory: { run_id: "run-stored-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
     baseline: { run_id: "run-stored-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
+  };
+  const fetchMock = installFetch({
+    comparisonCreationHangs: true,
+    comparisonCreationClaimVisible: false,
+    latestComparison: invalid,
+    latestComparisonAfterRead: 2,
+  });
+  renderAt("/repos/repo-acme-commerce/lab");
+  await screen.findByRole("option", { name: /Update order status/ });
+  const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  fireEvent.click(await screen.findByRole("button", { name: "Check creation status" }));
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("Comparison creation status is still unavailable: The stored comparison failed correlation validation.");
+  expect(run.disabled).toBe(true);
+  expect(screen.queryByText("Guardrails passed")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(2);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+});
+
+it("keeps creation uncertain when manual reconciliation finds an ungrounded finding guardrail", async () => {
+  const invalid = {
+    evaluation: { passed: true, checks: comparisonChecks() },
+    memory: {
+      run_id: "run-stored-memory",
+      status: "complete",
+      mode: "memory",
+      findings: [teamFinding],
+      retrieval: { validated_evidence: [{ decision_id: "DEC-other" }] },
+    },
+    baseline: { run_id: "run-stored-baseline", status: "complete", mode: "baseline", findings: [generalFinding] },
   };
   const fetchMock = installFetch({
     comparisonCreationHangs: true,

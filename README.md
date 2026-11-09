@@ -50,6 +50,7 @@ CodeDNA separates memory from authority:
 - Independently matched ablation inputs: nested memory and baseline runs must carry the same non-empty PR, provider, and model identities, and the corresponding guardrails must be true
 - Mandatory evaluation correlation: both evaluation run IDs must be present, bounded, and equal their nested persisted memory/baseline run IDs
 - Reconciled evaluation counts: all seven numeric counts must be non-negative integers and match the normalized nested evidence, findings, team findings, and unique citations
+- Reconciled content guardrails: validated-source, grounded-team-finding, baseline-citation, and baseline-policy claims must match the normalized nested evidence and findings
 - Precise completed-comparison failures: a missing payload and rejected correlation metadata have distinct terminal errors while both clear recovery state without replaying work
 - Truthful latest-comparison recovery: a null result is empty, while a present payload that fails correlation validation produces an actionable integrity alert instead of `No comparison yet`
 - Truthful latest-review recovery: a null result is empty, while a present review must carry a valid bounded run ID or produce an actionable integrity alert instead of rendering uncorrelated findings

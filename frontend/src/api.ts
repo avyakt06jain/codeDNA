@@ -473,6 +473,26 @@ export function normalizeComparison(raw: unknown): Comparison | null {
     baseline_citations: new Set(baselineReview.findings.flatMap((finding) => finding.evidence_ids)).size,
   };
   if (REQUIRED_COMPARISON_COUNTS.some((key) => counts[key] !== expectedCounts[key])) return null;
+  const validatedEvidence = memoryReview.retrieval?.validated_evidence ?? [];
+  const validatedDecisionIds = new Set(
+    validatedEvidence
+      .filter(isRecord)
+      .map((evidence) => asString(evidence.decision_id))
+      .filter((decisionId): decisionId is string => Boolean(decisionId)),
+  );
+  const memoryTeamFindings = memoryReview.findings.filter((finding) => finding.category === "team_convention");
+  const memoryCitations = new Set(memoryReview.findings.flatMap((finding) => finding.evidence_ids));
+  const baselineTeamFindings = baselineReview.findings.filter((finding) => finding.category === "team_convention");
+  const baselineCitations = new Set(baselineReview.findings.flatMap((finding) => finding.evidence_ids));
+  const expectedContentChecks = {
+    memory_retrieved_validated_source: validatedEvidence.length > 0,
+    memory_produced_grounded_team_finding: memoryTeamFindings.length > 0
+      && memoryCitations.size > 0
+      && [...memoryCitations].every((decisionId) => validatedDecisionIds.has(decisionId)),
+    baseline_has_no_memory_citations: baselineCitations.size === 0,
+    baseline_has_no_team_policy_finding: baselineTeamFindings.length === 0,
+  };
+  if (Object.entries(expectedContentChecks).some(([key, value]) => checks[key] !== value)) return null;
   const memoryRunId = normalizeRunId(runIds.memory);
   const baselineRunId = normalizeRunId(runIds.baseline);
   if (!memoryRunId || memoryRunId !== memoryReview.run_id

@@ -43,10 +43,14 @@ describe("memory and timings", () => {
   });
 
   it("fails closed when comparison run correlation metadata is malformed or mismatched", () => {
+    const emptyContentChecks = comparisonChecks({
+      memory_retrieved_validated_source: false,
+      memory_produced_grounded_team_finding: false,
+    });
     const comparison = {
       evaluation: {
-        passed: true,
-        checks: comparisonChecks(),
+        passed: false,
+        checks: emptyContentChecks,
         counts: {
           validated_memory_sources: 0,
           memory_findings: 0,
@@ -106,20 +110,20 @@ describe("memory and timings", () => {
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: evaluation({ passed: true, checks: comparisonChecks({ same_candidate: false }) }),
+      evaluation: evaluation({ passed: false, checks: { ...emptyContentChecks, same_candidate: false } }),
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: evaluation({ passed: false, checks: comparisonChecks() }),
+      evaluation: evaluation({ passed: true, checks: emptyContentChecks }),
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: evaluation({ passed: false, checks: comparisonChecks({ memory_produced_grounded_team_finding: false }) }),
+      evaluation: evaluation({ passed: false, checks: emptyContentChecks }),
     })?.evaluation.passed).toBe(false);
     const { same_model: _missing, ...partialChecks } = comparisonChecks();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: evaluation({ passed: true, checks: partialChecks }),
+      evaluation: evaluation({ passed: false, checks: partialChecks }),
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
@@ -143,7 +147,14 @@ describe("memory and timings", () => {
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,
-      evaluation: evaluation({ passed: false, checks: comparisonChecks({ same_model: false }) }),
+      evaluation: evaluation({ passed: false, checks: { ...emptyContentChecks, same_model: false } }),
+    })).toBeNull();
+    expect(normalizeComparison({
+      ...comparison,
+      evaluation: evaluation({
+        passed: false,
+        checks: { ...emptyContentChecks, memory_retrieved_validated_source: true },
+      }),
     })).toBeNull();
     expect(normalizeComparison({
       ...comparison,

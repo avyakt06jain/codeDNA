@@ -107,10 +107,11 @@
 - Memory Lab now independently compares non-empty nested PR/provider/model identities and requires the matching candidate/model guardrails to be true. Missing or mismatched identities fail closed across active/latest/manual recovery.
 - Memory Lab now requires both evaluation run IDs to be present, bounded, and equal their nested persisted run IDs. Missing/invalid/mismatched correlation fails closed across active/latest/manual recovery.
 - Memory Lab now requires all seven evaluation counts to be finite non-negative integers matching normalized nested evidence/findings/citations. Missing, invalid, or inconsistent counts fail closed across active/latest/manual recovery.
+- Memory Lab now independently recomputes all four evidence/content guardrails from normalized nested evidence and findings. Contradictory source, grounding, baseline-citation, or baseline-policy claims fail closed across active/latest/manual recovery.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by independently recomputing the four evidence/content guardrails from nested results.
+- Post-MVP trust hardening continues by binding comparison results to the selected/requested PR, not only to each other.
 
 ## Blocked
 
@@ -134,9 +135,18 @@
 
 ## Next Action
 
-Independently recompute validated-source, grounded-finding, baseline-citation, and baseline-policy guardrails from the normalized nested results.
+Require comparison normalization to match the selected/requested PR so an internally consistent result for a different candidate fails closed.
 
 ## Session Log
+
+### 2026-11-09 — Reconciled Memory Lab content guardrails
+
+- Goal: Prevent comparison guardrail Booleans from contradicting the nested evidence and findings they summarize.
+- Implemented: `normalizeComparison` independently recomputes validated-source retrieval, grounded team finding, baseline citation absence, and baseline team-policy absence. Memory citations must all resolve to normalized validated decision IDs, and rejected active/latest/manual payloads use the existing fail-closed integrity paths without rendering or replaying work.
+- Focused checks: `npm test -- --run src/text.test.ts src/ui.test.tsx -t "comparison run correlation|retrieved-source guardrail|baseline citation guardrail|ungrounded finding guardrail"` → **4 passed, 99 skipped across 2 files**. Product cases distribute content contradictions across active completion plus initial and manual latest-result recovery.
+- Full checks: `.\.venv\Scripts\python.exe -m pytest` → **33 passed**; `npm test -- --run` → **111 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 334.08 kB JavaScript and 16.43 kB CSS before gzip.
+- Live check: the running API returned `status=ok`, `hindsight=unavailable`, and `interrupted_jobs=0`; the Memory Lab route returned HTTP 200. The first localhost read was denied by the command sandbox and the same read-only check succeeded with the approved localhost permission.
+- Next: bind comparison normalization to the selected/requested PR ID.
 
 ### 2026-11-09 — Reconciled Memory Lab evaluation counts
 
