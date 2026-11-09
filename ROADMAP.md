@@ -191,7 +191,8 @@
 - **Verified:** Single-review active/latest results must carry explicit `status: complete` and a valid `memory`/`baseline` mode; latest and known-mode job results must match the requested mode. Invalid state fails closed across active and latest/manual recovery.
 - **Verified:** Single-review active/latest results require trimmed provider/model identity bounded to the backend's 80/160-character storage limits. Missing, blank, or overlong identity fails closed across active and latest/manual recovery.
 - **Verified:** Completed single-review results require an explicit findings array containing only object entries. Missing/malformed collections fail closed while a genuine empty array remains valid.
-- **Next:** Validate required finding fields and enums before normalization so malformed finding objects cannot become defaulted review content.
+- **Verified:** Every single-review finding must satisfy the backend field bounds, nullable-line rule, explicit category/severity/confidence enums, and evidence-list shape before normalization. Malformed objects cannot become defaulted review content.
+- **Next:** Require elapsed review time to be a finite non-negative integer before rendering result timing.
 
 ## Documentation and version-control policy
 

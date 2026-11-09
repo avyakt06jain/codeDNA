@@ -2,6 +2,9 @@ export type HindsightState = "starting" | "ready" | "unavailable";
 
 const MAX_PROVIDER_ID_LENGTH = 80;
 const MAX_MODEL_ID_LENGTH = 160;
+const FINDING_CATEGORIES = new Set(["general", "team_convention"]);
+const FINDING_SEVERITIES = new Set(["info", "warning", "error"]);
+const FINDING_CONFIDENCES = new Set(["low", "medium", "high"]);
 
 export type Health = {
   status?: string;
@@ -389,6 +392,23 @@ function normalizeFinding(raw: Record<string, unknown>): Finding {
   };
 }
 
+function isValidFinding(raw: Record<string, unknown>): boolean {
+  const validLine = raw.new_line === null
+    || (typeof raw.new_line === "number" && Number.isInteger(raw.new_line) && raw.new_line >= 1);
+  return typeof raw.id === "string" && raw.id.trim().length > 0 && raw.id.length <= 80
+    && typeof raw.file_path === "string" && raw.file_path.trim().length > 0 && raw.file_path.length <= 500
+    && validLine
+    && typeof raw.category === "string" && FINDING_CATEGORIES.has(raw.category)
+    && typeof raw.severity === "string" && FINDING_SEVERITIES.has(raw.severity)
+    && typeof raw.title === "string" && raw.title.trim().length >= 8 && raw.title.length <= 140
+    && typeof raw.explanation === "string" && raw.explanation.trim().length >= 20 && raw.explanation.length <= 2000
+    && (raw.suggested_change === null
+      || (typeof raw.suggested_change === "string" && raw.suggested_change.length <= 2000))
+    && typeof raw.confidence === "string" && FINDING_CONFIDENCES.has(raw.confidence)
+    && Array.isArray(raw.evidence_ids) && raw.evidence_ids.length <= 5
+    && raw.evidence_ids.every((item) => typeof item === "string" && item.trim().length > 0);
+}
+
 function normalizeTimings(raw: unknown): Timings | undefined {
   if (!isRecord(raw)) return undefined;
   const timings: Timings = {};
@@ -431,7 +451,8 @@ function normalizeReviewForPr(
   if (raw.status !== "complete") return null;
   if (raw.mode !== "memory" && raw.mode !== "baseline") return null;
   if (expectedMode !== undefined && raw.mode !== expectedMode) return null;
-  if (!Array.isArray(raw.findings) || !raw.findings.every(isRecord)) return null;
+  if (!Array.isArray(raw.findings)
+    || !raw.findings.every((finding) => isRecord(finding) && isValidFinding(finding))) return null;
   const provider = asString(raw.provider)?.trim();
   const model = asString(raw.model)?.trim();
   if (!provider || provider.length > MAX_PROVIDER_ID_LENGTH

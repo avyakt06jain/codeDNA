@@ -113,10 +113,11 @@
 - Review Workspace now requires explicit terminal completion and valid memory/baseline mode on single-review results. Latest and known-mode jobs must match the requested mode; invalid state fails closed across active/latest/manual recovery.
 - Review Workspace now trims provider/model identity and enforces the backend's 80/160-character storage limits on single-review results. Missing, blank, or overlong identity fails closed across active/latest/manual recovery.
 - Review Workspace now requires an explicit findings array containing only object entries on completed single-review results. Missing/malformed collections fail closed rather than appearing as a legitimate empty review.
+- Review Workspace now validates each finding's required bounded text, line shape, enums, optional suggestion, and evidence-list shape before normalization. Invalid fields no longer become default category/severity/confidence or placeholder text.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by validating required finding fields and enums before normalization.
+- Post-MVP trust hardening continues by validating elapsed review timing before display.
 
 ## Blocked
 
@@ -140,9 +141,19 @@
 
 ## Next Action
 
-Validate required finding fields and enums before normalizing completed single-review results.
+Require elapsed review time to be a finite non-negative integer before rendering result timing.
 
 ## Session Log
+
+### 2026-11-09 — Fail-closed single-review finding schema
+
+- Goal: Prevent malformed finding objects from becoming plausible defaulted review content in the browser.
+- Implemented: single-review acceptance now checks each finding against the backend contract before normalization: ID/path/title/explanation bounds, nullable-or-positive-integer line, category/severity/confidence enums, bounded nullable suggestion, and at most five non-blank evidence IDs. Invalid entries use the existing initial, active, and manual integrity paths; active rejection clears its locator and no path posts replacement work.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "invalid finding category|missing required finding text|invalid finding confidence"` → **3 passed, 111 skipped**.
+- Full serial checks: `.\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **132 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 335.50 kB JavaScript and 16.43 kB CSS before gzip.
+- Live check: API health remained `status=ok`, `hindsight=ready`, and `interrupted_jobs=0`; Review Workspace returned HTTP 200 after Vite hot reload. No review or provider work was started.
+- Provider safety: response validation adds no request, Hindsight/Gemini call, or paid usage.
+- Next: validate elapsed timing as a finite non-negative integer before rendering it.
 
 ### 2026-11-09 — Explicit single-review findings collection
 
