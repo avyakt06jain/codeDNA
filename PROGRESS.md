@@ -110,10 +110,11 @@
 - Memory Lab now independently recomputes all four evidence/content guardrails from normalized nested evidence and findings. Contradictory source, grounding, baseline-citation, or baseline-policy claims fail closed across active/latest/manual recovery.
 - Memory Lab now binds comparison normalization to the PR selected for start, polling, or restoration. Two mutually consistent branches for another candidate fail closed across active/latest/manual recovery.
 - Review Workspace now binds active and latest single-review results to the route/request PR. Missing or different result identity fails closed across active/latest/manual recovery.
+- Review Workspace now requires explicit terminal completion and valid memory/baseline mode on single-review results. Latest and known-mode jobs must match the requested mode; invalid state fails closed across active/latest/manual recovery.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by enforcing explicit single-review mode and terminal state.
+- Post-MVP trust hardening continues by requiring provider/model identity on single-review results.
 
 ## Blocked
 
@@ -137,9 +138,18 @@
 
 ## Next Action
 
-Require single-review results to carry the expected explicit mode and `complete` status before rendering findings.
+Require non-empty provider and model identity on single-review results before rendering findings.
 
 ## Session Log
+
+### 2026-11-09 — Required explicit single-review mode and completion
+
+- Goal: Prevent normalized defaults or nonterminal nested state from appearing as a completed Review Workspace result.
+- Implemented: the shared single-review boundary now requires raw `status: complete` plus explicit `memory`/`baseline` mode. Latest reads and newly started/retried jobs must match their requested mode; rediscovered active work without a stored client mode still must declare one valid mode. Rejections reuse the existing active/latest/manual fail-closed paths and never render or replay work.
+- Focused checks: `npm test -- --run src/ui.test.tsx -t "wrong explicit mode|without terminal completion state|without an explicit mode"` → **3 passed, 99 skipped**; `npm run build` → **PASS**, 40 modules, 334.38 kB JavaScript and 16.43 kB CSS before gzip.
+- Full serial checks: `.\.venv\Scripts\python.exe -m pytest` → **33 passed**; `npm test -- --run` → **120 passed across 5 files**.
+- Live check: the running API returned `status=ok`, `hindsight=ready`, and `interrupted_jobs=0`; Review Workspace returned HTTP 200. This read-only check started no review or provider work.
+- Next: require non-empty provider and model identity on single-review results.
 
 ### 2026-11-09 — Bound single reviews to the requested PR
 

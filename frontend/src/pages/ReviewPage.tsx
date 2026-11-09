@@ -93,6 +93,7 @@ export function ReviewPage() {
       void api.reviewJob(
         jobId,
         prId,
+        undefined,
         (next) => {
           if (!cancelled) setStage(next);
         },
@@ -242,7 +243,7 @@ export function ReviewPage() {
       setJobTiming({ createdAt: started.createdAt, updatedAt: started.updatedAt });
       saveActiveJob("review", prId, jobId);
       if (started.reused) setStage("review_reattached");
-      const result = await api.reviewJob(jobId, prId, (next) => {
+      const result = await api.reviewJob(jobId, prId, memoryEnabled ? "memory" : "baseline", (next) => {
         if (alive.current) setStage(next);
       }, () => alive.current, updateJobTiming);
       if (!result || !alive.current) return;
@@ -282,7 +283,7 @@ export function ReviewPage() {
     setStage("queued");
     let terminal = false;
     try {
-      const result = await api.reviewJob(jobId, prId, (next) => {
+      const result = await api.reviewJob(jobId, prId, memoryEnabled ? "memory" : "baseline", (next) => {
         if (alive.current) setStage(next);
       }, () => alive.current, updateJobTiming);
       if (!result || !alive.current) return;

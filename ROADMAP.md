@@ -188,7 +188,8 @@
 - **Verified:** The four evidence/content guardrails are independently recomputed from normalized nested evidence and findings. Contradictory validated-source, grounded-finding, baseline-citation, or baseline-policy claims fail closed across active and latest/manual recovery.
 - **Verified:** Comparison normalization is bound to the selected/requested PR. Two internally consistent branches for a different candidate fail closed across active and latest/manual recovery.
 - **Verified:** Single-review active/latest normalization is bound to the route/request PR. Missing or different result identity fails closed across active, initial latest, and manual latest recovery.
-- **Next:** Require single-review results to carry the expected explicit mode and terminal completion state instead of accepting normalization defaults.
+- **Verified:** Single-review active/latest results must carry explicit `status: complete` and a valid `memory`/`baseline` mode; latest and known-mode job results must match the requested mode. Invalid state fails closed across active and latest/manual recovery.
+- **Next:** Require non-empty provider and model identity on single-review results before rendering findings.
 
 ## Documentation and version-control policy
 

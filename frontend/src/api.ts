@@ -420,7 +420,14 @@ export function normalizeReview(raw: Record<string, unknown>): Review {
   };
 }
 
-function normalizeReviewForPr(raw: Record<string, unknown>, expectedPrId: string): Review | null {
+function normalizeReviewForPr(
+  raw: Record<string, unknown>,
+  expectedPrId: string,
+  expectedMode?: "memory" | "baseline",
+): Review | null {
+  if (raw.status !== "complete") return null;
+  if (raw.mode !== "memory" && raw.mode !== "baseline") return null;
+  if (expectedMode !== undefined && raw.mode !== expectedMode) return null;
   const review = normalizeReview(raw);
   return review.run_id && review.pr_id === expectedPrId ? review : null;
 }
@@ -614,7 +621,7 @@ export const api = {
     if (!isRecord(row.review)) {
       throw new InvalidReviewResultError("The stored review failed correlation validation.");
     }
-    const review = normalizeReviewForPr(row.review, prId);
+    const review = normalizeReviewForPr(row.review, prId, mode);
     if (!review) {
       throw new InvalidReviewResultError("The stored review failed correlation validation.");
     }
@@ -676,7 +683,7 @@ export const api = {
     if (!jobId) throw new Error("The review did not return a job.");
     return { jobId, reused: created.reused === true, ...jobTimingFrom(created) } satisfies StartedJob;
   },
-  async reviewJob(jobId: string, expectedPrId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean, onTiming?: (timing: JobTiming) => void) {
+  async reviewJob(jobId: string, expectedPrId: string, expectedMode: "memory" | "baseline" | undefined, onStage?: (stage: string) => void, shouldContinue?: () => boolean, onTiming?: (timing: JobTiming) => void) {
     let job: (ReviewJob & Record<string, unknown>) | null;
     try {
       job = await pollReviewJob(jobId, onStage, shouldContinue, onTiming);
@@ -689,7 +696,7 @@ export const api = {
     if (!job) return null;
     if (job.status === "failed") throw jobFailure(job, "The review failed");
     if (!isRecord(job.review)) throw new TerminalJobError("The review finished without a result.");
-    const review = normalizeReviewForPr(job.review, expectedPrId);
+    const review = normalizeReviewForPr(job.review, expectedPrId, expectedMode);
     if (!review) {
       throw new TerminalJobError("The review finished with invalid correlation metadata.");
     }
@@ -697,7 +704,7 @@ export const api = {
   },
   async review(prId: string, memoryEnabled: boolean, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
     const started = await api.startReview(prId, memoryEnabled);
-    return api.reviewJob(started.jobId, prId, onStage, shouldContinue);
+    return api.reviewJob(started.jobId, prId, memoryEnabled ? "memory" : "baseline", onStage, shouldContinue);
   },
   evidence: async (runId: string) => {
     const payload = await request<unknown>(`/api/reviews/${runId}/evidence`);
