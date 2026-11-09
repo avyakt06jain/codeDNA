@@ -187,7 +187,8 @@
 - **Verified:** All seven evaluation counts are mandatory finite non-negative integers and must match values derived from normalized nested evidence/findings/citations. Invalid or inconsistent counts fail closed across active and latest/manual recovery without replacement work.
 - **Verified:** The four evidence/content guardrails are independently recomputed from normalized nested evidence and findings. Contradictory validated-source, grounded-finding, baseline-citation, or baseline-policy claims fail closed across active and latest/manual recovery.
 - **Verified:** Comparison normalization is bound to the selected/requested PR. Two internally consistent branches for a different candidate fail closed across active and latest/manual recovery.
-- **Next:** Apply the same request-context identity check to single-review active/latest results.
+- **Verified:** Single-review active/latest normalization is bound to the route/request PR. Missing or different result identity fails closed across active, initial latest, and manual latest recovery.
+- **Next:** Require single-review results to carry the expected explicit mode and terminal completion state instead of accepting normalization defaults.
 
 ## Documentation and version-control policy
 

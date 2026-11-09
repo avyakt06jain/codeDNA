@@ -109,10 +109,11 @@
 - Memory Lab now requires all seven evaluation counts to be finite non-negative integers matching normalized nested evidence/findings/citations. Missing, invalid, or inconsistent counts fail closed across active/latest/manual recovery.
 - Memory Lab now independently recomputes all four evidence/content guardrails from normalized nested evidence and findings. Contradictory source, grounding, baseline-citation, or baseline-policy claims fail closed across active/latest/manual recovery.
 - Memory Lab now binds comparison normalization to the PR selected for start, polling, or restoration. Two mutually consistent branches for another candidate fail closed across active/latest/manual recovery.
+- Review Workspace now binds active and latest single-review results to the route/request PR. Missing or different result identity fails closed across active/latest/manual recovery.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by applying request-context identity checks to single-review results.
+- Post-MVP trust hardening continues by enforcing explicit single-review mode and terminal state.
 
 ## Blocked
 
@@ -136,9 +137,18 @@
 
 ## Next Action
 
-Apply the same request-context PR identity check to single-review active/latest results.
+Require single-review results to carry the expected explicit mode and `complete` status before rendering findings.
 
 ## Session Log
+
+### 2026-11-09 — Bound single reviews to the requested PR
+
+- Goal: Prevent a valid-looking review for one PR from rendering in another PR's Review Workspace.
+- Implemented: active-job and latest-result review normalization now require the result `pr_id` to equal the PR supplied by the current operation as well as a valid bounded run ID. Active mismatches are terminal and clear the locator; initial/manual latest mismatches remain actionable and GET-only. No rejected result renders findings or starts replacement work.
+- Focused checks: `npm test -- --run src/ui.test.tsx -t "different pull request|another pull request"` → **3 passed, 96 skipped**; `npm run build` → **PASS**, 40 modules, 334.20 kB JavaScript and 16.43 kB CSS before gzip.
+- Full checks: `.\.venv\Scripts\python.exe -m pytest` → **33 passed**; final serial `npm test -- --run` → **117 passed across 5 files**. The initial backend/frontend concurrent run produced two unrelated focus-timing failures in health and fixture-catalog tests; the unchanged suite passed on the immediate serial rerun, so no product behavior is claimed from those flaky assertions.
+- Live check: the running API returned `status=ok`, `hindsight=ready`, and `interrupted_jobs=0`; Review Workspace returned HTTP 200. This was a health/readiness check only and did not start a review or provider request.
+- Next: require explicit expected mode and terminal completion state on single-review results.
 
 ### 2026-11-09 — Bound Memory Lab results to the selected PR
 
