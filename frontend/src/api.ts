@@ -420,7 +420,7 @@ export function normalizeReview(raw: Record<string, unknown>): Review {
   };
 }
 
-export function normalizeComparison(raw: unknown): Comparison | null {
+export function normalizeComparison(raw: unknown, expectedPrId?: string): Comparison | null {
   if (!isRecord(raw)) return null;
   const evaluation = isRecord(raw.evaluation) ? raw.evaluation : null;
   const memory = isRecord(raw.memory) ? raw.memory : null;
@@ -437,6 +437,7 @@ export function normalizeComparison(raw: unknown): Comparison | null {
   if (!memoryPrId || memoryPrId !== baselinePrId
     || !memoryProvider || memoryProvider !== baselineProvider
     || !memoryModel || memoryModel !== baselineModel) return null;
+  if (expectedPrId !== undefined && memoryPrId !== expectedPrId) return null;
   const rawChecks = evaluation.checks;
   if (!isRecord(rawChecks)
     || REQUIRED_COMPARISON_CHECKS.some((key) => typeof rawChecks[key] !== "boolean")) return null;
@@ -509,12 +510,12 @@ export function normalizeComparison(raw: unknown): Comparison | null {
   };
 }
 
-function comparisonFromJob(job: ReviewJob & Record<string, unknown>): { present: boolean; comparison: Comparison | null } {
+function comparisonFromJob(job: ReviewJob & Record<string, unknown>, expectedPrId: string): { present: boolean; comparison: Comparison | null } {
   if (job.comparison != null) {
-    return { present: true, comparison: normalizeComparison(job.comparison) };
+    return { present: true, comparison: normalizeComparison(job.comparison, expectedPrId) };
   }
   const present = job.evaluation != null || job.memory != null || job.baseline != null;
-  return { present, comparison: present ? normalizeComparison(job) : null };
+  return { present, comparison: present ? normalizeComparison(job, expectedPrId) : null };
 }
 
 function delay(ms: number) {
@@ -618,7 +619,7 @@ export const api = {
     const payload = await requestJobRead<unknown>(`/api/prs/${prId}/comparisons/latest`);
     const row = isRecord(payload) ? payload : {};
     if (row.comparison == null) return null;
-    const comparison = normalizeComparison(row.comparison);
+    const comparison = normalizeComparison(row.comparison, prId);
     if (!comparison) {
       throw new InvalidComparisonResultError("The stored comparison failed correlation validation.");
     }
@@ -723,7 +724,7 @@ export const api = {
     if (!jobId) throw new Error("The comparison did not return a job.");
     return { jobId, reused: created.reused === true, ...jobTimingFrom(created) } satisfies StartedJob;
   },
-  async comparisonJob(jobId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean, onTiming?: (timing: JobTiming) => void) {
+  async comparisonJob(jobId: string, expectedPrId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean, onTiming?: (timing: JobTiming) => void) {
     let job: (ReviewJob & Record<string, unknown>) | null;
     try {
       job = await pollReviewJob(jobId, onStage, shouldContinue, onTiming);
@@ -735,7 +736,7 @@ export const api = {
     }
     if (!job) return null;
     if (job.status === "failed") throw jobFailure(job, "The comparison failed");
-    const result = comparisonFromJob(job);
+    const result = comparisonFromJob(job, expectedPrId);
     if (!result.present) throw new TerminalJobError("The comparison finished without a result.");
     if (!result.comparison) {
       throw new TerminalJobError("The comparison finished with invalid correlation metadata.");
@@ -744,7 +745,7 @@ export const api = {
   },
   async comparison(prId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
     const started = await api.startComparison(prId);
-    return api.comparisonJob(started.jobId, onStage, shouldContinue);
+    return api.comparisonJob(started.jobId, prId, onStage, shouldContinue);
   },
 };
 

@@ -214,6 +214,7 @@ export function MemoryLabPage() {
       let terminal = false;
       void api.comparisonJob(
         jobId,
+        prId,
         (next) => {
           if (!cancelled) setStage(next);
         },
@@ -373,7 +374,7 @@ export function MemoryLabPage() {
       setJobTiming({ createdAt: started.createdAt, updatedAt: started.updatedAt });
       saveActiveJob("comparison", selected, jobId);
       if (started.reused) setStage("comparison_reattached");
-      const result = await api.comparisonJob(jobId, (next) => {
+      const result = await api.comparisonJob(jobId, selected, (next) => {
         if (alive.current) setStage(next);
       }, () => alive.current, updateJobTiming);
       if (!result || !alive.current) return;
@@ -414,7 +415,7 @@ export function MemoryLabPage() {
     setStage("queued");
     let terminal = false;
     try {
-      const result = await api.comparisonJob(jobId, (next) => {
+      const result = await api.comparisonJob(jobId, selected, (next) => {
         if (alive.current) setStage(next);
       }, () => alive.current, updateJobTiming);
       if (!result || !alive.current) return;

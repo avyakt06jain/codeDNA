@@ -108,10 +108,11 @@
 - Memory Lab now requires both evaluation run IDs to be present, bounded, and equal their nested persisted run IDs. Missing/invalid/mismatched correlation fails closed across active/latest/manual recovery.
 - Memory Lab now requires all seven evaluation counts to be finite non-negative integers matching normalized nested evidence/findings/citations. Missing, invalid, or inconsistent counts fail closed across active/latest/manual recovery.
 - Memory Lab now independently recomputes all four evidence/content guardrails from normalized nested evidence and findings. Contradictory source, grounding, baseline-citation, or baseline-policy claims fail closed across active/latest/manual recovery.
+- Memory Lab now binds comparison normalization to the PR selected for start, polling, or restoration. Two mutually consistent branches for another candidate fail closed across active/latest/manual recovery.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by binding comparison results to the selected/requested PR, not only to each other.
+- Post-MVP trust hardening continues by applying request-context identity checks to single-review results.
 
 ## Blocked
 
@@ -135,9 +136,18 @@
 
 ## Next Action
 
-Require comparison normalization to match the selected/requested PR so an internally consistent result for a different candidate fails closed.
+Apply the same request-context PR identity check to single-review active/latest results.
 
 ## Session Log
+
+### 2026-11-09 — Bound Memory Lab results to the selected PR
+
+- Goal: Prevent an internally consistent comparison for one candidate from rendering in another candidate's workspace.
+- Implemented: comparison normalization now accepts the expected PR identity. Job polling and latest-result recovery pass the exact PR used by the current operation, and both nested branches must match it as well as each other. Active/latest/manual mismatches reuse the existing fail-closed integrity paths and never render or replay work.
+- Focused checks: `npm test -- --run src/text.test.ts src/ui.test.tsx -t "comparison run correlation|different candidate PR"` → **4 passed, 102 skipped across 2 files**; `npm run build` → **PASS**, 40 modules, 334.12 kB JavaScript and 16.43 kB CSS before gzip.
+- Full checks: `.\.venv\Scripts\python.exe -m pytest` → **33 passed**; final serial `npm test -- --run` → **114 passed across 5 files**. The first full frontend run correctly exposed two pre-existing PR #120 fixtures that still relied on the old default PR #87 identity; both fixtures were corrected. One unrelated catalog-focus assertion also flaked only during the initial concurrent run and passed on the serial rerun.
+- Live check: the prior local processes had stopped, so the documented API and frontend commands were restarted as hidden processes. The API returned `status=ok`, `hindsight=starting`, and `interrupted_jobs=0`; Memory Lab returned HTTP 200. No provider result is claimed while Hindsight warms up.
+- Next: apply the same request-context identity validation to single-review results.
 
 ### 2026-11-09 — Reconciled Memory Lab content guardrails
 

@@ -133,6 +133,8 @@ describe("memory and timings", () => {
       ...comparison,
       memory: { ...comparison.memory, pr_id: "pr-other" },
     })).toBeNull();
+    expect(normalizeComparison(comparison, "pr-other")).toBeNull();
+    expect(normalizeComparison(comparison, "pr-87")).not.toBeNull();
     expect(normalizeComparison({
       ...comparison,
       baseline: { ...comparison.baseline, provider: "other-provider" },
