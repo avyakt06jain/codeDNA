@@ -192,7 +192,8 @@
 - **Verified:** Single-review active/latest results require trimmed provider/model identity bounded to the backend's 80/160-character storage limits. Missing, blank, or overlong identity fails closed across active and latest/manual recovery.
 - **Verified:** Completed single-review results require an explicit findings array containing only object entries. Missing/malformed collections fail closed while a genuine empty array remains valid.
 - **Verified:** Every single-review finding must satisfy the backend field bounds, nullable-line rule, explicit category/severity/confidence enums, and evidence-list shape before normalization. Malformed objects cannot become defaulted review content.
-- **Next:** Require elapsed review time to be a finite non-negative integer before rendering result timing.
+- **Verified:** Completed single-review elapsed time must be a finite non-negative integer before result timing can render. Missing, negative, fractional, or non-finite values fail closed.
+- **Next:** Enforce single-review citation/category semantics so team-policy findings cite evidence and general findings cannot present policy evidence.
 
 ## Documentation and version-control policy
 

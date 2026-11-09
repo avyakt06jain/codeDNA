@@ -114,10 +114,11 @@
 - Review Workspace now trims provider/model identity and enforces the backend's 80/160-character storage limits on single-review results. Missing, blank, or overlong identity fails closed across active/latest/manual recovery.
 - Review Workspace now requires an explicit findings array containing only object entries on completed single-review results. Missing/malformed collections fail closed rather than appearing as a legitimate empty review.
 - Review Workspace now validates each finding's required bounded text, line shape, enums, optional suggestion, and evidence-list shape before normalization. Invalid fields no longer become default category/severity/confidence or placeholder text.
+- Review Workspace now requires completed single-review elapsed time to be a finite non-negative integer. Missing, negative, fractional, or non-finite timing fails closed instead of rendering misleading telemetry.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by validating elapsed review timing before display.
+- Post-MVP trust hardening continues by enforcing citation/category semantics on single-review findings.
 
 ## Blocked
 
@@ -141,9 +142,19 @@
 
 ## Next Action
 
-Require elapsed review time to be a finite non-negative integer before rendering result timing.
+Enforce citation/category semantics on single-review findings.
 
 ## Session Log
+
+### 2026-11-09 — Validated single-review elapsed timing
+
+- Goal: Prevent missing or malformed persisted timing from appearing as trustworthy Review Workspace telemetry.
+- Implemented: completed single-review acceptance now requires `elapsed_ms` to be a finite non-negative integer. Missing, negative, fractional, and non-finite values enter the existing initial, active, or manual integrity path; active rejection remains terminal and no path posts replacement work.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "without elapsed timing|negative elapsed timing|fractional elapsed timing"` → **3 passed, 114 skipped**.
+- Full serial checks: `.\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **135 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 335.61 kB JavaScript and 16.43 kB CSS before gzip.
+- Live check: API health remained `status=ok`, `hindsight=ready`, and `interrupted_jobs=0`; Review Workspace returned HTTP 200 after Vite hot reload. No review or provider work was started.
+- Provider safety: timing validation adds no request, Hindsight/Gemini call, or paid usage.
+- Next: require team-policy findings to cite evidence and general findings to remain uncited.
 
 ### 2026-11-09 — Fail-closed single-review finding schema
 

@@ -453,6 +453,10 @@ function normalizeReviewForPr(
   if (expectedMode !== undefined && raw.mode !== expectedMode) return null;
   if (!Array.isArray(raw.findings)
     || !raw.findings.every((finding) => isRecord(finding) && isValidFinding(finding))) return null;
+  if (typeof raw.elapsed_ms !== "number"
+    || !Number.isFinite(raw.elapsed_ms)
+    || !Number.isInteger(raw.elapsed_ms)
+    || raw.elapsed_ms < 0) return null;
   const provider = asString(raw.provider)?.trim();
   const model = asString(raw.model)?.trim();
   if (!provider || provider.length > MAX_PROVIDER_ID_LENGTH
