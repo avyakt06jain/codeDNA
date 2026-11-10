@@ -195,7 +195,8 @@
 - **Verified:** Completed single-review elapsed time must be a finite non-negative integer before result timing can render. Missing, negative, fractional, or non-finite values fail closed.
 - **Verified:** Single-review team-convention findings require evidence IDs and general findings require none. Contradictory category/citation semantics fail closed across active and latest/manual recovery.
 - **Verified:** Every single-review team citation must resolve to a non-blank decision ID in same-result validated evidence. Missing, malformed, or unrelated retrieval evidence fails closed.
-- **Next:** Validate the source and bank provenance fields of cited validated-evidence records before rendering policy claims.
+- **Verified:** Cited single-review evidence requires fact/document/decision/source-PR/repository/bank identifiers plus a positive source PR number. Incomplete provenance cannot ground a rendered policy claim.
+- **Next:** Require all cited evidence in one single-review result to agree on repository and bank identity before rendering policy claims.
 
 ## Documentation and version-control policy
 

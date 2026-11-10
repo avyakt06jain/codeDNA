@@ -64,6 +64,7 @@ CodeDNA separates memory from authority:
 - Validated review timing: completed single-review elapsed time must be a finite non-negative integer before it is displayed
 - Category/citation integrity: team-convention findings require evidence IDs, while general findings cannot present policy evidence
 - Same-result citation resolution: every team-policy citation must match validated retrieval evidence returned with that review
+- Complete evidence provenance: cited evidence must include fact, document, decision, source PR, repository, and bank identity before policy findings render
 - Safe stale-job recovery that clears a missing locator and restores the latest persisted same-PR result without rerunning providers
 - Read-only same-PR active-job discovery after tab/session loss, before any completed-result fallback
 - Atomic same-PR active-job reuse so simultaneous tabs schedule only one provider task

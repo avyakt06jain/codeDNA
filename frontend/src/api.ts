@@ -410,6 +410,22 @@ function isValidFinding(raw: Record<string, unknown>): boolean {
     && (raw.category === "team_convention" ? raw.evidence_ids.length > 0 : raw.evidence_ids.length === 0);
 }
 
+function isValidEvidenceProvenance(raw: Record<string, unknown>): boolean {
+  const requiredText = [
+    raw.fact_id,
+    raw.document_id,
+    raw.decision_id,
+    raw.source_pr_id,
+    raw.repository_id,
+    raw.repository_slug,
+    raw.bank_id,
+  ];
+  return requiredText.every((value) => typeof value === "string" && value.trim().length > 0)
+    && typeof raw.source_pr_number === "number"
+    && Number.isInteger(raw.source_pr_number)
+    && raw.source_pr_number >= 1;
+}
+
 function normalizeTimings(raw: unknown): Timings | undefined {
   if (!isRecord(raw)) return undefined;
   const timings: Timings = {};
@@ -466,6 +482,7 @@ function normalizeReviewForPr(
     : [];
   const validatedDecisionIds = new Set(validatedEvidence
     .filter(isRecord)
+    .filter(isValidEvidenceProvenance)
     .map((evidence) => asString(evidence.decision_id)?.trim())
     .filter((decisionId): decisionId is string => Boolean(decisionId)));
   if (teamCitations.some((decisionId) => !validatedDecisionIds.has(decisionId))) return null;

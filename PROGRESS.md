@@ -4,7 +4,7 @@
 
 ## Current State
 
-- Date: 2026-11-09
+- Date: 2026-11-10
 - Phase: G0–G5 MVP gates complete; the evolved judge demo was exercised against a restarted local API.
 - Implementation: The retain → recall → validate → review → feedback → supersede → ablate loop is verified locally against real Hindsight and Gemini. `CODEDNA_DEMO_SCENE=evolved` leaves `DEC-0103` active and `DEC-0042` superseded.
 - Git: `main` is initialized, connected to GitHub, and verified checkpoints are pushed without rewriting published history.
@@ -117,14 +117,15 @@
 - Review Workspace now requires completed single-review elapsed time to be a finite non-negative integer. Missing, negative, fractional, or non-finite timing fails closed instead of rendering misleading telemetry.
 - Review Workspace now requires team-convention findings to cite evidence and general findings to remain uncited. Contradictory category/citation semantics fail closed rather than rendering misleading policy provenance.
 - Review Workspace now resolves every team citation against non-blank decision IDs in the same result's validated retrieval evidence. Missing, malformed, or unrelated evidence fails closed.
+- Review Workspace now requires cited validated evidence to carry non-blank fact/document/decision/source-PR/repository/bank identifiers and a positive source PR number. Incomplete provenance fails closed.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by validating source/bank fields on cited retrieval evidence.
+- Post-MVP trust hardening continues by requiring cited evidence to agree on one repository/bank identity.
 
 ## Blocked
 
-- No implementation blocker. The currently restarted API reports Hindsight unavailable after Gemini returned `503 UNAVAILABLE` during provider verification; saved reviews/comparisons and citation inspection remain usable, while new memory calls require provider recovery and an API restart.
+- No implementation blocker. After the previous listeners were absent, the local API was intentionally restarted with `CODEDNA_HINDSIGHT_AUTOSTART=0`; saved reviews/comparisons and citation inspection remain usable, while new memory calls require a deliberate provider-enabled restart.
 
 ## Known Limitations
 
@@ -144,9 +145,20 @@
 
 ## Next Action
 
-Validate source and bank provenance fields on cited single-review evidence records.
+Require cited evidence in a single review to agree on repository and bank identity.
 
 ## Session Log
+
+### 2026-11-10 — Complete cited-evidence provenance shape
+
+- Goal: Prevent a decision ID alone from masquerading as fully resolved source provenance in Review Workspace.
+- Implemented: cited validated-evidence records now require non-blank fact, document, decision, source PR, repository, repository slug, and bank identifiers plus a positive integer source PR number before they enter the same-result decision allowlist. Missing bank/source fields use the existing initial, active, and manual integrity paths; rejected results render no findings and issue no replacement POST. Nullable chunk IDs remain compatible with the backend provenance contract.
+- Fixture correction: the shared valid review fixture now carries the full backend provenance shape for PR #103/`DEC-0103` and PR #42/`DEC-0042`.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "without bank provenance|invalid source PR provenance|lacks source PR provenance"` → **3 passed, 123 skipped**.
+- Full serial checks: `.\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **144 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 336.26 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: the prior listeners were absent, so API and Vite were restarted in hidden local processes with the evolved scene and Hindsight autostart intentionally disabled. Health returned `status=ok`, `hindsight=unavailable`, and `interrupted_jobs=0`; Review Workspace returned HTTP 200. No external provider request was started.
+- Provider safety: provenance-shape validation adds no request, Hindsight/Gemini call, or paid usage.
+- Next: require all cited evidence records to share repository and bank identity.
 
 ### 2026-11-09 — Same-result citation resolution
 
