@@ -119,10 +119,11 @@
 - Review Workspace now resolves every team citation against non-blank decision IDs in the same result's validated retrieval evidence. Missing, malformed, or unrelated evidence fails closed.
 - Review Workspace now requires cited validated evidence to carry non-blank fact/document/decision/source-PR/repository/bank identifiers and a positive source PR number. Incomplete provenance fails closed.
 - Review Workspace now rejects cited evidence that disagrees on repository ID, repository slug, or bank ID within one result, including duplicate records for a cited decision.
+- Review Workspace now requires cited evidence's shared repository ID to match the repository selected by the current route. Internally consistent off-route evidence fails closed.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by binding cited evidence identity to the repository selected by the current route.
+- Post-MVP trust hardening continues by correlating the loaded pull request's repository identity with the current route before review recovery.
 
 ## Blocked
 
@@ -146,9 +147,19 @@
 
 ## Next Action
 
-Bind cited single-review evidence identity to the repository selected by the current Review Workspace route.
+Reject pull-request payloads whose authoritative repository identity does not match the current Review Workspace route.
 
 ## Session Log
+
+### 2026-11-10 — Route-bound cited evidence
+
+- Goal: Prevent internally consistent evidence from another repository from grounding findings on the current Review Workspace route.
+- Implemented: the route repository ID now crosses every single-review normalization path—initial latest-result recovery, active completion, missing-job fallback, manual reconciliation, and explicit runs. A cited evidence set is accepted only when its shared repository ID equals that route identity. Rejected results render no findings, clear terminal locators where applicable, and issue no replacement POST.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "another route repository|belongs to another route repository"` → **3 passed, 129 skipped**.
+- Full checks: `.\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **150 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 336.54 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: `GET /api/health` returned `status=ok`, `hindsight=unavailable`, and `interrupted_jobs=0`; Review Workspace returned HTTP 200. The autostart-disabled process remained running and no provider work was started.
+- Provider safety: route correlation is local and adds no request, Hindsight/Gemini call, or paid usage.
+- Next: correlate the loaded pull request's authoritative `repository_id` with the current route before review recovery can render state.
 
 ### 2026-11-10 — Same-repository cited evidence
 

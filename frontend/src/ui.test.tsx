@@ -788,6 +788,30 @@ it("rejects stored cited evidence spanning multiple banks", async () => {
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
+it("rejects stored cited evidence from another route repository", async () => {
+  const evidence = {
+    ...validatedEvidence("DEC-0103", 103),
+    repository_id: "repo-analytics-service",
+    repository_slug: "analytics-service",
+    bank_id: "bank-analytics-service",
+  };
+  const fetchMock = installFetch({
+    latestReview: {
+      ...review,
+      findings: [{ ...teamFinding, evidence_ids: ["DEC-0103"] }],
+      retrieval: { ...review.retrieval, validated_evidence: [evidence] },
+    },
+  });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain(
+    "Review recovery unavailable: The stored review failed correlation validation.",
+  );
+  expect(screen.queryByRole("article", { name: "Direct status write skips the service" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
 it("reattaches to an active review after refresh without starting another job", async () => {
   saveActiveJob("review", "pr-acme-87", "job-review");
   const fetchMock = installFetch({ reviewPollFailures: 1, pollDelayMs: 50 });
@@ -985,6 +1009,31 @@ it("rejects active cited evidence spanning multiple repositories", async () => {
           { ...validatedEvidence("DEC-0042", 42), repository_id: "repo-analytics-service" },
         ],
       },
+    },
+  });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("The review finished with invalid correlation metadata.");
+  expect(screen.queryByRole("article", { name: "Direct status write skips the service" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+  expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
+});
+
+it("rejects active cited evidence from another route repository", async () => {
+  const evidence = {
+    ...validatedEvidence("DEC-0103", 103),
+    repository_id: "repo-analytics-service",
+    repository_slug: "analytics-service",
+    bank_id: "bank-analytics-service",
+  };
+  const fetchMock = installFetch({
+    activeReviewJob: true,
+    completedReview: {
+      ...review,
+      findings: [{ ...teamFinding, evidence_ids: ["DEC-0103"] }],
+      retrieval: { ...review.retrieval, validated_evidence: [evidence] },
     },
   });
   renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
@@ -1429,6 +1478,40 @@ it("keeps creation uncertain when cited evidence disagrees on repository slug", 
           { ...validatedEvidence("DEC-0042", 42), repository_slug: "analytics-service" },
         ],
       },
+    },
+    latestReviewAfterRead: 2,
+  });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const run = screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  fireEvent.click(await screen.findByRole("button", { name: "Check creation status" }));
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain(
+    "Review creation status is still unavailable: The stored review failed correlation validation.",
+  );
+  const retry = screen.getByRole("button", { name: "Check creation status" });
+  await waitFor(() => expect(document.activeElement).toBe(retry));
+  expect(run.disabled).toBe(true);
+  expect(screen.queryByRole("article", { name: "Direct status write skips the service" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(2);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+});
+
+it("keeps creation uncertain when cited evidence belongs to another route repository", async () => {
+  const evidence = {
+    ...validatedEvidence("DEC-0103", 103),
+    repository_id: "repo-analytics-service",
+    repository_slug: "analytics-service",
+    bank_id: "bank-analytics-service",
+  };
+  const fetchMock = installFetch({
+    reviewCreationHangs: true,
+    reviewCreationClaimVisible: false,
+    latestReview: {
+      ...review,
+      findings: [{ ...teamFinding, evidence_ids: ["DEC-0103"] }],
+      retrieval: { ...review.retrieval, validated_evidence: [evidence] },
     },
     latestReviewAfterRead: 2,
   });

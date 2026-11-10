@@ -197,7 +197,8 @@
 - **Verified:** Every single-review team citation must resolve to a non-blank decision ID in same-result validated evidence. Missing, malformed, or unrelated retrieval evidence fails closed.
 - **Verified:** Cited single-review evidence requires fact/document/decision/source-PR/repository/bank identifiers plus a positive source PR number. Incomplete provenance cannot ground a rendered policy claim.
 - **Verified:** All cited evidence in one single-review result must agree on repository ID, repository slug, and bank ID. Mixed repository/bank provenance cannot ground rendered policy claims.
-- **Next:** Bind cited evidence identity to the repository selected by the current Review Workspace route rather than relying only on internal agreement.
+- **Verified:** Cited evidence's shared repository ID must equal the repository selected by the current Review Workspace route. Internally consistent evidence from another repository fails closed.
+- **Next:** Reject a pull-request payload whose authoritative `repository_id` does not match the current route before displaying or recovering review state.
 
 ## Documentation and version-control policy
 
