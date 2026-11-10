@@ -118,10 +118,11 @@
 - Review Workspace now requires team-convention findings to cite evidence and general findings to remain uncited. Contradictory category/citation semantics fail closed rather than rendering misleading policy provenance.
 - Review Workspace now resolves every team citation against non-blank decision IDs in the same result's validated retrieval evidence. Missing, malformed, or unrelated evidence fails closed.
 - Review Workspace now requires cited validated evidence to carry non-blank fact/document/decision/source-PR/repository/bank identifiers and a positive source PR number. Incomplete provenance fails closed.
+- Review Workspace now rejects cited evidence that disagrees on repository ID, repository slug, or bank ID within one result, including duplicate records for a cited decision.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by requiring cited evidence to agree on one repository/bank identity.
+- Post-MVP trust hardening continues by binding cited evidence identity to the repository selected by the current route.
 
 ## Blocked
 
@@ -145,9 +146,19 @@
 
 ## Next Action
 
-Require cited evidence in a single review to agree on repository and bank identity.
+Bind cited single-review evidence identity to the repository selected by the current Review Workspace route.
 
 ## Session Log
+
+### 2026-11-10 — Same-repository cited evidence
+
+- Goal: Prevent individually well-shaped evidence from combining policy citations across repository or bank boundaries.
+- Implemented: single-review normalization now isolates evidence for cited decisions, rejects any malformed cited record, and requires every cited record to share repository ID, repository slug, and bank ID. Mixed bank, repository, or slug results use the existing initial, active, and manual integrity paths; rejected results render no findings and issue no replacement POST.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "spanning multiple banks|spanning multiple repositories|disagrees on repository slug"` → **3 passed, 126 skipped**.
+- Full checks: `.\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **147 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 336.48 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: `GET /api/health` returned `status=ok`, `hindsight=unavailable`, and `interrupted_jobs=0`; Review Workspace returned HTTP 200. The existing autostart-disabled process was left running and no provider work was started.
+- Provider safety: provenance-identity validation is local and adds no request, Hindsight/Gemini call, or paid usage.
+- Next: compare that shared evidence identity with the repository selected by the current route.
 
 ### 2026-11-10 — Complete cited-evidence provenance shape
 

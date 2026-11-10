@@ -480,12 +480,21 @@ function normalizeReviewForPr(
   const validatedEvidence = isRecord(raw.retrieval) && Array.isArray(raw.retrieval.validated_evidence)
     ? raw.retrieval.validated_evidence
     : [];
-  const validatedDecisionIds = new Set(validatedEvidence
+  const citedDecisionIds = new Set(teamCitations);
+  const citedEvidence = validatedEvidence
     .filter(isRecord)
-    .filter(isValidEvidenceProvenance)
+    .filter((evidence) => citedDecisionIds.has(asString(evidence.decision_id)?.trim() ?? ""));
+  if (citedEvidence.some((evidence) => !isValidEvidenceProvenance(evidence))) return null;
+  const validatedDecisionIds = new Set(citedEvidence
     .map((evidence) => asString(evidence.decision_id)?.trim())
     .filter((decisionId): decisionId is string => Boolean(decisionId)));
   if (teamCitations.some((decisionId) => !validatedDecisionIds.has(decisionId))) return null;
+  const evidenceIdentity = citedEvidence[0];
+  if (evidenceIdentity && citedEvidence.some((evidence) => (
+    evidence.repository_id !== evidenceIdentity.repository_id
+    || evidence.repository_slug !== evidenceIdentity.repository_slug
+    || evidence.bank_id !== evidenceIdentity.bank_id
+  ))) return null;
   const provider = asString(raw.provider)?.trim();
   const model = asString(raw.model)?.trim();
   if (!provider || provider.length > MAX_PROVIDER_ID_LENGTH
