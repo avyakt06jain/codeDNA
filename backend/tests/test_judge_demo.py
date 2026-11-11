@@ -392,6 +392,8 @@ def test_comparison_job_completes_with_injected_clients(tmp_path, monkeypatch):
 
     assert calls == []
     assert DemoModel.instances == 1
+    assert payload["job_id"] == queued.id
+    assert payload["pr_id"] == CANDIDATE_PR_ID
     assert payload["kind"] == "comparison"
     assert payload["status"] == "complete"
     assert payload["created_at"] == active["created_at"]
@@ -458,6 +460,9 @@ def test_queue_endpoints_reuse_active_jobs_and_schedule_once(tmp_path):
     assert len(first_review_tasks.tasks) == 1
     assert repeated_review_tasks.tasks == []
     review_status = route["/api/review-jobs/{job_id}"](first_review["job_id"])
+    assert review_status["job_id"] == first_review["job_id"]
+    assert review_status["pr_id"] == CANDIDATE_PR_ID
+    assert review_status["kind"] == "review"
     assert review_status["created_at"] == first_review["created_at"]
     assert review_status["updated_at"].endswith("Z")
     active_review = route["/api/prs/{pr_id}/review-jobs/active"](

@@ -459,6 +459,7 @@ def create_app(
                 raise HTTPException(404, "Review job not found")
             payload: dict[str, Any] = {
                 "job_id": job.id,
+                "pr_id": job.pr_id,
                 "status": job.status,
                 "stage": job.stage,
                 "kind": job.kind,

@@ -734,6 +734,8 @@ function jobIdFrom(value: unknown): string {
 
 async function pollReviewJob(
   jobId: string,
+  expectedPrId: string,
+  expectedKind: "review" | "comparison",
   onStage?: (stage: string) => void,
   shouldContinue: () => boolean = () => true,
   onTiming?: (timing: JobTiming) => void,
@@ -743,7 +745,12 @@ async function pollReviewJob(
     if (!shouldContinue()) return null;
     let job: ReviewJob & Record<string, unknown>;
     try {
-      job = await requestJobRead<ReviewJob & Record<string, unknown>>(`/api/review-jobs/${jobId}`);
+      job = normalizeJobStatusResponse(
+        await requestJobRead<unknown>(`/api/review-jobs/${jobId}`),
+        jobId,
+        expectedPrId,
+        expectedKind,
+      );
       consecutiveFailures = 0;
     } catch (reason) {
       if (!isTransientRequestError(reason)) throw reason;
@@ -760,8 +767,8 @@ async function pollReviewJob(
     }
     if (!shouldContinue()) return null;
     onTiming?.(jobTimingFrom(job));
-    if (job.stage) onStage?.(job.stage);
-    if (job.status === "complete" || job.status === "completed" || job.status === "failed") return job;
+    onStage?.(job.stage!);
+    if (job.status === "complete" || job.status === "failed") return job;
     await delay(POLL_DELAY_MS);
   }
   throw new Error("The review timed out before it finished.");
@@ -786,6 +793,45 @@ export class InvalidActiveJobCatalogError extends Error {}
 export class InvalidHealthResponseError extends Error {}
 export class InvalidActiveJobResponseError extends Error {}
 export class InvalidJobCreationResponseError extends Error {}
+export class InvalidJobStatusResponseError extends TerminalJobError {}
+
+function normalizeJobStatusResponse(
+  payload: unknown,
+  expectedJobId: string,
+  expectedPrId: string,
+  expectedKind: "review" | "comparison",
+): ReviewJob & Record<string, unknown> {
+  if (!isRecord(payload) || jobIdFrom(payload.job_id) !== expectedJobId
+    || payload.pr_id !== expectedPrId || payload.kind !== expectedKind) {
+    throw new InvalidJobStatusResponseError("The job status response failed correlation validation.");
+  }
+  const status = payload.status === "queued" || payload.status === "running"
+    || payload.status === "complete" || payload.status === "failed" ? payload.status : null;
+  const stage = asString(payload.stage)?.trim();
+  const createdAt = normalizeJobTimestamp(payload.created_at);
+  const updatedAt = normalizeJobTimestamp(payload.updated_at);
+  const errorCode = payload.error_code === null ? null : asString(payload.error_code)?.trim();
+  if (!status || !stage || stage.length > MAX_JOB_STAGE_LENGTH || !SAFE_JOB_STAGE.test(stage)
+    || !createdAt || !updatedAt || Date.parse(updatedAt) < Date.parse(createdAt)
+    || (status === "queued" && stage !== "queued")
+    || (status === "running" && (stage === "queued" || stage === "complete" || stage === "failed"))
+    || (status === "complete" && (stage !== "complete" || errorCode !== null))
+    || (status === "failed" && (stage !== "failed" || !errorCode || errorCode.length > 120 || !SAFE_JOB_STAGE.test(errorCode)))
+    || ((status === "queued" || status === "running") && errorCode !== null)) {
+    throw new InvalidJobStatusResponseError("The job status response failed state validation.");
+  }
+  return {
+    ...payload,
+    job_id: expectedJobId,
+    pr_id: expectedPrId,
+    kind: expectedKind,
+    status,
+    stage,
+    error_code: errorCode,
+    created_at: createdAt,
+    updated_at: updatedAt,
+  };
+}
 
 function jobFailure(job: ReviewJob, fallback: string): TerminalJobError {
   const code = job.error_code?.trim();
@@ -913,7 +959,7 @@ export const api = {
   async reviewJob(jobId: string, expectedPrId: string, expectedRepositoryId: string, expectedRepositorySlug: string, expectedMode: "memory" | "baseline" | undefined, onStage?: (stage: string) => void, shouldContinue?: () => boolean, onTiming?: (timing: JobTiming) => void) {
     let job: (ReviewJob & Record<string, unknown>) | null;
     try {
-      job = await pollReviewJob(jobId, onStage, shouldContinue, onTiming);
+      job = await pollReviewJob(jobId, expectedPrId, "review", onStage, shouldContinue, onTiming);
     } catch (reason) {
       if (reason instanceof ApiRequestError && reason.status === 404) {
         throw new MissingJobError("The active review is no longer available.");
@@ -968,7 +1014,7 @@ export const api = {
   async comparisonJob(jobId: string, expectedPrId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean, onTiming?: (timing: JobTiming) => void) {
     let job: (ReviewJob & Record<string, unknown>) | null;
     try {
-      job = await pollReviewJob(jobId, onStage, shouldContinue, onTiming);
+      job = await pollReviewJob(jobId, expectedPrId, "comparison", onStage, shouldContinue, onTiming);
     } catch (reason) {
       if (reason instanceof ApiRequestError && reason.status === 404) {
         throw new MissingJobError("The active comparison is no longer available.");

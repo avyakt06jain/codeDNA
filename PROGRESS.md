@@ -135,10 +135,11 @@
 - Application-health responses now fail closed unless healthy app status, memory configuration, Hindsight state, and a safe interrupted-job count form one complete consistent contract; invalid reads preserve only prior trusted observation and close the memory gate.
 - Same-PR active-job discovery now requires exact requested PR/kind correlation and either a fully explicit empty state or a valid queued/running locator with safe stage and chronological timestamps before browser persistence or polling.
 - Review/comparison creation responses now repeat backend-owned PR/kind identity and are accepted only with a valid job ID, Boolean reuse flag, active status, safe stage, and chronological timestamps. Rejected responses reconcile through exact-PR/kind GETs and cannot seed session storage, wrong-ID polling, or a replacement POST.
+- Individual review/comparison status responses now repeat job/PR/kind identity and are rejected before progress or results unless identity, status, stage, timestamps, and failure-code state form one valid envelope. Rejected terminal envelopes clear the saved locator and cannot render nested content, read latest-result fallback, or create work.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by correlating individual background-job status responses before accepting progress or terminal results.
+- Post-MVP trust hardening continues by preventing successive polls of one job from regressing status or persisted update time.
 
 ## Blocked
 
@@ -162,9 +163,19 @@
 
 ## Next Action
 
-Require every review/comparison status response to repeat and match the requested job ID, PR ID, and job kind before accepting its stage, failure, or result payload.
+Require status and persisted update time to progress monotonically across successive polls of the same job; reject regressed observations without replaying work.
 
 ## Session Log
+
+### 2026-11-12 — Correlated background-job status envelopes
+
+- Goal: Prevent a wrong-job, wrong-PR, wrong-kind, or contradictory status response from changing progress, clearing diagnostics, or rendering a nested result.
+- Files: `backend/src/codedna_memory/api.py`, `backend/tests/test_judge_demo.py`, `frontend/src/api.ts`, `frontend/src/ui.test.tsx`, and living documentation.
+- Implemented: the status endpoint now repeats the stored PR ID alongside job ID and kind. Polling validates exact requested identity, one of four persisted statuses, a safe bounded stage, parseable chronological timestamps, null errors for nonfailed state, `complete`/`failed` stage consistency, and a bounded safe failure code before invoking stage/timing callbacks or accepting terminal content. An invalid envelope raises a terminal integrity error, clears its locator, and performs no latest-result fallback or replacement POST.
+- Focused checks: backend route contract **11 passed**; frontend status/reattachment cases **12 passed**. Cases cover cross-job, cross-PR, cross-kind, unknown status, unsafe/contradictory stage, reversed timestamps, contradictory success error, valid sanitized failure, and both valid review/comparison reattachment paths.
+- Full checks: `.venv\Scripts\python.exe -m pytest backend\tests -q` → **34 passed**; `npm --prefix frontend test -- --run` → **316 passed across 5 files**; `npm --prefix frontend run build` → **PASS**, 40 modules, 347.89 kB JavaScript and 16.43 kB CSS before gzip. No provider call was made.
+- Live check: after confirming both PR #87 job kinds were inactive, the first restart attempt with system Python exited with `ModuleNotFoundError: codedna_memory`. The API was immediately restored with the pinned `.venv` interpreter and `CODEDNA_HINDSIGHT_AUTOSTART=0`; health returned configured/unavailable with zero interrupted jobs, exact-PR review discovery returned the complete empty contract, and Review Workspace returned HTTP 200. A read-only lookup of stored comparison `job-227bd332a40b4152` returned exact PR #87/comparison identity, complete/complete state, null error, and chronological UTC timestamps. No job or provider request was started.
+- Next: enforce monotonic status and update-time progression across repeated polls of one job.
 
 ### 2026-11-12 — Correlated job-creation responses
 

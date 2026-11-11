@@ -198,6 +198,29 @@ const review = {
 
 const jobCreatedAt = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 const jobUpdatedAt = new Date(Date.now() - 4 * 60 * 1000).toISOString();
+const completeReviewJobEnvelope = (overrides: Record<string, unknown> = {}) => ({
+  job_id: "job-review",
+  pr_id: "pr-acme-87",
+  kind: "review",
+  status: "complete",
+  stage: "complete",
+  error_code: null,
+  created_at: jobCreatedAt,
+  updated_at: jobUpdatedAt,
+  review,
+  ...overrides,
+});
+const completeComparisonJobEnvelope = (overrides: Record<string, unknown> = {}) => ({
+  job_id: "job-cmp",
+  pr_id: "pr-acme-87",
+  kind: "comparison",
+  status: "complete",
+  stage: "complete",
+  error_code: null,
+  created_at: jobCreatedAt,
+  updated_at: jobUpdatedAt,
+  ...overrides,
+});
 const repositoryActiveJob = {
   repository_id: "repo-acme-commerce",
   job_id: "job-cmp",
@@ -244,7 +267,9 @@ function installFetch(options?: {
   latestComparisonAfterRead?: number;
   reviewPollFailures?: number;
   reviewPollHangs?: number;
+  reviewJobPayload?: unknown;
   comparisonPollFailures?: number;
+  comparisonJobPayload?: unknown;
   missingReviewJob?: boolean;
   missingComparisonJob?: boolean;
   activeReviewJob?: boolean;
@@ -311,6 +336,8 @@ function installFetch(options?: {
   let comparisonCreationClaimed = false;
   let comparisonCreationStarted = false;
   let comparisonActiveReads = 0;
+  let reviewJobPrId = "pr-acme-87";
+  let comparisonJobPrId = "pr-acme-87";
   let latestReviewReads = 0;
   let latestComparisonReads = 0;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -476,6 +503,7 @@ function installFetch(options?: {
       return json(options?.decisionsWrapped ? { items: decisionCatalog } : decisionCatalog);
     }
     if (path.endsWith("/review-jobs") && method === "POST") {
+      reviewJobPrId = path.split("/")[3];
       if (options?.reviewCreationHangs) {
         reviewCreationStarted = true;
         reviewCreationClaimed = options.reviewCreationClaimVisible !== false;
@@ -504,7 +532,11 @@ function installFetch(options?: {
         reviewPollFailures -= 1;
         return json({ detail: "temporary outage" }, 503);
       }
+      if (options?.reviewJobPayload !== undefined) return json(options.reviewJobPayload);
       return json({
+        job_id: "job-review",
+        pr_id: reviewJobPrId,
+        kind: "review",
         status: "complete",
         stage: "complete",
         error_code: null,
@@ -514,6 +546,7 @@ function installFetch(options?: {
       });
     }
     if (path.endsWith("/comparison") && method === "POST") {
+      comparisonJobPrId = path.split("/")[3];
       if (options?.comparisonCreationHangs) {
         comparisonCreationStarted = true;
         comparisonCreationClaimed = options.comparisonCreationClaimVisible !== false;
@@ -536,7 +569,8 @@ function installFetch(options?: {
         comparisonPollFailures -= 1;
         return json({ detail: "temporary outage" }, 503);
       }
-      return json({ status: "complete", stage: "complete", error_code: null, created_at: jobCreatedAt, updated_at: jobUpdatedAt, comparison: withComparisonIdentity(options?.comparison) });
+      if (options?.comparisonJobPayload !== undefined) return json(options.comparisonJobPayload);
+      return json({ job_id: "job-cmp", pr_id: comparisonJobPrId, kind: "comparison", status: "complete", stage: "complete", error_code: null, created_at: jobCreatedAt, updated_at: jobUpdatedAt, comparison: withComparisonIdentity(options?.comparison) });
     }
     if (path.endsWith("/evidence")) return json(options?.evidencePayload ?? { run_id: "run-1", decisions });
     if (path.endsWith("/feedback") && method === "POST") return json({ id: "fb-1", binding: false }, 201);
@@ -1022,6 +1056,47 @@ it("reattaches to an active review after refresh without starting another job", 
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(2);
   expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
+});
+
+it.each([
+  ["another job ID", completeReviewJobEnvelope({ job_id: "job-other" })],
+  ["another pull request", completeReviewJobEnvelope({ pr_id: "pr-acme-120" })],
+  ["another job kind", completeReviewJobEnvelope({ kind: "comparison" })],
+  ["an unknown status", completeReviewJobEnvelope({ status: "completed" })],
+  ["an unsafe stage", completeReviewJobEnvelope({ stage: "../complete" })],
+  ["a contradictory running stage", completeReviewJobEnvelope({ status: "running", stage: "complete" })],
+  ["reversed timestamps", completeReviewJobEnvelope({ created_at: jobUpdatedAt, updated_at: jobCreatedAt })],
+  ["an error on successful state", completeReviewJobEnvelope({ error_code: "review_service_unavailable" })],
+])("rejects a review status envelope for %s before accepting progress or results", async (_case, payload) => {
+  saveActiveJob("review", "pr-acme-87", "job-review");
+  const fetchMock = installFetch({ reviewJobPayload: payload });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("The job status response failed");
+  expect(screen.queryByRole("article", { name: "Direct status write skips the service" })).toBeNull();
+  expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
+it("accepts a correlated failed status envelope and exposes only its sanitized code", async () => {
+  saveActiveJob("review", "pr-acme-87", "job-review");
+  const fetchMock = installFetch({
+    reviewJobPayload: completeReviewJobEnvelope({
+      status: "failed",
+      stage: "failed",
+      error_code: "review_service_unavailable",
+      review: undefined,
+    }),
+  });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("The review failed (review_service_unavailable).");
+  expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
 it("rejects an active job result without a valid review correlation ID", async () => {
@@ -3056,6 +3131,25 @@ it("reattaches to an active comparison after refresh without starting another jo
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(2);
   expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
+});
+
+it("rejects a cross-kind comparison status envelope before accepting its result", async () => {
+  saveActiveJob("comparison", "pr-acme-87", "job-cmp");
+  const fetchMock = installFetch({
+    comparisonJobPayload: completeComparisonJobEnvelope({ kind: "review", comparison: withComparisonIdentity({
+      evaluation: { passed: true, checks: comparisonChecks() },
+      memory: { run_id: "run-wrong-memory", status: "complete", mode: "memory", findings: [teamFinding] },
+      baseline: { run_id: "run-wrong-baseline", status: "complete", mode: "baseline", findings: [generalFinding] },
+    }) }),
+  });
+  renderAt("/repos/repo-acme-commerce/lab");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("The job status response failed correlation validation.");
+  expect(screen.queryByText("Guardrails passed")).toBeNull();
+  expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
 it("discovers an active comparison after tab storage is lost without starting another job", async () => {

@@ -213,7 +213,8 @@
 - **Verified:** Application-health responses fail closed unless application status, memory configuration, Hindsight state, and interrupted-job count form one complete consistent contract; invalid reads close the memory gate and preserve only prior trusted state.
 - **Verified:** Same-PR active-job discovery fails closed unless the response exactly matches requested PR/kind and presents either a fully explicit empty state or a valid active locator/status/stage/timestamp state.
 - **Verified:** Review/comparison creation responses repeat the backend-owned PR and job kind and must contain a valid job ID, Boolean reuse signal, queued/running status, safe bounded stage, and chronological UTC timestamps before the browser stores or polls a locator. Invalid or mismatched responses enter the same GET-only claim reconciliation as a lost response and never trigger a second POST.
-- **Next:** Correlate every background-job status response to the requested job, PR, and kind before accepting stage, failure, or result state.
+- **Verified:** Every individual background-job status response repeats backend-owned job/PR/kind identity and must match the requested operation. The client also requires a known status, safe bounded stage, chronological timestamps, and status-consistent failure state before accepting progress, errors, or results; invalid envelopes are terminal and cannot render returned content or trigger fallback/provider work.
+- **Next:** Enforce monotonic status and update-time progression across successive polls of the same background job.
 
 ## Documentation and version-control policy
 
