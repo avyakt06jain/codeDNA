@@ -255,6 +255,7 @@ function installFetch(options?: {
   pullRequestRepositoryId?: string;
   repositorySlug?: string;
   repositoryCatalog?: unknown;
+  pullRequestPayload?: unknown;
 }) {
   const hindsight = options?.hindsight ?? "ready";
   let reviewPollFailures = options?.reviewPollFailures ?? 0;
@@ -352,7 +353,7 @@ function installFetch(options?: {
     }
     if (path.endsWith("/prs")) return json(prs);
     if (path === "/api/prs/pr-acme-87" && method === "GET") {
-      return json({ ...prs[0], repository_id: options?.pullRequestRepositoryId ?? "repo-acme-commerce", description: "Sets order status directly.", diff_text: diff });
+      return json(options?.pullRequestPayload ?? { ...prs[0], repository_id: options?.pullRequestRepositoryId ?? "repo-acme-commerce", description: "Sets order status directly.", diff_text: diff });
     }
     if (path === "/api/prs/pr-acme-87/reviews/latest" && method === "GET") {
       latestReviewReads += 1;
@@ -655,6 +656,40 @@ it.each([
   expect(screen.queryByRole("heading", { name: /Update order status/ })).toBeNull();
   expect((screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement).disabled).toBe(true);
   expect(fetchMock.mock.calls.filter((entry) => new URL(String(entry[0]), "http://localhost").pathname === "/api/prs/pr-acme-87")).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
+const validPullRequestPayload = {
+  ...prs[0],
+  repository_id: "repo-acme-commerce",
+  description: "Sets order status directly.",
+  diff_text: diff,
+};
+
+it.each([
+  ["non-object shape", []],
+  ["unsafe pull-request ID", { ...validPullRequestPayload, id: "pr acme 87" }],
+  ["unsafe repository ID", { ...validPullRequestPayload, repository_id: "repo acme" }],
+  ["non-positive number", { ...validPullRequestPayload, number: 0 }],
+  ["fractional number", { ...validPullRequestPayload, number: 1.5 }],
+  ["blank title", { ...validPullRequestPayload, title: " " }],
+  ["oversized title", { ...validPullRequestPayload, title: "x".repeat(241) }],
+  ["non-string description", { ...validPullRequestPayload, description: 42 }],
+  ["oversized description", { ...validPullRequestPayload, description: "x".repeat(20_001) }],
+  ["non-string diff", { ...validPullRequestPayload, diff_text: 42 }],
+  ["oversized diff", { ...validPullRequestPayload, diff_text: "x".repeat(100_001) }],
+  ["invalid creation time", { ...validPullRequestPayload, created_at: "not-a-date" }],
+])("rejects a pull request with %s before review recovery", async (_label, pullRequestPayload) => {
+  saveActiveJob("review", "pr-acme-87", "job-review");
+  const fetchMock = installFetch({ pullRequestPayload, latestReview: true });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("The pull request failed payload validation.");
+  expect(screen.queryByRole("heading", { name: /Update order status/ })).toBeNull();
+  expect((screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement).disabled).toBe(true);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active"))).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);

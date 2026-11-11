@@ -5,6 +5,10 @@ const MAX_MODEL_ID_LENGTH = 160;
 const MAX_REPOSITORY_ID_LENGTH = 160;
 const MAX_REPOSITORY_SLUG_LENGTH = 160;
 const MAX_REPOSITORY_NAME_LENGTH = 200;
+const MAX_PULL_REQUEST_ID_LENGTH = 80;
+const MAX_PULL_REQUEST_TITLE_LENGTH = 240;
+const MAX_PULL_REQUEST_DESCRIPTION_LENGTH = 20_000;
+const MAX_DIFF_BYTES = 100_000;
 const SAFE_REPOSITORY_ID = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 const SAFE_REPOSITORY_SLUG = /^[a-z0-9][a-z0-9-]*$/;
 const FINDING_CATEGORIES = new Set(["general", "team_convention"]);
@@ -696,6 +700,9 @@ export const api = {
   prs: async (repositoryId: string) => unwrapRecords(await request<unknown>(`/api/repositories/${repositoryId}/prs`)).map(normalizePullRequestSummary),
   pr: async (prId: string, repositoryId: string) => {
     const pullRequest = normalizePullRequest(await request<unknown>(`/api/prs/${prId}`));
+    if (!pullRequest) {
+      throw new InvalidPullRequestError("The pull request failed payload validation.");
+    }
     if (pullRequest.id !== prId || pullRequest.repository_id !== repositoryId) {
       throw new InvalidPullRequestError("The pull request does not belong to this repository.");
     }
@@ -957,13 +964,30 @@ function normalizePullRequestSummary(raw: Record<string, unknown>): PullRequestS
   };
 }
 
-function normalizePullRequest(payload: unknown): PullRequest {
-  const raw = asRecord(payload);
+function normalizePullRequest(payload: unknown): PullRequest | null {
+  if (!isRecord(payload)) return null;
+  const id = asString(payload.id)?.trim();
+  const repositoryId = asString(payload.repository_id)?.trim();
+  const number = asNumber(payload.number);
+  const title = asString(payload.title)?.trim();
+  const description = asString(payload.description);
+  const diffText = asString(payload.diff_text);
+  const createdAt = payload.created_at == null ? undefined : normalizeJobTimestamp(payload.created_at);
+  if (!id || id.length > MAX_PULL_REQUEST_ID_LENGTH || !SAFE_REPOSITORY_ID.test(id)
+    || !repositoryId || repositoryId.length > MAX_REPOSITORY_ID_LENGTH || !SAFE_REPOSITORY_ID.test(repositoryId)
+    || number === undefined || !Number.isInteger(number) || number < 1
+    || !title || title.length > MAX_PULL_REQUEST_TITLE_LENGTH
+    || description === undefined || description.length > MAX_PULL_REQUEST_DESCRIPTION_LENGTH
+    || diffText === undefined || new TextEncoder().encode(diffText).length > MAX_DIFF_BYTES
+    || (payload.created_at != null && createdAt === undefined)) return null;
   return {
-    ...normalizePullRequestSummary(raw),
-    repository_id: String(raw.repository_id ?? ""),
-    description: String(raw.description ?? ""),
-    diff_text: String(raw.diff_text ?? ""),
+    id,
+    repository_id: repositoryId,
+    number,
+    title,
+    description,
+    diff_text: diffText,
+    created_at: createdAt,
   };
 }
 

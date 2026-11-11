@@ -22,6 +22,8 @@ Cited validated evidence must also contain non-blank fact, document, source PR, 
 
 The fetched pull request must name both the requested PR ID and the repository ID selected by the route. This check completes before saved-job polling, active discovery, or latest-result recovery starts. A mismatched payload renders neither PR content nor recovered review state and keeps review creation disabled.
 
+Full PR payloads additionally require safe bounded IDs, a positive integer PR number, bounded non-blank title, string description no longer than 20,000 characters, string diff no larger than 100,000 UTF-8 bytes, and a parseable timestamp when `created_at` is present. Invalid values are rejected rather than stringified or defaulted. This limit matches the backend review parser; display-side diff grammar validation remains a separate boundary.
+
 Repository-list responses must be arrays (directly or under `items`) containing only object rows. IDs must use a bounded alphanumeric/underscore/hyphen grammar, slugs a bounded lowercase alphanumeric/hyphen grammar, display names must be bounded and non-blank, and IDs/slugs must each be unique. Any invalid row rejects the catalog rather than being dropped or defaulted, so no ambiguous repository can authorize this workspace.
 
 `Run CodeDNA Review` stays disabled until pull-request loading and that recovery sequence have both completed for the exact route PR. Route changes clear the recovery marker before the control can create work. Tests hold latest-result recovery and reused-job polling behind explicit promise gates, proving the control barrier, zero recovery POSTs, and the reattachment announcement without wall-clock delays.

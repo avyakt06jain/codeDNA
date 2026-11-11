@@ -70,6 +70,7 @@ CodeDNA separates memory from authority:
 - Route-bound pull requests: the fetched PR must belong to the selected repository before its diff or saved review state can render
 - Catalog-bound evidence: cited evidence's repository slug must match the selected API catalog entry
 - Validated repository catalog: malformed or duplicate repository identities fail closed before workspace recovery
+- Validated PR payloads: malformed metadata and diffs over 100,000 UTF-8 bytes fail closed before rendering or recovery
 - Safe stale-job recovery that clears a missing locator and restores the latest persisted same-PR result without rerunning providers
 - Read-only same-PR active-job discovery after tab/session loss, before any completed-result fallback
 - Atomic same-PR active-job reuse so simultaneous tabs schedule only one provider task

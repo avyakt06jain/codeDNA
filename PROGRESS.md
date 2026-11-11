@@ -123,10 +123,11 @@
 - Review Workspace now validates the fetched pull request's ID and authoritative repository ID against the route before displaying its diff or starting any saved/active/latest review recovery read.
 - Review Workspace now waits for the selected repository catalog entry and requires cited evidence's shared repository slug to match that API-provided slug across initial, active, and manual recovery.
 - Repository catalog ingestion now rejects non-object/malformed rows, unsafe or blank identity fields, and duplicate repository IDs or slugs before they can establish workspace context.
+- Full PR ingestion now rejects unsafe identities, non-positive/fractional numbers, blank or oversized titles, non-string/oversized descriptions, diffs above 100,000 UTF-8 bytes, and malformed optional creation timestamps before display or recovery.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by validating the remaining pull-request payload fields before rendering untrusted content.
+- Post-MVP trust hardening continues by validating diff grammar before the permissive display splitter renders it.
 
 ## Blocked
 
@@ -150,9 +151,19 @@
 
 ## Next Action
 
-Validate pull-request number/title/description/diff fields before they can enter Review Workspace.
+Reject malformed diff grammar before it can enter Review Workspace's display splitter.
 
 ## Session Log
+
+### 2026-11-11 — Validated pull-request payload
+
+- Goal: Prevent malformed or oversized PR metadata/diff payloads from rendering or unlocking review recovery.
+- Implemented: full PR normalization now requires object shape; bounded safe PR/repository IDs; a positive integer PR number; a bounded non-blank title; a string description capped at 20,000 characters; a string diff capped at the backend parser's 100,000 UTF-8-byte limit; and an optional parseable timestamp normalized to UTC. Failure renders no PR, keeps creation disabled, and blocks saved/status/active/latest reads.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "pull request with"` → **12 passed, 139 skipped**, covering non-object shape; unsafe IDs; non-positive/fractional numbers; blank/oversized title; non-string/oversized description; non-string/oversized diff; and invalid timestamp with preloaded saved state.
+- Full checks: `.\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **169 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 338.02 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: `GET /api/health` returned `status=ok`, `hindsight=unavailable`, and `interrupted_jobs=0`; Review Workspace returned HTTP 200 through the existing autostart-disabled processes.
+- Provider safety: payload validation is local and blocks downstream work; it adds no Hindsight/Gemini call or paid usage.
+- Next: validate unified-diff grammar before handing a PR diff to the display splitter.
 
 ### 2026-11-11 — Fail-closed repository catalog
 
