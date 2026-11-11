@@ -116,6 +116,7 @@ const diff = [
 const decisions = [
   {
     id: "DEC-0103",
+    repository_id: "repo-acme-commerce",
     title: "Shipping workflow",
     rule_text: "Use the service for status changes.",
     rationale: "Audit events stay with the service.",
@@ -128,6 +129,7 @@ const decisions = [
   },
   {
     id: "DEC-0042",
+    repository_id: "repo-acme-commerce",
     title: "Order transitions",
     rule_text: "Earlier transition rule.",
     rationale: "The first audit rule.",
@@ -135,6 +137,7 @@ const decisions = [
     authority: "reviewer_confirmed",
     source_pr_id: "pr-acme-42",
     source_pr_number: 42,
+    scope: {},
   },
 ];
 
@@ -257,6 +260,7 @@ function installFetch(options?: {
   repositoryCatalog?: unknown;
   pullRequestPayload?: unknown;
   pullRequestCatalog?: unknown;
+  decisionCatalog?: unknown;
 }) {
   const hindsight = options?.hindsight ?? "ready";
   let reviewPollFailures = options?.reviewPollFailures ?? 0;
@@ -440,7 +444,10 @@ function installFetch(options?: {
       }
       return json({ ...decisions[0], memory: { document_id: "decision-DEC-0103", ingestion_status: "ready" } });
     }
-    if (path.includes("/decisions")) return json(options?.decisionsWrapped ? { items: decisions } : decisions);
+    if (path.includes("/decisions")) {
+      const decisionCatalog = options?.decisionCatalog ?? decisions;
+      return json(options?.decisionsWrapped ? { items: decisionCatalog } : decisionCatalog);
+    }
     if (path.endsWith("/review-jobs") && method === "POST") {
       if (options?.reviewCreationHangs) {
         reviewCreationStarted = true;
@@ -2031,6 +2038,29 @@ it("lists wrapped decisions and opens the evolution lineage", async () => {
   expect(current.textContent).toContain("Use the service for status changes.");
   expect(current.textContent).not.toContain("decision-DEC-0042");
   expect(current.textContent).not.toContain("Superseded by");
+});
+
+it.each([
+  ["non-object row", [null]],
+  ["another repository", [{ ...decisions[0], repository_id: "repo-analytics-service" }]],
+  ["unsafe ID", [{ ...decisions[0], id: "DEC 0103" }]],
+  ["blank title", [{ ...decisions[0], title: " " }]],
+  ["blank rule", [{ ...decisions[0], rule_text: " " }]],
+  ["blank rationale", [{ ...decisions[0], rationale: " " }]],
+  ["invalid status", [{ ...decisions[0], status: "current" }]],
+  ["invalid authority", [{ ...decisions[0], authority: "model_generated" }]],
+  ["invalid source PR", [{ ...decisions[0], source_pr_number: 0 }]],
+  ["non-object scope", [{ ...decisions[0], scope: ["src/orders"] }]],
+  ["self-supersession", [{ ...decisions[0], supersedes_decision_id: "DEC-0103" }]],
+  ["unresolved predecessor", [{ ...decisions[0], supersedes_decision_id: "DEC-9999" }]],
+  ["duplicate ID", [decisions[0], { ...decisions[1], id: decisions[0]!.id }]],
+])("rejects a decision catalog with %s before policy detail reads", async (_label, decisionCatalog) => {
+  const fetchMock = installFetch({ decisionCatalog });
+  renderAt("/repos/repo-acme-commerce/dna");
+  expect(await screen.findByText("The decision catalog failed provenance validation.")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Shipping workflow" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => new URL(String(entry[0]), "http://localhost").pathname.startsWith("/api/decisions/"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
 it("shows a memory-lab trace only for recorded timings and lists guardrails", async () => {

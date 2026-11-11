@@ -87,6 +87,7 @@ def _memory_payload(session: Session, decision_id: str) -> dict[str, Any]:
 def _decision_list_item(session: Session, decision: Decision) -> dict[str, Any]:
     return {
         "id": decision.id,
+        "repository_id": decision.repository_id,
         "title": decision.title,
         "rule_text": decision.rule_text,
         "rationale": decision.rationale,

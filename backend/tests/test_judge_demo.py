@@ -128,6 +128,7 @@ def test_repository_summary_and_decision_lineage(tmp_path):
 
     decisions = route["/api/repositories/{repository_id}/decisions"](ACME_REPOSITORY_ID)
     current = next(item for item in decisions if item["id"] == DECISION_ID)
+    assert current["repository_id"] == ACME_REPOSITORY_ID
     assert current["source_pr_number"] == 42
     assert current["supersedes_decision_id"] is None
     assert current["scope"]["paths"] == ["src/orders/**"]

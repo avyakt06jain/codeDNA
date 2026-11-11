@@ -32,6 +32,10 @@ export function TeamDnaPage() {
     let cancelled = false;
     setLoading(true);
     setError("");
+    setDecisions([]);
+    setSummary(null);
+    setSelectedId(null);
+    setDetail(null);
     Promise.allSettled([api.decisions(repoId), api.summary(repoId)]).then(([decisionResult, summaryResult]) => {
       if (cancelled) return;
       if (decisionResult.status === "fulfilled") setDecisions(decisionResult.value);

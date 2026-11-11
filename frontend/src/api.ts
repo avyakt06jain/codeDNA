@@ -11,11 +11,16 @@ const MAX_PULL_REQUEST_ID_LENGTH = 80;
 const MAX_PULL_REQUEST_TITLE_LENGTH = 240;
 const MAX_PULL_REQUEST_DESCRIPTION_LENGTH = 20_000;
 const MAX_DIFF_BYTES = 100_000;
+const MAX_DECISION_ID_LENGTH = 80;
+const MAX_DECISION_TITLE_LENGTH = 240;
+const MAX_DECISION_TEXT_LENGTH = 20_000;
 const SAFE_REPOSITORY_ID = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 const SAFE_REPOSITORY_SLUG = /^[a-z0-9][a-z0-9-]*$/;
 const FINDING_CATEGORIES = new Set(["general", "team_convention"]);
 const FINDING_SEVERITIES = new Set(["info", "warning", "error"]);
 const FINDING_CONFIDENCES = new Set(["low", "medium", "high"]);
+const DECISION_STATUSES = new Set(["proposed", "active", "superseded", "revoked"]);
+const DECISION_AUTHORITIES = new Set(["proposed", "reviewer_confirmed"]);
 
 export type Health = {
   status?: string;
@@ -76,6 +81,7 @@ export type PullRequest = PullRequestSummary & {
 
 export type Decision = {
   id: string;
+  repository_id?: string;
   title: string;
   rule_text: string;
   rationale: string;
@@ -352,6 +358,7 @@ function normalizeDecision(raw: Record<string, unknown>): Decision {
   const memory = isRecord(raw.memory) ? raw.memory : null;
   return {
     id: String(raw.id ?? ""),
+    repository_id: asString(raw.repository_id),
     title: String(raw.title ?? ""),
     rule_text: String(raw.rule_text ?? ""),
     rationale: String(raw.rationale ?? ""),
@@ -370,6 +377,69 @@ function normalizeDecision(raw: Record<string, unknown>): Decision {
         }
       : null,
   };
+}
+
+function normalizeDecisionCatalogItem(raw: Record<string, unknown>, repositoryId: string): Decision | null {
+  const id = asString(raw.id)?.trim();
+  const itemRepositoryId = asString(raw.repository_id)?.trim();
+  const title = asString(raw.title)?.trim();
+  const ruleText = asString(raw.rule_text)?.trim();
+  const rationale = asString(raw.rationale)?.trim();
+  const status = asString(raw.status)?.trim();
+  const authority = asString(raw.authority)?.trim();
+  const sourcePrId = asString(raw.source_pr_id)?.trim();
+  const sourcePrNumber = asNumber(raw.source_pr_number);
+  const supersedesDecisionId = raw.supersedes_decision_id == null
+    ? null
+    : asString(raw.supersedes_decision_id)?.trim();
+  if (!id || id.length > MAX_DECISION_ID_LENGTH || !SAFE_REPOSITORY_ID.test(id)
+    || itemRepositoryId !== repositoryId
+    || !title || title.length > MAX_DECISION_TITLE_LENGTH
+    || !ruleText || ruleText.length > MAX_DECISION_TEXT_LENGTH
+    || !rationale || rationale.length > MAX_DECISION_TEXT_LENGTH
+    || !status || !DECISION_STATUSES.has(status)
+    || !authority || !DECISION_AUTHORITIES.has(authority)
+    || !sourcePrId || sourcePrId.length > MAX_PULL_REQUEST_ID_LENGTH || !SAFE_REPOSITORY_ID.test(sourcePrId)
+    || sourcePrNumber === undefined || !Number.isInteger(sourcePrNumber) || sourcePrNumber < 1
+    || !isRecord(raw.scope)
+    || (supersedesDecisionId != null && (!supersedesDecisionId
+      || supersedesDecisionId.length > MAX_DECISION_ID_LENGTH
+      || !SAFE_REPOSITORY_ID.test(supersedesDecisionId)
+      || supersedesDecisionId === id))) return null;
+  return {
+    id,
+    repository_id: itemRepositoryId,
+    title,
+    rule_text: ruleText,
+    rationale,
+    status,
+    authority,
+    source_pr_id: sourcePrId,
+    source_pr_number: sourcePrNumber,
+    supersedes_decision_id: supersedesDecisionId,
+    scope: raw.scope,
+  };
+}
+
+function normalizeDecisionCatalog(payload: unknown, repositoryId: string): Decision[] {
+  const rows = Array.isArray(payload)
+    ? payload
+    : isRecord(payload) && Array.isArray(payload.items) ? payload.items : null;
+  if (!rows || !rows.every(isRecord)) {
+    throw new InvalidDecisionCatalogError("The decision catalog failed provenance validation.");
+  }
+  const decisions = rows.map((row) => normalizeDecisionCatalogItem(row, repositoryId));
+  if (decisions.some((decision) => decision === null)) {
+    throw new InvalidDecisionCatalogError("The decision catalog failed provenance validation.");
+  }
+  const valid = decisions as Decision[];
+  const ids = new Set(valid.map((decision) => decision.id));
+  if (ids.size !== valid.length
+    || valid.some((decision) => decision.supersedes_decision_id != null
+      && !ids.has(decision.supersedes_decision_id))) {
+    throw new InvalidDecisionCatalogError("The decision catalog failed provenance validation.");
+  }
+  return valid;
 }
 
 function normalizeLineageItem(raw: Record<string, unknown>): LineageItem {
@@ -671,6 +741,7 @@ export class InvalidComparisonResultError extends Error {}
 export class InvalidPullRequestError extends Error {}
 export class InvalidRepositoryCatalogError extends Error {}
 export class InvalidPullRequestCatalogError extends Error {}
+export class InvalidDecisionCatalogError extends Error {}
 
 function jobFailure(job: ReviewJob, fallback: string): TerminalJobError {
   const code = job.error_code?.trim();
@@ -711,7 +782,10 @@ export const api = {
     }
     return pullRequest;
   },
-  decisions: async (repositoryId: string) => unwrapRecords(await request<unknown>(`/api/repositories/${repositoryId}/decisions`)).map(normalizeDecision),
+  decisions: async (repositoryId: string) => normalizeDecisionCatalog(
+    await request<unknown>(`/api/repositories/${repositoryId}/decisions`),
+    repositoryId,
+  ),
   decision: async (decisionId: string) => normalizeDecision(asRecord(await request<unknown>(`/api/decisions/${decisionId}`))),
   lineage: async (decisionId: string) => normalizeLineage(await request<unknown>(`/api/decisions/${decisionId}/lineage`), decisionId),
   latestReview: async (prId: string, repositoryId: string, repositorySlug: string, mode: "memory" | "baseline" = "memory") => {

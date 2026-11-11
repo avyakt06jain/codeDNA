@@ -126,10 +126,11 @@
 - Full PR ingestion now rejects unsafe identities, non-positive/fractional numbers, blank or oversized titles, non-string/oversized descriptions, diffs above 100,000 UTF-8 bytes, and malformed optional creation timestamps before display or recovery.
 - Full PR ingestion now also rejects empty, binary, addition-free, unsafe-path, over-30-file, missing-header/hunk, malformed-header, and hunk-count-inconsistent unified diffs before the display splitter.
 - Repository PR catalogs now reject malformed rows, unsafe IDs, invalid numbers/titles/timestamps, and duplicate IDs or PR numbers as a whole; Memory Lab clears stale selection before loading and performs no recovery on invalid catalogs.
+- Repository decision catalogs now require route-matching repository identity, safe unique decision IDs, bounded policy text, lifecycle/authority enums, source PR provenance, object scope, and valid non-self supersession before Team DNA selection or detail reads.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by validating decision-list and evidence-detail payloads before policy UI rendering.
+- Post-MVP trust hardening continues by validating evidence-detail response correlation before finding provenance rendering.
 
 ## Blocked
 
@@ -153,9 +154,19 @@
 
 ## Next Action
 
-Validate decision-list and evidence-detail fields before Team DNA or finding provenance can render.
+Validate evidence-detail run correlation and decision provenance before finding source links can render.
 
 ## Session Log
+
+### 2026-11-11 — Route-bound decision catalog
+
+- Goal: Prevent malformed or off-repository policy rows from driving Team DNA selection and detail reads.
+- Implemented: Team DNA clears prior repository selection/detail before loading. Decision-list responses then require a direct/wrapped object array; an authoritative backend `repository_id` matching the route; safe unique decision IDs; bounded non-blank title/rule/rationale; explicit status and authority enums; safe source PR identity with a positive integer number; object scope; and a valid non-self predecessor when present. One invalid row rejects the whole catalog, renders no policy, and starts no detail or provider request.
+- Focused checks: `npm test -- --run src/ui.test.tsx -t "decision catalog"` → **13 passed, 162 skipped**; `.\.venv\Scripts\python.exe -m pytest backend\tests\test_judge_demo.py -q` → **10 passed**. Cases cover malformed shape, cross-repository identity, unsafe ID, blank policy text, invalid enums/source/scope, self/dangling supersession, and duplicate ID.
+- Full checks: `.\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **195 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 341.49 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: the API was cleanly restarted with `CODEDNA_HINDSIGHT_AUTOSTART=0`; health returned `status=ok`, `hindsight=unavailable`, and `interrupted_jobs=0`. The Acme decision catalog returned two rows all carrying the requested repository ID, and Team DNA returned HTTP 200.
+- Provider safety: decision-catalog validation and repository identity serialization use local API/SQLite data only; they add no Hindsight/Gemini call or paid usage.
+- Next: validate evidence-detail run correlation and decision provenance before finding source links render.
 
 ### 2026-11-11 — Fail-closed pull-request catalog
 

@@ -204,7 +204,8 @@
 - **Verified:** Full pull-request payloads require safe bounded identities, positive integer number, bounded non-blank title, bounded string description, a diff within the 100,000-byte backend limit, and an optional parseable creation timestamp before rendering or recovery.
 - **Verified:** Review Workspace validates unified-diff headers, safe paths, hunk grammar/counts, file count, text-only form, and presence of added lines before its display splitter or recovery runs.
 - **Verified:** Repository PR-list summaries require safe bounded IDs, positive integer numbers, bounded non-blank titles, optional parseable timestamps, and collection-wide unique IDs/numbers before navigation or Memory Lab recovery.
-- **Next:** Validate decision-list and evidence-detail payloads before policy titles, status, lineage, or source links can render.
+- **Verified:** Repository decision catalogs require route-matching repository identity, safe unique decision IDs, bounded policy text, lifecycle/authority enums, source PR provenance, object scope, and valid non-self supersession before Team DNA selection or detail reads.
+- **Next:** Validate evidence-detail response correlation and decision provenance before finding source links can render.
 
 ## Documentation and version-control policy
 
