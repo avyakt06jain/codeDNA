@@ -131,10 +131,11 @@
 - Standalone decision detail and lineage now require requested ID/repository correlation, strict memory metadata, unique ordered predecessor links, nondecreasing effective time, and at most one active policy before evolution content renders.
 - Repository summaries now require route identity, bounded repository fields, non-negative integer counts, a valid decision subtotal/Hindsight state, and exact correlation with validated PR/decision catalogs before Overview aggregate rendering; Team DNA derives safe lifecycle counts when summary validation fails.
 - Evaluation fixtures now fail closed as one catalog unless every row has safe distinct source/candidate identity, active decision provenance, an optional internally consistent six-guardrail result, and collection-unique candidate/job identity; malformed refreshes cannot replace last-known-good rows.
+- Repository active-work summaries now fail closed as one catalog unless every row matches the requested repository, has valid bounded PR/job/stage/timestamp state, and preserves unique job, PR-kind claim, and PR-number identity.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by making repository active-job summaries fail closed as a complete observable-work set.
+- Post-MVP trust hardening continues by making application-health payloads fail closed on malformed dependency and interrupted-job state.
 
 ## Blocked
 
@@ -158,9 +159,20 @@
 
 ## Next Action
 
-Reject malformed, duplicate, or cross-repository active-job summary rows as a whole before Overview work navigation renders.
+Reject malformed application-health state before it can be interpreted as a safe dependency gate.
 
 ## Session Log
+
+### 2026-11-12 — Fail-closed active-work catalog
+
+- Goal: Prevent one malformed, duplicate, or cross-repository background-job row from being silently dropped while Overview presents the remaining work as authoritative.
+- Implemented: the repository endpoint now repeats each job's PR-derived repository ID. The frontend requires a direct/wrapped object array; exact route correlation; bounded job, PR, title, and stage identity; positive integer PR numbers; queued/running kind and status; chronological parseable timestamps; unique job IDs and PR-kind claims; and consistent one-to-one PR ID/number/title identity. One violation rejects the full response and uses the existing read-only recovery UI without polling an individual job.
+- Focused frontend check: `npm test -- --run src/ui.test.tsx -t "active-work summary|repository active work|wrapped active-work catalog"` → **20 passed, 232 skipped**. Cases cover collection/row shape, direct/wrapped success, repository isolation, job/PR identity, kind/status/stage grammar and bounds, required timestamp chronology, duplicate jobs/claims, and conflicting PR identity.
+- Focused backend check: the first command used a nonexistent test selector and **FAILED before collection**; after correcting the selector, `.venv\Scripts\python.exe -m pytest backend\tests\test_judge_demo.py::test_comparison_job_completes_with_injected_clients backend\tests\test_review_jobs.py::test_repository_active_jobs_are_scoped_and_exclude_terminal_work -q` → **2 passed**.
+- Regression checks: `.venv\Scripts\python.exe -m pytest backend\tests -q` → **34 passed**; `npm test -- --run` → **272 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 345.70 kB JavaScript and 16.43 kB CSS before gzip.
+- Live check: restarted the API with `CODEDNA_HINDSIGHT_AUTOSTART=0`; `/api/health` returned `status: ok`, the read-only Acme active-work endpoint returned 0 rows, and the Vite UI returned HTTP 200. Hindsight remained truthfully `unavailable` and no provider request started.
+- Provider safety: the change and checks are local/read-only; no Hindsight/Gemini request or paid usage started.
+- Next: validate the application-health contract as one trustworthy dependency-gate response.
 
 ### 2026-11-11 — Fail-closed evaluation fixture catalog
 

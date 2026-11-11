@@ -198,6 +198,18 @@ const review = {
 
 const jobCreatedAt = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 const jobUpdatedAt = new Date(Date.now() - 4 * 60 * 1000).toISOString();
+const repositoryActiveJob = {
+  repository_id: "repo-acme-commerce",
+  job_id: "job-cmp",
+  pr_id: "pr-acme-87",
+  pr_number: 87,
+  pr_title: "Update order status",
+  kind: "comparison",
+  status: "running",
+  stage: "running_memory_review",
+  created_at: jobCreatedAt,
+  updated_at: jobUpdatedAt,
+};
 
 function json(data: unknown, status = 200): Response {
   return {
@@ -236,6 +248,7 @@ function installFetch(options?: {
   repositoryActiveJobsStartAfter?: number;
   repositoryActiveJobsCompleteAfter?: number;
   repositoryActiveJobFailures?: number;
+  repositoryActiveJobPayload?: unknown;
   reusedReviewStart?: boolean;
   reviewCreationHangs?: boolean;
   reviewCreationClaimVisible?: boolean;
@@ -342,6 +355,7 @@ function installFetch(options?: {
     }
     if (path === "/api/repositories/repo-acme-commerce/review-jobs/active") {
       repositoryActiveJobReads += 1;
+      if (options?.repositoryActiveJobPayload !== undefined) return json(options.repositoryActiveJobPayload);
       if (repositoryActiveJobFailures > 0) {
         repositoryActiveJobFailures -= 1;
         return json({ detail: "temporary outage" }, 503);
@@ -350,17 +364,7 @@ function installFetch(options?: {
         && repositoryActiveJobReads > (options.repositoryActiveJobsStartAfter ?? 0)
         && (options.repositoryActiveJobsCompleteAfter === undefined
           || repositoryActiveJobReads <= options.repositoryActiveJobsCompleteAfter);
-      return json(active ? [{
-        job_id: "job-cmp",
-        pr_id: "pr-acme-87",
-        pr_number: 87,
-        pr_title: "Update order status",
-        kind: "comparison",
-        status: "running",
-        stage: "running_memory_review",
-        created_at: jobCreatedAt,
-        updated_at: jobUpdatedAt,
-      }] : []);
+      return json(active ? [repositoryActiveJob] : []);
     }
     if (path.endsWith("/prs")) return json(options?.pullRequestCatalog ?? prs);
     if (path === "/api/prs/pr-acme-87" && method === "GET") {
@@ -1990,6 +1994,42 @@ it("shows repository active work without starting or polling provider work", asy
   expect(within(section).getByText("job-cmp")).toBeTruthy();
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(0);
+});
+
+it("accepts a wrapped active-work catalog without starting provider work", async () => {
+  const fetchMock = installFetch({ repositoryActiveJobPayload: { items: [repositoryActiveJob] } });
+  renderAt("/");
+  expect(await screen.findByRole("region", { name: "Active work" })).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(0);
+});
+
+it.each([
+  ["non-array payload", {}],
+  ["non-object row", [null]],
+  ["cross-repository row", [{ ...repositoryActiveJob, repository_id: "repo-analytics-service" }]],
+  ["invalid job ID", [{ ...repositoryActiveJob, job_id: "comparison-1" }]],
+  ["unsafe PR ID", [{ ...repositoryActiveJob, pr_id: "pr acme 87" }]],
+  ["invalid PR number", [{ ...repositoryActiveJob, pr_number: 1.5 }]],
+  ["blank PR title", [{ ...repositoryActiveJob, pr_title: " " }]],
+  ["invalid kind", [{ ...repositoryActiveJob, kind: "sync" }]],
+  ["terminal status", [{ ...repositoryActiveJob, status: "complete" }]],
+  ["blank stage", [{ ...repositoryActiveJob, stage: " " }]],
+  ["unsafe stage", [{ ...repositoryActiveJob, stage: "running memory" }]],
+  ["oversized stage", [{ ...repositoryActiveJob, stage: "s".repeat(81) }]],
+  ["missing creation time", [{ ...repositoryActiveJob, created_at: null }]],
+  ["update before creation", [{ ...repositoryActiveJob, updated_at: new Date(Date.parse(jobCreatedAt) - 1).toISOString() }]],
+  ["duplicate job ID", [repositoryActiveJob, { ...repositoryActiveJob, kind: "review" }]],
+  ["duplicate active claim", [repositoryActiveJob, { ...repositoryActiveJob, job_id: "job-other" }]],
+  ["conflicting PR identity", [repositoryActiveJob, { ...repositoryActiveJob, job_id: "job-other", kind: "review", pr_title: "Another title" }]],
+  ["duplicate PR number", [repositoryActiveJob, { ...repositoryActiveJob, job_id: "job-other", pr_id: "pr-acme-120", kind: "review" }]],
+])("rejects an active-work summary with %s as a whole", async (_label, repositoryActiveJobPayload) => {
+  const fetchMock = installFetch({ repositoryActiveJobPayload });
+  renderAt("/");
+  expect(await screen.findByText("Active work is unavailable.")).toBeTruthy();
+  expect(screen.queryByRole("region", { name: "Active work" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/"))).toHaveLength(0);
 });
 
 it("discovers work started after an observed empty summary without reloading", async () => {

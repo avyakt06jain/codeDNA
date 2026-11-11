@@ -209,7 +209,8 @@
 - **Verified:** Standalone decision detail and lineage require requested decision/repository correlation, strict source and memory metadata, unique ordered predecessor links, monotonic effective time, and at most one active policy before evolution rendering.
 - **Verified:** Repository summaries require route identity, bounded repository fields, non-negative integer counts, a valid decision subtotal/Hindsight state, and exact PR/decision catalog correlation before aggregate claims render; Team DNA safely derives counts when summary validation fails.
 - **Verified:** Evaluation fixtures fail closed as one catalog unless every row has safe distinct source/candidate identity, active decision provenance, an optional internally consistent six-guardrail result, and collection-unique candidate/job identity.
-- **Next:** Make repository active-job summaries fail closed as a whole on malformed, duplicate, or cross-repository job identity.
+- **Verified:** Repository active-job summaries fail closed as one catalog unless every row matches the requested repository, has valid bounded PR/job/stage/timestamp state, and preserves unique job, PR-kind claim, and PR-number identity.
+- **Next:** Make application-health responses fail closed on malformed dependency and interrupted-job state instead of retaining permissive partial values.
 
 ## Documentation and version-control policy
 

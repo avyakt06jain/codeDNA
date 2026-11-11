@@ -364,6 +364,7 @@ def test_comparison_job_completes_with_injected_clients(tmp_path, monkeypatch):
     ](ACME_REPOSITORY_ID)
     assert repository_active == [
         {
+            "repository_id": ACME_REPOSITORY_ID,
             "job_id": queued.id,
             "pr_id": CANDIDATE_PR_ID,
             "pr_number": 87,

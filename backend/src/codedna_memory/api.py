@@ -501,6 +501,7 @@ def create_app(
                 )
                 return [
                     {
+                        "repository_id": pull_request.repository_id,
                         "job_id": job.id,
                         "pr_id": pull_request.id,
                         "pr_number": pull_request.number,

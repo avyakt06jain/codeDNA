@@ -10,12 +10,14 @@ const MAX_REPOSITORY_NAME_LENGTH = 200;
 const MAX_PULL_REQUEST_ID_LENGTH = 80;
 const MAX_PULL_REQUEST_TITLE_LENGTH = 240;
 const MAX_PULL_REQUEST_DESCRIPTION_LENGTH = 20_000;
+const MAX_JOB_STAGE_LENGTH = 80;
 const MAX_DIFF_BYTES = 100_000;
 const MAX_DECISION_ID_LENGTH = 80;
 const MAX_DECISION_TITLE_LENGTH = 240;
 const MAX_DECISION_TEXT_LENGTH = 20_000;
 const SAFE_REPOSITORY_ID = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 const SAFE_REPOSITORY_SLUG = /^[a-z0-9][a-z0-9-]*$/;
+const SAFE_JOB_STAGE = /^[a-z][a-z0-9_]*$/;
 const FINDING_CATEGORIES = new Set(["general", "team_convention"]);
 const FINDING_SEVERITIES = new Set(["info", "warning", "error"]);
 const FINDING_CONFIDENCES = new Set(["low", "medium", "high"]);
@@ -780,6 +782,7 @@ export class InvalidDecisionDetailError extends Error {}
 export class InvalidLineageError extends Error {}
 export class InvalidRepositorySummaryError extends Error {}
 export class InvalidEvaluationCatalogError extends Error {}
+export class InvalidActiveJobCatalogError extends Error {}
 
 function jobFailure(job: ReviewJob, fallback: string): TerminalJobError {
   const code = job.error_code?.trim();
@@ -859,29 +862,10 @@ export const api = {
     return jobId ? { jobId, ...jobTimingFrom(row) } satisfies ActiveJob : null;
   },
   repositoryActiveJobs: async (repositoryId: string) => {
-    const rows = unwrapRecords(
+    return normalizeActiveJobCatalog(
       await requestJobRead<unknown>(`/api/repositories/${repositoryId}/review-jobs/active`),
+      repositoryId,
     );
-    return rows.flatMap((row): RepositoryActiveJob[] => {
-      const jobId = jobIdFrom(row.job_id);
-      const kind = row.kind === "review" || row.kind === "comparison" ? row.kind : null;
-      const status = row.status === "queued" || row.status === "running" ? row.status : null;
-      const prNumber = asNumber(row.pr_number);
-      const prId = asString(row.pr_id)?.trim();
-      const prTitle = asString(row.pr_title)?.trim();
-      const stage = asString(row.stage)?.trim();
-      if (!jobId || !kind || !status || !prId || !prTitle || prNumber === undefined || !stage) return [];
-      return [{
-        jobId,
-        prId,
-        prNumber,
-        prTitle,
-        kind,
-        status,
-        stage,
-        ...jobTimingFrom(row),
-      }];
-    });
   },
   async startReview(prId: string, memoryEnabled: boolean) {
     let created: ReviewJob & { reused?: boolean };
@@ -1086,6 +1070,56 @@ function normalizeEvaluationCatalog(payload: unknown): EvaluationCase[] {
     || new Set(candidateNumbers).size !== candidateNumbers.length
     || new Set(jobIds).size !== jobIds.length) {
     throw new InvalidEvaluationCatalogError("The evaluation fixture catalog failed identity validation.");
+  }
+  return valid;
+}
+
+function normalizeActiveJobCatalog(payload: unknown, repositoryId: string): RepositoryActiveJob[] {
+  const rows = Array.isArray(payload)
+    ? payload
+    : isRecord(payload) && Array.isArray(payload.items) ? payload.items : null;
+  if (!rows || !rows.every(isRecord)) {
+    throw new InvalidActiveJobCatalogError("The active-work summary failed identity validation.");
+  }
+  const jobs = rows.map((row): RepositoryActiveJob | null => {
+    const itemRepositoryId = asString(row.repository_id)?.trim();
+    const jobId = jobIdFrom(row.job_id);
+    const prId = asString(row.pr_id)?.trim();
+    const prNumber = asNumber(row.pr_number);
+    const prTitle = asString(row.pr_title)?.trim();
+    const kind = row.kind === "review" || row.kind === "comparison" ? row.kind : null;
+    const status = row.status === "queued" || row.status === "running" ? row.status : null;
+    const stage = asString(row.stage)?.trim();
+    const createdAt = normalizeJobTimestamp(row.created_at);
+    const updatedAt = normalizeJobTimestamp(row.updated_at);
+    if (itemRepositoryId !== repositoryId || !jobId
+      || !prId || prId.length > MAX_PULL_REQUEST_ID_LENGTH || !SAFE_REPOSITORY_ID.test(prId)
+      || prNumber === undefined || !Number.isInteger(prNumber) || prNumber < 1
+      || !prTitle || prTitle.length > MAX_PULL_REQUEST_TITLE_LENGTH
+      || !kind || !status || !stage || stage.length > MAX_JOB_STAGE_LENGTH || !SAFE_JOB_STAGE.test(stage)
+      || !createdAt || !updatedAt || Date.parse(updatedAt) < Date.parse(createdAt)) return null;
+    return { jobId, prId, prNumber, prTitle, kind, status, stage, createdAt, updatedAt };
+  });
+  if (jobs.some((job) => job === null)) {
+    throw new InvalidActiveJobCatalogError("The active-work summary failed identity validation.");
+  }
+  const valid = jobs as RepositoryActiveJob[];
+  const jobIds = valid.map((job) => job.jobId);
+  const claims = valid.map((job) => `${job.prId}:${job.kind}`);
+  const prIdentity = new Map<string, { number: number; title: string }>();
+  const prIdByNumber = new Map<number, string>();
+  for (const job of valid) {
+    const existing = prIdentity.get(job.prId);
+    const numberOwner = prIdByNumber.get(job.prNumber);
+    if ((existing && (existing.number !== job.prNumber || existing.title !== job.prTitle))
+      || (numberOwner && numberOwner !== job.prId)) {
+      throw new InvalidActiveJobCatalogError("The active-work summary failed identity validation.");
+    }
+    prIdentity.set(job.prId, { number: job.prNumber, title: job.prTitle });
+    prIdByNumber.set(job.prNumber, job.prId);
+  }
+  if (new Set(jobIds).size !== jobIds.length || new Set(claims).size !== claims.length) {
+    throw new InvalidActiveJobCatalogError("The active-work summary failed identity validation.");
   }
   return valid;
 }
