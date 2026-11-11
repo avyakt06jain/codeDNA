@@ -14,6 +14,10 @@ function renderWorkspace() {
   return render(<WorkspaceProvider><HealthProbe /></WorkspaceProvider>);
 }
 
+function healthPayload(hindsight: "ready" | "starting" | "unavailable") {
+  return { status: "ok" as const, memory: "configured" as const, hindsight, interrupted_jobs: 0 };
+}
+
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
@@ -24,7 +28,7 @@ it("keeps checking health after Hindsight first becomes ready", async () => {
   vi.useFakeTimers();
   vi.setSystemTime("2026-11-06T12:00:00.000Z");
   const health = vi.spyOn(api, "health")
-    .mockResolvedValueOnce({ status: "ok", hindsight: "ready" })
+    .mockResolvedValueOnce(healthPayload("ready"))
     .mockRejectedValueOnce(new Error("health unavailable"));
 
   renderWorkspace();
@@ -45,8 +49,8 @@ it("pauses health checks while hidden and reconciles when visible", async () => 
   let visibility: DocumentVisibilityState = "visible";
   vi.spyOn(document, "visibilityState", "get").mockImplementation(() => visibility);
   const health = vi.spyOn(api, "health")
-    .mockResolvedValueOnce({ status: "ok", hindsight: "ready" })
-    .mockResolvedValueOnce({ status: "ok", hindsight: "unavailable" });
+    .mockResolvedValueOnce(healthPayload("ready"))
+    .mockResolvedValueOnce(healthPayload("unavailable"));
 
   renderWorkspace();
   await act(async () => Promise.resolve());
@@ -68,7 +72,7 @@ it("backs off consecutive application health failures and resets after success",
   const health = vi.spyOn(api, "health")
     .mockRejectedValueOnce(new Error("offline"))
     .mockRejectedValueOnce(new Error("still offline"))
-    .mockResolvedValueOnce({ status: "ok", hindsight: "unavailable" })
+    .mockResolvedValueOnce(healthPayload("unavailable"))
     .mockRejectedValue(new Error("offline again"));
 
   renderWorkspace();
@@ -117,7 +121,7 @@ it("times out a hung health read and releases manual recovery", async () => {
     .mockImplementationOnce((signal?: AbortSignal) => new Promise((_resolve, reject) => {
       signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
     }))
-    .mockResolvedValue({ status: "ok", hindsight: "unavailable" });
+    .mockResolvedValue(healthPayload("unavailable"));
 
   renderWorkspace();
   await act(async () => Promise.resolve());

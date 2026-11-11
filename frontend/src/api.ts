@@ -26,10 +26,10 @@ const DECISION_AUTHORITIES = new Set(["proposed", "reviewer_confirmed"]);
 const MEMORY_INGESTION_STATUSES = new Set(["pending", "processing", "ready", "failed"]);
 
 export type Health = {
-  status?: string;
-  memory?: string;
-  hindsight?: HindsightState;
-  interrupted_jobs?: number;
+  status: "ok";
+  memory: "configured" | "unconfigured";
+  hindsight: HindsightState;
+  interrupted_jobs: number;
 };
 
 export type Repository = {
@@ -783,6 +783,7 @@ export class InvalidLineageError extends Error {}
 export class InvalidRepositorySummaryError extends Error {}
 export class InvalidEvaluationCatalogError extends Error {}
 export class InvalidActiveJobCatalogError extends Error {}
+export class InvalidHealthResponseError extends Error {}
 
 function jobFailure(job: ReviewJob, fallback: string): TerminalJobError {
   const code = job.error_code?.trim();
@@ -960,13 +961,22 @@ export const api = {
 };
 
 function normalizeHealth(payload: unknown): Health {
-  const row = isRecord(payload) ? payload : {};
-  const hindsight = row.hindsight === "ready" || row.hindsight === "starting" || row.hindsight === "unavailable" ? row.hindsight : undefined;
+  if (!isRecord(payload)) throw new InvalidHealthResponseError("The application health response failed validation.");
+  const hindsight = payload.hindsight === "ready" || payload.hindsight === "starting" || payload.hindsight === "unavailable"
+    ? payload.hindsight : null;
+  const interruptedJobs = asNumber(payload.interrupted_jobs);
+  if (payload.status !== "ok"
+    || (payload.memory !== "configured" && payload.memory !== "unconfigured")
+    || !hindsight
+    || interruptedJobs === undefined || !Number.isSafeInteger(interruptedJobs) || interruptedJobs < 0
+    || (payload.memory === "unconfigured" && hindsight !== "unavailable")) {
+    throw new InvalidHealthResponseError("The application health response failed validation.");
+  }
   return {
-    status: asString(row.status),
-    memory: asString(row.memory),
+    status: "ok",
+    memory: payload.memory,
     hindsight,
-    interrupted_jobs: asNumber(row.interrupted_jobs),
+    interrupted_jobs: interruptedJobs,
   };
 }
 

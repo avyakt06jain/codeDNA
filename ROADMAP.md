@@ -210,7 +210,8 @@
 - **Verified:** Repository summaries require route identity, bounded repository fields, non-negative integer counts, a valid decision subtotal/Hindsight state, and exact PR/decision catalog correlation before aggregate claims render; Team DNA safely derives counts when summary validation fails.
 - **Verified:** Evaluation fixtures fail closed as one catalog unless every row has safe distinct source/candidate identity, active decision provenance, an optional internally consistent six-guardrail result, and collection-unique candidate/job identity.
 - **Verified:** Repository active-job summaries fail closed as one catalog unless every row matches the requested repository, has valid bounded PR/job/stage/timestamp state, and preserves unique job, PR-kind claim, and PR-number identity.
-- **Next:** Make application-health responses fail closed on malformed dependency and interrupted-job state instead of retaining permissive partial values.
+- **Verified:** Application-health responses fail closed unless application status, memory configuration, Hindsight state, and interrupted-job count form one complete consistent contract; invalid reads close the memory gate and preserve only prior trusted state.
+- **Next:** Make same-PR active-job discovery fail closed on malformed or cross-request job identity before a locator is persisted.
 
 ## Documentation and version-control policy
 

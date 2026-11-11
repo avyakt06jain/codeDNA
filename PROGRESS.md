@@ -132,10 +132,11 @@
 - Repository summaries now require route identity, bounded repository fields, non-negative integer counts, a valid decision subtotal/Hindsight state, and exact correlation with validated PR/decision catalogs before Overview aggregate rendering; Team DNA derives safe lifecycle counts when summary validation fails.
 - Evaluation fixtures now fail closed as one catalog unless every row has safe distinct source/candidate identity, active decision provenance, an optional internally consistent six-guardrail result, and collection-unique candidate/job identity; malformed refreshes cannot replace last-known-good rows.
 - Repository active-work summaries now fail closed as one catalog unless every row matches the requested repository, has valid bounded PR/job/stage/timestamp state, and preserves unique job, PR-kind claim, and PR-number identity.
+- Application-health responses now fail closed unless healthy app status, memory configuration, Hindsight state, and a safe interrupted-job count form one complete consistent contract; invalid reads preserve only prior trusted observation and close the memory gate.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by making application-health payloads fail closed on malformed dependency and interrupted-job state.
+- Post-MVP trust hardening continues by making same-PR active-job discovery fail closed on malformed or cross-request job identity.
 
 ## Blocked
 
@@ -159,9 +160,19 @@
 
 ## Next Action
 
-Reject malformed application-health state before it can be interpreted as a safe dependency gate.
+Reject malformed or cross-request same-PR active-job discovery before its locator can be persisted and polled.
 
 ## Session Log
+
+### 2026-11-12 — Fail-closed health contract
+
+- Goal: Prevent a structurally successful but malformed dependency response from opening the memory gate or producing an untrusted interrupted-job notice.
+- Implemented: health normalization now requires an object with exact `status: ok`, explicit configured/unconfigured memory state, starting/ready/unavailable Hindsight state, and a finite non-negative safe-integer interrupted-job count. Unconfigured memory may only report Hindsight unavailable. Any partial, contradictory, unknown, fractional, negative, or unsafe value rejects the full response through the existing `Memory status unknown` path, closes the effective memory gate, and preserves only the last trusted payload/time.
+- Focused check: `npm test -- --run src/ui.test.tsx src/workspace.test.tsx -t "health|interrupted jobs|unconfigured and unavailable"` → **22 passed, 248 skipped**. Cases cover valid configured/unavailable and unconfigured/unavailable state, response shape, app/memory/dependency enums, cross-field contradiction, interrupted-count completeness/integer/range, retry/backoff, timeout, visibility, focus, and restart notice behavior.
+- Regression checks: `.venv\Scripts\python.exe -m pytest backend\tests -q` → **34 passed**; `npm test -- --run` → **285 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 346.03 kB JavaScript and 16.43 kB CSS before gzip.
+- Live check: `/api/health` returned the complete accepted contract (`ok`, `configured`, `unavailable`, 0 interrupted jobs) and the Vite UI returned HTTP 200. The existing autostart-disabled process remained runnable without a provider request.
+- Provider safety: health observation remains a local GET and the tests use injected responses; no Hindsight/Gemini request or paid usage started.
+- Next: validate same-PR active-job discovery identity before storing its locator.
 
 ### 2026-11-12 — Fail-closed active-work catalog
 

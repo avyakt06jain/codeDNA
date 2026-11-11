@@ -224,6 +224,7 @@ function installFetch(options?: {
   hindsight?: "starting" | "ready" | "unavailable";
   healthFailures?: number;
   healthGate?: Promise<void>;
+  healthPayload?: unknown;
   interruptedJobs?: number;
   decisionsWrapped?: boolean;
   comparison?: Record<string, unknown>;
@@ -311,6 +312,7 @@ function installFetch(options?: {
         return json({ detail: "application health unavailable" }, 503);
       }
       if (options?.healthGate) await options.healthGate;
+      if (options?.healthPayload !== undefined) return json(options.healthPayload);
       return json({ status: "ok", memory: "configured", hindsight, interrupted_jobs: options?.interruptedJobs ?? 0 });
     }
     if (path === "/api/repositories") return json(options?.repositoryCatalog ?? repositories.map((repository) => ({
@@ -590,6 +592,35 @@ it("labels a successful health response with unavailable Hindsight separately", 
   expect(await screen.findByText("Memory unavailable")).toBeTruthy();
   expect(screen.queryByText("Memory status unknown")).toBeNull();
   expect(screen.queryByText(/current check failed/)).toBeNull();
+});
+
+it("accepts an explicitly unconfigured and unavailable memory runtime", async () => {
+  installFetch({ healthPayload: { status: "ok", memory: "unconfigured", hindsight: "unavailable", interrupted_jobs: 0 } });
+  renderAt("/");
+  expect(await screen.findByText("Memory unavailable")).toBeTruthy();
+  expect(screen.queryByText("Memory status unknown")).toBeNull();
+});
+
+it.each([
+  ["non-object payload", null],
+  ["array payload", []],
+  ["missing status", { memory: "configured", hindsight: "ready", interrupted_jobs: 0 }],
+  ["non-healthy application", { status: "degraded", memory: "configured", hindsight: "ready", interrupted_jobs: 0 }],
+  ["invalid memory configuration", { status: "ok", memory: "unknown", hindsight: "ready", interrupted_jobs: 0 }],
+  ["missing dependency state", { status: "ok", memory: "configured", interrupted_jobs: 0 }],
+  ["invalid dependency state", { status: "ok", memory: "configured", hindsight: "connected", interrupted_jobs: 0 }],
+  ["unconfigured but ready memory", { status: "ok", memory: "unconfigured", hindsight: "ready", interrupted_jobs: 0 }],
+  ["missing interrupted count", { status: "ok", memory: "configured", hindsight: "ready" }],
+  ["negative interrupted count", { status: "ok", memory: "configured", hindsight: "ready", interrupted_jobs: -1 }],
+  ["fractional interrupted count", { status: "ok", memory: "configured", hindsight: "ready", interrupted_jobs: 0.5 }],
+  ["unsafe interrupted count", { status: "ok", memory: "configured", hindsight: "ready", interrupted_jobs: Number.MAX_VALUE }],
+])("treats a health response with %s as an unknown application state", async (_label, healthPayload) => {
+  const fetchMock = installFetch({ healthPayload });
+  renderAt("/");
+  expect(await screen.findByText("Memory status unknown")).toBeTruthy();
+  expect(screen.queryByText("Memory connected")).toBeNull();
+  expect(screen.queryByText(/interrupted .* marked failed after restart/i)).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
 async function reviewedPage() {
