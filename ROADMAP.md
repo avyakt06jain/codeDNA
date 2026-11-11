@@ -211,7 +211,8 @@
 - **Verified:** Evaluation fixtures fail closed as one catalog unless every row has safe distinct source/candidate identity, active decision provenance, an optional internally consistent six-guardrail result, and collection-unique candidate/job identity.
 - **Verified:** Repository active-job summaries fail closed as one catalog unless every row matches the requested repository, has valid bounded PR/job/stage/timestamp state, and preserves unique job, PR-kind claim, and PR-number identity.
 - **Verified:** Application-health responses fail closed unless application status, memory configuration, Hindsight state, and interrupted-job count form one complete consistent contract; invalid reads close the memory gate and preserve only prior trusted state.
-- **Next:** Make same-PR active-job discovery fail closed on malformed or cross-request job identity before a locator is persisted.
+- **Verified:** Same-PR active-job discovery fails closed unless the response exactly matches requested PR/kind and presents either a fully explicit empty state or a valid active locator/status/stage/timestamp state.
+- **Next:** Make review/comparison creation responses fail closed on malformed job state before storing and polling their locators.
 
 ## Documentation and version-control policy
 

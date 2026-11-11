@@ -210,6 +210,15 @@ const repositoryActiveJob = {
   created_at: jobCreatedAt,
   updated_at: jobUpdatedAt,
 };
+const activeReviewJobResponse = {
+  pr_id: "pr-acme-87",
+  kind: "review",
+  job_id: "job-review",
+  status: "running",
+  stage: "reviewing_diff",
+  created_at: jobCreatedAt,
+  updated_at: jobUpdatedAt,
+};
 
 function json(data: unknown, status = 200): Response {
   return {
@@ -240,6 +249,7 @@ function installFetch(options?: {
   missingComparisonJob?: boolean;
   activeReviewJob?: boolean;
   activeComparisonJob?: boolean;
+  activeJobPayload?: unknown;
   reviewRecoveryFailure?: boolean;
   comparisonRecoveryFailure?: boolean;
   reviewRecoveryFailures?: number;
@@ -416,6 +426,7 @@ function installFetch(options?: {
       if (kind === "comparison" && options?.comparisonRecoveryFailureAtActiveRead === comparisonActiveReads) {
         return json({ detail: "manual creation status unavailable" }, 503);
       }
+      if (options?.activeJobPayload !== undefined) return json(options.activeJobPayload);
       const lateReviewClaim = reviewCreationStarted
         && reviewActiveReads >= (options?.reviewCreationClaimVisibleAfterActiveRead ?? Number.MAX_SAFE_INTEGER);
       const lateComparisonClaim = comparisonCreationStarted
@@ -434,7 +445,7 @@ function installFetch(options?: {
       });
     }
     if (path === "/api/prs/pr-acme-120/review-jobs/active" && method === "GET") {
-      return json({ pr_id: "pr-acme-120", kind: url.searchParams.get("kind"), job_id: null, status: null, stage: null });
+      return json({ pr_id: "pr-acme-120", kind: url.searchParams.get("kind"), job_id: null, status: null, stage: null, created_at: null, updated_at: null });
     }
     if (path.endsWith("/lineage")) {
       const requestedDecisionId = path.split("/").filter(Boolean).at(-2) ?? "DEC-0103";
@@ -1243,6 +1254,31 @@ it("recovers a timed-out active review status read without starting another job"
   expect((await screen.findAllByText("Connection interrupted. Reconnecting to the existing review…")).length).toBeGreaterThan(0);
   expect(await screen.findByRole("article", { name: "Direct status write skips the service" }, { timeout: 3000 })).toBeTruthy();
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(2);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
+it.each([
+  ["non-object payload", null],
+  ["array payload", []],
+  ["different PR", { ...activeReviewJobResponse, pr_id: "pr-acme-120" }],
+  ["different kind", { ...activeReviewJobResponse, kind: "comparison" }],
+  ["missing job ID", { ...activeReviewJobResponse, job_id: undefined }],
+  ["invalid job ID", { ...activeReviewJobResponse, job_id: "review-1" }],
+  ["terminal status", { ...activeReviewJobResponse, status: "complete" }],
+  ["unsafe stage", { ...activeReviewJobResponse, stage: "reviewing diff" }],
+  ["missing creation time", { ...activeReviewJobResponse, created_at: null }],
+  ["invalid update time", { ...activeReviewJobResponse, updated_at: "not-a-date" }],
+  ["update before creation", { ...activeReviewJobResponse, updated_at: new Date(Date.parse(jobCreatedAt) - 1).toISOString() }],
+  ["empty locator with active status", { ...activeReviewJobResponse, job_id: null }],
+  ["empty locator with timing", { pr_id: "pr-acme-87", kind: "review", job_id: null, status: null, stage: null, created_at: jobCreatedAt, updated_at: null }],
+])("rejects same-PR active review discovery with %s before persisting a locator", async (_label, activeJobPayload) => {
+  const fetchMock = installFetch({ activeJobPayload });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("The active job response failed correlation validation.");
+  expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
@@ -2972,6 +3008,17 @@ it("discovers an active comparison after tab storage is lost without starting an
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
+});
+
+it("rejects cross-kind active comparison discovery before persisting or polling its locator", async () => {
+  const fetchMock = installFetch({ activeJobPayload: activeReviewJobResponse });
+  renderAt("/repos/repo-acme-commerce/lab");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("The active job response failed correlation validation.");
+  expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
 it("announces when starting a comparison reuses existing provider work", async () => {

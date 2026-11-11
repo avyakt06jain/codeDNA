@@ -133,10 +133,11 @@
 - Evaluation fixtures now fail closed as one catalog unless every row has safe distinct source/candidate identity, active decision provenance, an optional internally consistent six-guardrail result, and collection-unique candidate/job identity; malformed refreshes cannot replace last-known-good rows.
 - Repository active-work summaries now fail closed as one catalog unless every row matches the requested repository, has valid bounded PR/job/stage/timestamp state, and preserves unique job, PR-kind claim, and PR-number identity.
 - Application-health responses now fail closed unless healthy app status, memory configuration, Hindsight state, and a safe interrupted-job count form one complete consistent contract; invalid reads preserve only prior trusted observation and close the memory gate.
+- Same-PR active-job discovery now requires exact requested PR/kind correlation and either a fully explicit empty state or a valid queued/running locator with safe stage and chronological timestamps before browser persistence or polling.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by making same-PR active-job discovery fail closed on malformed or cross-request job identity.
+- Post-MVP trust hardening continues by making review/comparison creation responses fail closed before a returned locator is persisted.
 
 ## Blocked
 
@@ -160,9 +161,19 @@
 
 ## Next Action
 
-Reject malformed or cross-request same-PR active-job discovery before its locator can be persisted and polled.
+Reject malformed review/comparison creation responses before storing and polling their locators.
 
 ## Session Log
+
+### 2026-11-12 — Correlated same-PR active discovery
+
+- Goal: Prevent malformed or cross-request discovery data from becoming a persisted active-job locator after tab/session loss or creation reconciliation.
+- Implemented: active discovery now requires an object whose PR ID and kind exactly match the request. A present job requires a valid bounded opaque ID, queued/running status, safe bounded stage, and parseable chronological creation/update timestamps. An absent job requires explicit null job/status/stage/timestamps. Rejected responses fail saved recovery before session storage, individual job polling, latest-result fallback, or any provider request.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "same-PR active review discovery|cross-kind active comparison discovery|discovers an active (review|comparison)"` → **16 passed, 263 skipped**. Cases cover response shape, PR/kind correlation, job ID, active status, stage grammar, timestamp completeness/order, contradictory empty state, plus valid review/comparison discovery.
+- Regression checks: `.venv\Scripts\python.exe -m pytest backend\tests -q` → **34 passed**; `npm test -- --run` → **299 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 346.62 kB JavaScript and 16.43 kB CSS before gzip.
+- Live check: both review and comparison discovery endpoints returned the complete accepted empty contract for PR #87, and Review Workspace returned HTTP 200. The autostart-disabled app remained runnable without provider work.
+- Provider safety: discovery and tests are GET-only/injected; invalid data produces zero individual status/latest-result/creation requests and no Hindsight/Gemini call.
+- Next: validate review/comparison creation responses before persisting their returned locators.
 
 ### 2026-11-12 — Fail-closed health contract
 

@@ -784,6 +784,7 @@ export class InvalidRepositorySummaryError extends Error {}
 export class InvalidEvaluationCatalogError extends Error {}
 export class InvalidActiveJobCatalogError extends Error {}
 export class InvalidHealthResponseError extends Error {}
+export class InvalidActiveJobResponseError extends Error {}
 
 function jobFailure(job: ReviewJob, fallback: string): TerminalJobError {
   const code = job.error_code?.trim();
@@ -857,10 +858,11 @@ export const api = {
     return comparison;
   },
   activeJob: async (prId: string, kind: "review" | "comparison") => {
-    const payload = await requestJobRead<unknown>(`/api/prs/${prId}/review-jobs/active?kind=${kind}`);
-    const row = isRecord(payload) ? payload : {};
-    const jobId = jobIdFrom(row.job_id);
-    return jobId ? { jobId, ...jobTimingFrom(row) } satisfies ActiveJob : null;
+    return normalizeActiveJob(
+      await requestJobRead<unknown>(`/api/prs/${prId}/review-jobs/active?kind=${kind}`),
+      prId,
+      kind,
+    );
   },
   repositoryActiveJobs: async (repositoryId: string) => {
     return normalizeActiveJobCatalog(
@@ -1132,6 +1134,28 @@ function normalizeActiveJobCatalog(payload: unknown, repositoryId: string): Repo
     throw new InvalidActiveJobCatalogError("The active-work summary failed identity validation.");
   }
   return valid;
+}
+
+function normalizeActiveJob(payload: unknown, expectedPrId: string, expectedKind: "review" | "comparison"): ActiveJob | null {
+  if (!isRecord(payload) || payload.pr_id !== expectedPrId || payload.kind !== expectedKind) {
+    throw new InvalidActiveJobResponseError("The active job response failed correlation validation.");
+  }
+  if (payload.job_id === null) {
+    if (payload.status !== null || payload.stage !== null || payload.created_at !== null || payload.updated_at !== null) {
+      throw new InvalidActiveJobResponseError("The active job response failed correlation validation.");
+    }
+    return null;
+  }
+  const jobId = jobIdFrom(payload.job_id);
+  const status = payload.status === "queued" || payload.status === "running" ? payload.status : null;
+  const stage = asString(payload.stage)?.trim();
+  const createdAt = normalizeJobTimestamp(payload.created_at);
+  const updatedAt = normalizeJobTimestamp(payload.updated_at);
+  if (!jobId || !status || !stage || stage.length > MAX_JOB_STAGE_LENGTH || !SAFE_JOB_STAGE.test(stage)
+    || !createdAt || !updatedAt || Date.parse(updatedAt) < Date.parse(createdAt)) {
+    throw new InvalidActiveJobResponseError("The active job response failed correlation validation.");
+  }
+  return { jobId, createdAt, updatedAt };
 }
 
 function normalizeSummary(payload: unknown, repositoryId: string): Summary {
