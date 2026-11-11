@@ -199,7 +199,8 @@
 - **Verified:** All cited evidence in one single-review result must agree on repository ID, repository slug, and bank ID. Mixed repository/bank provenance cannot ground rendered policy claims.
 - **Verified:** Cited evidence's shared repository ID must equal the repository selected by the current Review Workspace route. Internally consistent evidence from another repository fails closed.
 - **Verified:** Review Workspace requires the fetched pull request's ID and authoritative repository ID to match the route before displaying the diff or beginning saved/active/latest review recovery.
-- **Next:** Bind cited evidence's repository slug to the selected repository catalog entry, complementing route-ID validation without deriving bank IDs in the browser.
+- **Verified:** Cited evidence's shared repository slug must equal the selected repository's API-catalog slug. Review recovery waits for the catalog identity and off-catalog evidence fails closed.
+- **Next:** Validate repository catalog identity fields at the API boundary before they can select or authorize a Review Workspace context.
 
 ## Documentation and version-control policy
 

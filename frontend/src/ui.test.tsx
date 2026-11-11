@@ -253,6 +253,7 @@ function installFetch(options?: {
   evaluationCaseUpdateAfter?: number;
   evaluationCaseDelayMs?: number;
   pullRequestRepositoryId?: string;
+  repositorySlug?: string;
 }) {
   const hindsight = options?.hindsight ?? "ready";
   let reviewPollFailures = options?.reviewPollFailures ?? 0;
@@ -287,7 +288,10 @@ function installFetch(options?: {
       if (options?.healthGate) await options.healthGate;
       return json({ status: "ok", memory: "configured", hindsight, interrupted_jobs: options?.interruptedJobs ?? 0 });
     }
-    if (path === "/api/repositories") return json(repositories);
+    if (path === "/api/repositories") return json(repositories.map((repository) => ({
+      ...repository,
+      slug: options?.repositorySlug ?? repository.slug,
+    })));
     if (path === "/api/evaluation-cases") {
       evaluationCaseReads += 1;
       if (options?.evaluationCaseDelayMs) await new Promise((resolve) => setTimeout(resolve, options.evaluationCaseDelayMs));
@@ -830,6 +834,18 @@ it("rejects stored cited evidence from another route repository", async () => {
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
+it("rejects stored cited evidence with an off-catalog repository slug", async () => {
+  const fetchMock = installFetch({ repositorySlug: "renamed-acme-commerce", latestReview: true });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain(
+    "Review recovery unavailable: The stored review failed correlation validation.",
+  );
+  expect(screen.queryByRole("article", { name: "Direct status write skips the service" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
 it("reattaches to an active review after refresh without starting another job", async () => {
   saveActiveJob("review", "pr-acme-87", "job-review");
   const fetchMock = installFetch({ reviewPollFailures: 1, pollDelayMs: 50 });
@@ -1054,6 +1070,18 @@ it("rejects active cited evidence from another route repository", async () => {
       retrieval: { ...review.retrieval, validated_evidence: [evidence] },
     },
   });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("The review finished with invalid correlation metadata.");
+  expect(screen.queryByRole("article", { name: "Direct status write skips the service" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+  expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
+});
+
+it("rejects active cited evidence with an off-catalog repository slug", async () => {
+  const fetchMock = installFetch({ repositorySlug: "renamed-acme-commerce", activeReviewJob: true });
   renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
   const alert = await screen.findByRole("alert");
   expect(alert.textContent).toContain("The review finished with invalid correlation metadata.");
@@ -1531,6 +1559,31 @@ it("keeps creation uncertain when cited evidence belongs to another route reposi
       findings: [{ ...teamFinding, evidence_ids: ["DEC-0103"] }],
       retrieval: { ...review.retrieval, validated_evidence: [evidence] },
     },
+    latestReviewAfterRead: 2,
+  });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const run = screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  fireEvent.click(await screen.findByRole("button", { name: "Check creation status" }));
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain(
+    "Review creation status is still unavailable: The stored review failed correlation validation.",
+  );
+  const retry = screen.getByRole("button", { name: "Check creation status" });
+  await waitFor(() => expect(document.activeElement).toBe(retry));
+  expect(run.disabled).toBe(true);
+  expect(screen.queryByRole("article", { name: "Direct status write skips the service" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(2);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+});
+
+it("keeps creation uncertain when cited evidence has an off-catalog repository slug", async () => {
+  const fetchMock = installFetch({
+    repositorySlug: "renamed-acme-commerce",
+    reviewCreationHangs: true,
+    reviewCreationClaimVisible: false,
+    latestReview: review,
     latestReviewAfterRead: 2,
   });
   renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");

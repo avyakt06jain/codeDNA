@@ -14,7 +14,8 @@ import { useWorkspace } from "../workspace";
 
 export function ReviewPage() {
   const { repoId = "", prId = "" } = useParams();
-  const { hindsight, prs } = useWorkspace();
+  const { hindsight, prs, repositories, loadingRepos, repoError } = useWorkspace();
+  const repositorySlug = repositories.find((repository) => repository.id === repoId)?.slug ?? "";
   const alive = useRef(true);
   const recoveryRetryRequested = useRef(false);
   const recoveryRetryButton = useRef<HTMLButtonElement>(null);
@@ -83,6 +84,19 @@ export function ReviewPage() {
     setFeedbackMessage("");
     setDiffFocus({ line: null, request: 0 });
 
+    if (loadingRepos) {
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (!repositorySlug) {
+      setLoading(false);
+      setError(repoError || "Repository unavailable.");
+      return () => {
+        cancelled = true;
+      };
+    }
+
     function observeJob(jobId: string, timing: JobTiming = {}, reattached = false) {
       setActiveJobId(jobId);
       setJobTiming(timing);
@@ -94,6 +108,7 @@ export function ReviewPage() {
         jobId,
         prId,
         repoId,
+        repositorySlug,
         undefined,
         (next) => {
           if (!cancelled) setStage(next);
@@ -111,7 +126,7 @@ export function ReviewPage() {
         terminal = reason instanceof TerminalJobError;
         if (reason instanceof MissingJobError) {
           try {
-            const restored = await api.latestReview(prId, repoId, "memory");
+            const restored = await api.latestReview(prId, repoId, repositorySlug, "memory");
             if (cancelled) return;
             if (restored) {
               setReview(restored);
@@ -148,7 +163,7 @@ export function ReviewPage() {
       ? { job: { jobId: savedJobId, createdAt: undefined, updatedAt: undefined }, review: null as Review | null }
       : api.activeJob(prId, "review").then(async (job) => ({
         job,
-        review: job ? null : await api.latestReview(prId, repoId, "memory"),
+        review: job ? null : await api.latestReview(prId, repoId, repositorySlug, "memory"),
       }))));
 
     const reconcilingCreation = creationUncertainPrId === prId;
@@ -195,7 +210,7 @@ export function ReviewPage() {
     return () => {
       cancelled = true;
     };
-  }, [prId, repoId, recoveryRetryKey]);
+  }, [prId, repoId, repositorySlug, loadingRepos, repoError, recoveryRetryKey]);
 
   const files = useMemo(() => splitDiff(pr?.diff_text ?? ""), [pr?.diff_text]);
   useEffect(() => {
@@ -248,7 +263,7 @@ export function ReviewPage() {
       setJobTiming({ createdAt: started.createdAt, updatedAt: started.updatedAt });
       saveActiveJob("review", prId, jobId);
       if (started.reused) setStage("review_reattached");
-      const result = await api.reviewJob(jobId, prId, repoId, memoryEnabled ? "memory" : "baseline", (next) => {
+      const result = await api.reviewJob(jobId, prId, repoId, repositorySlug, memoryEnabled ? "memory" : "baseline", (next) => {
         if (alive.current) setStage(next);
       }, () => alive.current, updateJobTiming);
       if (!result || !alive.current) return;
@@ -288,7 +303,7 @@ export function ReviewPage() {
     setStage("queued");
     let terminal = false;
     try {
-      const result = await api.reviewJob(jobId, prId, repoId, memoryEnabled ? "memory" : "baseline", (next) => {
+      const result = await api.reviewJob(jobId, prId, repoId, repositorySlug, memoryEnabled ? "memory" : "baseline", (next) => {
         if (alive.current) setStage(next);
       }, () => alive.current, updateJobTiming);
       if (!result || !alive.current) return;
@@ -300,7 +315,7 @@ export function ReviewPage() {
       terminal = reason instanceof TerminalJobError;
       if (reason instanceof MissingJobError) {
         try {
-          const restored = await api.latestReview(prId, repoId, "memory");
+          const restored = await api.latestReview(prId, repoId, repositorySlug, "memory");
           if (!alive.current) return;
           if (restored) {
             setReview(restored);

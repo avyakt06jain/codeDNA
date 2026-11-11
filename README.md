@@ -68,6 +68,7 @@ CodeDNA separates memory from authority:
 - Same-repository evidence: all cited evidence in one review must agree on repository ID, repository slug, and bank ID
 - Route-bound evidence: cited evidence's repository ID must match the repository selected by Review Workspace
 - Route-bound pull requests: the fetched PR must belong to the selected repository before its diff or saved review state can render
+- Catalog-bound evidence: cited evidence's repository slug must match the selected API catalog entry
 - Safe stale-job recovery that clears a missing locator and restores the latest persisted same-PR result without rerunning providers
 - Read-only same-PR active-job discovery after tab/session loss, before any completed-result fallback
 - Atomic same-PR active-job reuse so simultaneous tabs schedule only one provider task

@@ -464,6 +464,7 @@ function normalizeReviewForPr(
   raw: Record<string, unknown>,
   expectedPrId: string,
   expectedRepositoryId: string,
+  expectedRepositorySlug: string,
   expectedMode?: "memory" | "baseline",
 ): Review | null {
   if (raw.status !== "complete") return null;
@@ -497,6 +498,7 @@ function normalizeReviewForPr(
     || evidence.bank_id !== evidenceIdentity.bank_id
   ))) return null;
   if (evidenceIdentity && evidenceIdentity.repository_id !== expectedRepositoryId) return null;
+  if (evidenceIdentity && evidenceIdentity.repository_slug !== expectedRepositorySlug) return null;
   const provider = asString(raw.provider)?.trim();
   const model = asString(raw.model)?.trim();
   if (!provider || provider.length > MAX_PROVIDER_ID_LENGTH
@@ -696,14 +698,14 @@ export const api = {
   decisions: async (repositoryId: string) => unwrapRecords(await request<unknown>(`/api/repositories/${repositoryId}/decisions`)).map(normalizeDecision),
   decision: async (decisionId: string) => normalizeDecision(asRecord(await request<unknown>(`/api/decisions/${decisionId}`))),
   lineage: async (decisionId: string) => normalizeLineage(await request<unknown>(`/api/decisions/${decisionId}/lineage`), decisionId),
-  latestReview: async (prId: string, repositoryId: string, mode: "memory" | "baseline" = "memory") => {
+  latestReview: async (prId: string, repositoryId: string, repositorySlug: string, mode: "memory" | "baseline" = "memory") => {
     const payload = await requestJobRead<unknown>(`/api/prs/${prId}/reviews/latest?mode=${mode}`);
     const row = isRecord(payload) ? payload : {};
     if (row.review == null) return null;
     if (!isRecord(row.review)) {
       throw new InvalidReviewResultError("The stored review failed correlation validation.");
     }
-    const review = normalizeReviewForPr(row.review, prId, repositoryId, mode);
+    const review = normalizeReviewForPr(row.review, prId, repositoryId, repositorySlug, mode);
     if (!review) {
       throw new InvalidReviewResultError("The stored review failed correlation validation.");
     }
@@ -765,7 +767,7 @@ export const api = {
     if (!jobId) throw new Error("The review did not return a job.");
     return { jobId, reused: created.reused === true, ...jobTimingFrom(created) } satisfies StartedJob;
   },
-  async reviewJob(jobId: string, expectedPrId: string, expectedRepositoryId: string, expectedMode: "memory" | "baseline" | undefined, onStage?: (stage: string) => void, shouldContinue?: () => boolean, onTiming?: (timing: JobTiming) => void) {
+  async reviewJob(jobId: string, expectedPrId: string, expectedRepositoryId: string, expectedRepositorySlug: string, expectedMode: "memory" | "baseline" | undefined, onStage?: (stage: string) => void, shouldContinue?: () => boolean, onTiming?: (timing: JobTiming) => void) {
     let job: (ReviewJob & Record<string, unknown>) | null;
     try {
       job = await pollReviewJob(jobId, onStage, shouldContinue, onTiming);
@@ -778,15 +780,15 @@ export const api = {
     if (!job) return null;
     if (job.status === "failed") throw jobFailure(job, "The review failed");
     if (!isRecord(job.review)) throw new TerminalJobError("The review finished without a result.");
-    const review = normalizeReviewForPr(job.review, expectedPrId, expectedRepositoryId, expectedMode);
+    const review = normalizeReviewForPr(job.review, expectedPrId, expectedRepositoryId, expectedRepositorySlug, expectedMode);
     if (!review) {
       throw new TerminalJobError("The review finished with invalid correlation metadata.");
     }
     return review;
   },
-  async review(prId: string, repositoryId: string, memoryEnabled: boolean, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
+  async review(prId: string, repositoryId: string, repositorySlug: string, memoryEnabled: boolean, onStage?: (stage: string) => void, shouldContinue?: () => boolean) {
     const started = await api.startReview(prId, memoryEnabled);
-    return api.reviewJob(started.jobId, prId, repositoryId, memoryEnabled ? "memory" : "baseline", onStage, shouldContinue);
+    return api.reviewJob(started.jobId, prId, repositoryId, repositorySlug, memoryEnabled ? "memory" : "baseline", onStage, shouldContinue);
   },
   evidence: async (runId: string) => {
     const payload = await request<unknown>(`/api/reviews/${runId}/evidence`);

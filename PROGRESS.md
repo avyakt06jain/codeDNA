@@ -121,10 +121,11 @@
 - Review Workspace now rejects cited evidence that disagrees on repository ID, repository slug, or bank ID within one result, including duplicate records for a cited decision.
 - Review Workspace now requires cited evidence's shared repository ID to match the repository selected by the current route. Internally consistent off-route evidence fails closed.
 - Review Workspace now validates the fetched pull request's ID and authoritative repository ID against the route before displaying its diff or starting any saved/active/latest review recovery read.
+- Review Workspace now waits for the selected repository catalog entry and requires cited evidence's shared repository slug to match that API-provided slug across initial, active, and manual recovery.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by binding cited evidence's repository slug to the selected repository catalog entry.
+- Post-MVP trust hardening continues by validating repository catalog identity fields before they can establish workspace context.
 
 ## Blocked
 
@@ -148,9 +149,19 @@
 
 ## Next Action
 
-Bind cited evidence's repository slug to the selected repository catalog entry.
+Validate repository catalog identity fields at the API boundary before they can establish Review Workspace context.
 
 ## Session Log
+
+### 2026-11-11 — Catalog-bound evidence slug
+
+- Goal: Prevent cited evidence with a stale or fabricated repository slug from grounding a finding even when its repository ID matches the route.
+- Implemented: the selected repository's API-catalog slug now crosses every single-review normalization path. Review Workspace waits for catalog loading, fails closed when the route has no resolved catalog entry, and accepts cited evidence only when its shared slug equals the catalog slug. Off-catalog initial, active, and manual results render no findings and issue no replacement POST.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "off-catalog repository slug"` → **3 passed, 133 skipped**.
+- Full checks: `.\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **154 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 336.96 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: both prior listeners were absent. The first API restart command used a relative executable that `Start-Process` could not resolve; it started no API. The corrected absolute virtual-environment path started the API with Hindsight autostart disabled, while Vite started from the first command. Health then returned `status=ok`, `hindsight=unavailable`, and `interrupted_jobs=0`; Review Workspace returned HTTP 200.
+- Provider safety: catalog correlation uses the existing repository GET and local validation; it adds no Hindsight/Gemini call or paid usage.
+- Next: validate repository ID/slug/display-name shape at the repository-list API boundary.
 
 ### 2026-11-11 — Route-bound pull-request recovery
 
