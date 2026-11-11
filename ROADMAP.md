@@ -207,7 +207,8 @@
 - **Verified:** Repository decision catalogs require route-matching repository identity, safe unique decision IDs, bounded policy text, lifecycle/authority enums, source PR provenance, object scope, and valid non-self supersession before Team DNA selection or detail reads.
 - **Verified:** Review evidence responses require exact persisted run correlation, route-bound decision provenance, unique IDs, and exact equality with the review's validated citation set before source links render.
 - **Verified:** Standalone decision detail and lineage require requested decision/repository correlation, strict source and memory metadata, unique ordered predecessor links, monotonic effective time, and at most one active policy before evolution rendering.
-- **Next:** Validate repository-summary count and identity payloads before overview/Team DNA aggregate claims render.
+- **Verified:** Repository summaries require route identity, bounded repository fields, non-negative integer counts, a valid decision subtotal/Hindsight state, and exact PR/decision catalog correlation before aggregate claims render; Team DNA safely derives counts when summary validation fails.
+- **Next:** Make the evaluation-case catalog fail closed as a whole on malformed, duplicate, or cross-repository fixture identity.
 
 ## Documentation and version-control policy
 

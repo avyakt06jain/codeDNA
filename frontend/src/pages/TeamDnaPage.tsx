@@ -16,6 +16,13 @@ function matches(decision: Decision, query: string, status: string): boolean {
   return haystack.includes(needle);
 }
 
+function summaryMatchesDecisions(summary: Summary, decisions: Decision[]): boolean {
+  return summary.decision_count === decisions.length
+    && summary.active_decisions === decisions.filter((item) => item.status === "active").length
+    && summary.superseded_decisions === decisions.filter((item) => item.status === "superseded").length
+    && summary.pending_decisions === decisions.filter((item) => item.status === "proposed").length;
+}
+
 export function TeamDnaPage() {
   const { repoId = "" } = useParams();
   const { prs } = useWorkspace();
@@ -43,7 +50,9 @@ export function TeamDnaPage() {
         setDecisions([]);
         setError(decisionResult.reason instanceof Error ? decisionResult.reason.message : "Decisions are unavailable.");
       }
-      setSummary(summaryResult.status === "fulfilled" ? summaryResult.value : null);
+      setSummary(summaryResult.status === "fulfilled" && decisionResult.status === "fulfilled"
+        && summaryMatchesDecisions(summaryResult.value, decisionResult.value)
+        ? summaryResult.value : null);
       setLoading(false);
     });
     return () => {

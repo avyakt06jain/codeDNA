@@ -9,6 +9,14 @@ import { useWorkspace } from "../workspace";
 const ACTIVE_WORK_REFRESH_MS = import.meta.env.MODE === "test" ? 10 : 5000;
 const ACTIVE_WORK_RETRY_DELAYS_MS = import.meta.env.MODE === "test" ? [1, 2, 4] as const : [1000, 2000, 4000] as const;
 
+function summaryMatchesCatalogs(summary: Summary, prs: PullRequestSummary[], decisions: Decision[]): boolean {
+  return summary.pr_count === prs.length
+    && summary.decision_count === decisions.length
+    && summary.active_decisions === decisions.filter((item) => item.status === "active").length
+    && summary.superseded_decisions === decisions.filter((item) => item.status === "superseded").length
+    && summary.pending_decisions === decisions.filter((item) => item.status === "proposed").length;
+}
+
 export function OverviewPage() {
   const { repoId, repositories } = useWorkspace();
   const repo = repositories.find((item) => item.id === repoId);
@@ -53,10 +61,17 @@ export function OverviewPage() {
     setLoading(true);
     setSummaryError("");
     setListError("");
+    setSummary(null);
+    setPrs([]);
+    setDecisions([]);
     Promise.allSettled([api.summary(repoId), api.prs(repoId), api.decisions(repoId)]).then(([summaryResult, prResult, decisionResult]) => {
       if (cancelled) return;
-      if (summaryResult.status === "fulfilled") setSummary(summaryResult.value);
-      else {
+      const trustedPrs = prResult.status === "fulfilled" ? prResult.value : null;
+      const trustedDecisions = decisionResult.status === "fulfilled" ? decisionResult.value : null;
+      if (summaryResult.status === "fulfilled" && trustedPrs && trustedDecisions
+        && summaryMatchesCatalogs(summaryResult.value, trustedPrs, trustedDecisions)) {
+        setSummary(summaryResult.value);
+      } else {
         setSummary(null);
         setSummaryError("Repository summary is unavailable.");
       }

@@ -778,6 +778,7 @@ export class InvalidDecisionCatalogError extends Error {}
 export class InvalidEvidenceResponseError extends Error {}
 export class InvalidDecisionDetailError extends Error {}
 export class InvalidLineageError extends Error {}
+export class InvalidRepositorySummaryError extends Error {}
 
 function jobFailure(job: ReviewJob, fallback: string): TerminalJobError {
   const code = job.error_code?.trim();
@@ -806,7 +807,9 @@ export const api = {
     const item = normalizeEvaluationCase(row);
     return item ? [item] : [];
   }),
-  summary: async (repositoryId: string) => normalizeSummary(await request<unknown>(`/api/repositories/${repositoryId}/summary`)),
+  summary: async (repositoryId: string) => normalizeSummary(
+    await request<unknown>(`/api/repositories/${repositoryId}/summary`), repositoryId,
+  ),
   prs: async (repositoryId: string) => normalizePullRequestCatalog(await request<unknown>(`/api/repositories/${repositoryId}/prs`)),
   pr: async (prId: string, repositoryId: string) => {
     const pullRequest = normalizePullRequest(await request<unknown>(`/api/prs/${prId}`));
@@ -1054,19 +1057,33 @@ function normalizeEvaluationCase(raw: Record<string, unknown>): EvaluationCase |
   };
 }
 
-function normalizeSummary(payload: unknown): Summary {
-  const row = isRecord(payload) ? payload : {};
-  const hindsight = row.hindsight === "ready" || row.hindsight === "starting" || row.hindsight === "unavailable" ? row.hindsight : undefined;
+function normalizeSummary(payload: unknown, repositoryId: string): Summary {
+  if (!isRecord(payload)) throw new InvalidRepositorySummaryError("The repository summary failed identity validation.");
+  const slug = asString(payload.slug)?.trim();
+  const displayName = asString(payload.display_name)?.trim();
+  const counts = ["pr_count", "decision_count", "active_decisions", "superseded_decisions", "pending_decisions", "review_run_count"]
+    .map((key) => asNumber(payload[key]));
+  const [prCount, decisionCount, activeDecisions, supersededDecisions, pendingDecisions, reviewRunCount] = counts;
+  const hindsight = payload.hindsight === "ready" || payload.hindsight === "starting" || payload.hindsight === "unavailable"
+    ? payload.hindsight : undefined;
+  if (payload.repository_id !== repositoryId
+    || !slug || slug.length > MAX_REPOSITORY_SLUG_LENGTH || !SAFE_REPOSITORY_SLUG.test(slug)
+    || !displayName || displayName.length > MAX_REPOSITORY_NAME_LENGTH
+    || counts.some((count) => count === undefined || !Number.isInteger(count) || count < 0)
+    || activeDecisions! + supersededDecisions! + pendingDecisions! > decisionCount!
+    || hindsight === undefined) {
+    throw new InvalidRepositorySummaryError("The repository summary failed identity validation.");
+  }
   return {
-    repository_id: asString(row.repository_id),
-    slug: asString(row.slug),
-    display_name: asString(row.display_name),
-    pr_count: asNumber(row.pr_count),
-    decision_count: asNumber(row.decision_count),
-    active_decisions: asNumber(row.active_decisions),
-    superseded_decisions: asNumber(row.superseded_decisions),
-    pending_decisions: asNumber(row.pending_decisions),
-    review_run_count: asNumber(row.review_run_count),
+    repository_id: repositoryId,
+    slug,
+    display_name: displayName,
+    pr_count: prCount,
+    decision_count: decisionCount,
+    active_decisions: activeDecisions,
+    superseded_decisions: supersededDecisions,
+    pending_decisions: pendingDecisions,
+    review_run_count: reviewRunCount,
     hindsight,
   };
 }

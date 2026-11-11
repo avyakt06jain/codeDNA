@@ -129,10 +129,11 @@
 - Repository decision catalogs now require route-matching repository identity, safe unique decision IDs, bounded policy text, lifecycle/authority enums, source PR provenance, object scope, and valid non-self supersession before Team DNA selection or detail reads.
 - Review evidence details now require exact run correlation, route-bound decision/source provenance, unique IDs, and exact equality with the review's validated citation set before the evidence panel can render source links.
 - Standalone decision detail and lineage now require requested ID/repository correlation, strict memory metadata, unique ordered predecessor links, nondecreasing effective time, and at most one active policy before evolution content renders.
+- Repository summaries now require route identity, bounded repository fields, non-negative integer counts, a valid decision subtotal/Hindsight state, and exact correlation with validated PR/decision catalogs before Overview aggregate rendering; Team DNA derives safe lifecycle counts when summary validation fails.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by validating repository-summary identity/count payloads before aggregate claims render.
+- Post-MVP trust hardening continues by making the evaluation-case catalog fail closed as a complete fixture set.
 
 ## Blocked
 
@@ -156,9 +157,19 @@
 
 ## Next Action
 
-Validate repository-summary identity and non-negative integer counts before overview/Team DNA aggregate claims render.
+Reject malformed, duplicate, or cross-repository evaluation cases as a whole before Memory Lab fixture navigation renders.
 
 ## Session Log
+
+### 2026-11-11 — Correlated repository summary
+
+- Goal: Prevent malformed or internally inconsistent repository aggregates from becoming Overview or Team DNA claims.
+- Implemented: summary responses now require the requested repository ID, bounded slug/display name, six finite non-negative integer counts, lifecycle subtotal within the decision total, and a known Hindsight state. Overview clears old route state and renders counts only when validated PR/decision catalogs exactly match summary totals. Team DNA uses summary lifecycle totals only when they match its validated decision catalog, otherwise deriving trusted counts locally.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "repository summary|overview counts|Team DNA counts"` → **12 passed, 203 skipped**. Cases cover payload/identity/text shape, negative/fractional counts, invalid subtotal/state, PR/decision catalog mismatches, valid rendering, and Team DNA's safe fallback.
+- Full checks: `.\.venv\Scripts\python.exe -m pytest backend\tests -q` → **34 passed**; `npm test -- --run` → **235 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 343.87 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: health returned `status=ok` with Hindsight unavailable. Acme's live summary PR/decision/active counts exactly matched its separately fetched catalogs, and Overview returned HTTP 200.
+- Provider safety: summary and catalog correlation uses existing read-only local API data and starts no Hindsight/Gemini call or paid usage.
+- Next: make the evaluation-case catalog fail closed on malformed or ambiguous fixture identity.
 
 ### 2026-11-11 — Correlated policy evolution
 

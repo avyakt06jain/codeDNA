@@ -264,6 +264,7 @@ function installFetch(options?: {
   evidencePayload?: unknown;
   decisionDetailPayload?: unknown;
   lineagePayload?: unknown;
+  summaryPayload?: unknown;
 }) {
   const hindsight = options?.hindsight ?? "ready";
   let reviewPollFailures = options?.reviewPollFailures ?? 0;
@@ -324,13 +325,13 @@ function installFetch(options?: {
       return json(evaluationCases);
     }
     if (path.endsWith("/summary")) {
-      return json({
+      return json(options?.summaryPayload ?? {
         repository_id: "repo-acme-commerce",
         slug: "acme-commerce",
         display_name: "Acme Commerce",
-        pr_count: 6,
-        decision_count: 11,
-        active_decisions: 3,
+        pr_count: prs.length,
+        decision_count: decisions.length,
+        active_decisions: 1,
         superseded_decisions: 1,
         pending_decisions: 0,
         review_run_count: 4,
@@ -1920,8 +1921,8 @@ it("keeps memory review disabled until Hindsight is ready and still allows a bas
 it("shows overview counts from the summary without GitHub metrics", async () => {
   installFetch();
   renderAt("/");
-  expect(within(await screen.findByRole("article", { name: "Pull requests" })).getByText("6")).toBeTruthy();
-  expect(within(screen.getByRole("article", { name: "Recorded decisions" })).getByText("11")).toBeTruthy();
+  expect(within(await screen.findByRole("article", { name: "Pull requests" })).getByText(String(prs.length))).toBeTruthy();
+  expect(within(screen.getByRole("article", { name: "Recorded decisions" })).getByText(String(decisions.length))).toBeTruthy();
   expect(within(screen.getByRole("article", { name: "Review runs" })).getByText("4")).toBeTruthy();
   expect(screen.getByRole("link", { name: "Update order status" })).toBeTruthy();
   expect(screen.queryByText(/view on github/i)).toBeNull();
@@ -1932,6 +1933,44 @@ it("shows overview counts from the summary without GitHub metrics", async () => 
   expect(within(emptyWork).getByText(/No queued or running CodeDNA reviews or Memory Lab comparisons/i)).toBeTruthy();
   const lastChecked = within(emptyWork).getByText(/Last checked/i).querySelector("time");
   expect(Number.isFinite(Date.parse(lastChecked?.getAttribute("datetime") ?? ""))).toBe(true);
+});
+
+const validSummaryPayload = {
+  repository_id: "repo-acme-commerce",
+  slug: "acme-commerce",
+  display_name: "Acme Commerce",
+  pr_count: prs.length,
+  decision_count: decisions.length,
+  active_decisions: 1,
+  superseded_decisions: 1,
+  pending_decisions: 0,
+  review_run_count: 4,
+  hindsight: "ready",
+};
+
+it.each([
+  ["non-object payload", []],
+  ["another repository", { ...validSummaryPayload, repository_id: "repo-analytics-service" }],
+  ["unsafe slug", { ...validSummaryPayload, slug: "Acme Commerce" }],
+  ["blank display name", { ...validSummaryPayload, display_name: " " }],
+  ["negative count", { ...validSummaryPayload, review_run_count: -1 }],
+  ["fractional count", { ...validSummaryPayload, pr_count: 1.5 }],
+  ["inconsistent decision subtotal", { ...validSummaryPayload, active_decisions: 2, superseded_decisions: 2 }],
+  ["invalid memory state", { ...validSummaryPayload, hindsight: "connected" }],
+  ["PR count mismatch", { ...validSummaryPayload, pr_count: prs.length + 1 }],
+  ["decision count mismatch", { ...validSummaryPayload, decision_count: decisions.length + 1 }],
+])("rejects repository summary with %s before aggregate rendering", async (_label, summaryPayload) => {
+  installFetch({ summaryPayload });
+  renderAt("/");
+  expect(await screen.findByText("Repository summary is unavailable.")).toBeTruthy();
+  expect(screen.queryByRole("region", { name: "Repository counts" })).toBeNull();
+});
+
+it("derives Team DNA counts from trusted decisions when summary validation fails", async () => {
+  installFetch({ summaryPayload: { ...validSummaryPayload, decision_count: decisions.length + 1 } });
+  renderAt("/repos/repo-acme-commerce/dna");
+  expect(await screen.findByRole("button", { name: "Shipping workflow" })).toBeTruthy();
+  expect(screen.getByText(`${decisions.length} recorded · 1 active · 1 superseded · 0 pending`)).toBeTruthy();
 });
 
 it("shows repository active work without starting or polling provider work", async () => {

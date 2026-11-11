@@ -25,6 +25,7 @@ Synthetic PR #103 establishes `DEC-0103`: shipping transitions use `OrderWorkflo
 - Malformed, duplicated, off-repository, or self-superseding decision catalog row: reject the full catalog before rendering policy content.
 - Evidence-detail run mismatch or a malformed, missing, extra, duplicate, or cross-repository cited decision: reject the full response and render no partial provenance links.
 - Decision detail or lineage mismatch: reject off-route IDs/repositories, invalid memory metadata, duplicate/missing chain members, broken predecessor links, regressing effective time, or multiple active policies before evolution rendering.
+- Repository-summary mismatch: Team DNA ignores untrusted aggregate counts and derives lifecycle totals from the validated decision catalog.
 - `demo-maintainer` is a local demonstration boundary, not production authentication.
 
 ## Checks
