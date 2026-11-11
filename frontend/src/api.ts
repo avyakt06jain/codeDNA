@@ -21,6 +21,7 @@ const FINDING_SEVERITIES = new Set(["info", "warning", "error"]);
 const FINDING_CONFIDENCES = new Set(["low", "medium", "high"]);
 const DECISION_STATUSES = new Set(["proposed", "active", "superseded", "revoked"]);
 const DECISION_AUTHORITIES = new Set(["proposed", "reviewer_confirmed"]);
+const MEMORY_INGESTION_STATUSES = new Set(["pending", "processing", "ready", "failed"]);
 
 export type Health = {
   status?: string;
@@ -101,13 +102,16 @@ export type Decision = {
 
 export type LineageItem = {
   id: string;
+  repository_id?: string;
   title: string;
   rule_text: string;
   rationale: string;
   status: string;
+  authority?: string;
   source_pr_id?: string | null;
   source_pr_number?: number | null;
   effective_at?: string | null;
+  supersedes_decision_id?: string | null;
 };
 
 export type Lineage = {
@@ -342,43 +346,6 @@ function unwrapRecords(payload: unknown): Record<string, unknown>[] {
   return [];
 }
 
-function readScope(raw: Record<string, unknown>): unknown {
-  if (raw.scope != null) return raw.scope;
-  if (typeof raw.scope_json === "string") {
-    try {
-      return JSON.parse(raw.scope_json) as unknown;
-    } catch {
-      return raw.scope_json;
-    }
-  }
-  return raw.scope_json;
-}
-
-function normalizeDecision(raw: Record<string, unknown>): Decision {
-  const memory = isRecord(raw.memory) ? raw.memory : null;
-  return {
-    id: String(raw.id ?? ""),
-    repository_id: asString(raw.repository_id),
-    title: String(raw.title ?? ""),
-    rule_text: String(raw.rule_text ?? ""),
-    rationale: String(raw.rationale ?? ""),
-    status: String(raw.status ?? ""),
-    authority: asString(raw.authority),
-    source_pr_id: raw.source_pr_id == null ? null : String(raw.source_pr_id),
-    source_pr_number: asNumber(raw.source_pr_number) ?? null,
-    supersedes_decision_id: raw.supersedes_decision_id == null ? null : String(raw.supersedes_decision_id),
-    superseded_by_decision_id: raw.superseded_by_decision_id == null ? null : String(raw.superseded_by_decision_id),
-    scope: readScope(raw),
-    effective_at: raw.effective_at == null ? null : String(raw.effective_at),
-    memory: memory
-      ? {
-          document_id: asString(memory.document_id),
-          ingestion_status: asString(memory.ingestion_status),
-        }
-      : null,
-  };
-}
-
 function normalizeDecisionItem(raw: Record<string, unknown>, repositoryId: string): Decision | null {
   const id = asString(raw.id)?.trim();
   const itemRepositoryId = asString(raw.repository_id)?.trim();
@@ -467,17 +434,58 @@ function normalizeEvidenceResponse(
   return { decisions: valid };
 }
 
-function normalizeLineageItem(raw: Record<string, unknown>): LineageItem {
+function normalizeDecisionDetail(payload: unknown, decisionId: string, repositoryId: string): Decision {
+  if (!isRecord(payload)) throw new InvalidDecisionDetailError("The decision detail failed provenance validation.");
+  const decision = normalizeDecisionItem(payload, repositoryId);
+  const successorId = payload.superseded_by_decision_id == null
+    ? null
+    : asString(payload.superseded_by_decision_id)?.trim();
+  const memory = isRecord(payload.memory) ? payload.memory : null;
+  const documentId = memory ? (memory.document_id == null ? null : asString(memory.document_id)?.trim()) : undefined;
+  const ingestionStatus = memory ? (memory.ingestion_status == null ? null : asString(memory.ingestion_status)?.trim()) : undefined;
+  const memoryValid = memory !== null && ((documentId === null && ingestionStatus === null)
+    || (documentId !== undefined && documentId !== null && documentId.length <= 160
+      && SAFE_REPOSITORY_ID.test(documentId) && ingestionStatus !== undefined
+      && ingestionStatus !== null && MEMORY_INGESTION_STATUSES.has(ingestionStatus)));
+  if (!decision || decision.id !== decisionId || !memoryValid
+    || (successorId != null && (!successorId || successorId.length > MAX_DECISION_ID_LENGTH
+      || !SAFE_REPOSITORY_ID.test(successorId) || successorId === decision.id))) {
+    throw new InvalidDecisionDetailError("The decision detail failed provenance validation.");
+  }
   return {
-    id: String(raw.id ?? ""),
-    title: String(raw.title ?? ""),
-    rule_text: String(raw.rule_text ?? ""),
-    rationale: String(raw.rationale ?? ""),
-    status: String(raw.status ?? ""),
-    source_pr_id: raw.source_pr_id == null ? null : String(raw.source_pr_id),
-    source_pr_number: asNumber(raw.source_pr_number) ?? null,
-    effective_at: raw.effective_at == null ? null : String(raw.effective_at),
+    ...decision,
+    superseded_by_decision_id: successorId,
+    memory: documentId == null ? null : { document_id: documentId, ingestion_status: ingestionStatus ?? undefined },
   };
+}
+
+function normalizeLineage(payload: unknown, decisionId: string, repositoryId: string): Lineage {
+  if (!isRecord(payload) || payload.decision_id !== decisionId || !Array.isArray(payload.items)
+    || payload.items.length === 0 || !payload.items.every(isRecord)) {
+    throw new InvalidLineageError("The decision lineage failed provenance validation.");
+  }
+  const items = payload.items.map((row): LineageItem | null => {
+    const decision = normalizeDecisionItem(row, repositoryId);
+    const effectiveAt = normalizeJobTimestamp(row.effective_at);
+    return decision && effectiveAt ? { ...decision, effective_at: effectiveAt } : null;
+  });
+  if (items.some((item) => item === null)) {
+    throw new InvalidLineageError("The decision lineage failed provenance validation.");
+  }
+  const valid = items as LineageItem[];
+  const ids = new Set(valid.map((item) => item.id));
+  const linksValid = valid.every((item, index) => index === 0
+    ? item.supersedes_decision_id == null
+    : item.supersedes_decision_id === valid[index - 1]!.id);
+  const timesValid = valid.every((item, index) => index === 0
+    || Date.parse(item.effective_at ?? "") >= Date.parse(valid[index - 1]!.effective_at ?? ""));
+  const activeIndex = valid.findIndex((item) => item.status === "active");
+  if (ids.size !== valid.length || !ids.has(decisionId) || !linksValid || !timesValid
+    || valid.filter((item) => item.status === "active").length > 1
+    || (activeIndex >= 0 && activeIndex !== valid.length - 1)) {
+    throw new InvalidLineageError("The decision lineage failed provenance validation.");
+  }
+  return { decision_id: decisionId, items: valid };
 }
 
 function normalizeFinding(raw: Record<string, unknown>): Finding {
@@ -768,6 +776,8 @@ export class InvalidRepositoryCatalogError extends Error {}
 export class InvalidPullRequestCatalogError extends Error {}
 export class InvalidDecisionCatalogError extends Error {}
 export class InvalidEvidenceResponseError extends Error {}
+export class InvalidDecisionDetailError extends Error {}
+export class InvalidLineageError extends Error {}
 
 function jobFailure(job: ReviewJob, fallback: string): TerminalJobError {
   const code = job.error_code?.trim();
@@ -812,8 +822,12 @@ export const api = {
     await request<unknown>(`/api/repositories/${repositoryId}/decisions`),
     repositoryId,
   ),
-  decision: async (decisionId: string) => normalizeDecision(asRecord(await request<unknown>(`/api/decisions/${decisionId}`))),
-  lineage: async (decisionId: string) => normalizeLineage(await request<unknown>(`/api/decisions/${decisionId}/lineage`), decisionId),
+  decision: async (decisionId: string, repositoryId: string) => normalizeDecisionDetail(
+    await request<unknown>(`/api/decisions/${decisionId}`), decisionId, repositoryId,
+  ),
+  lineage: async (decisionId: string, repositoryId: string) => normalizeLineage(
+    await request<unknown>(`/api/decisions/${decisionId}/lineage`), decisionId, repositoryId,
+  ),
   latestReview: async (prId: string, repositoryId: string, repositorySlug: string, mode: "memory" | "baseline" = "memory") => {
     const payload = await requestJobRead<unknown>(`/api/prs/${prId}/reviews/latest?mode=${mode}`);
     const row = isRecord(payload) ? payload : {};
@@ -1113,17 +1127,4 @@ function normalizePullRequest(payload: unknown): PullRequest | null {
     diff_text: diffText,
     created_at: createdAt,
   };
-}
-
-function normalizeLineage(payload: unknown, decisionId: string): Lineage {
-  if (Array.isArray(payload)) {
-    return { decision_id: decisionId, items: payload.filter(isRecord).map(normalizeLineageItem) };
-  }
-  const row = isRecord(payload) ? payload : {};
-  const items = Array.isArray(row.items) ? row.items.filter(isRecord).map(normalizeLineageItem) : [];
-  return { decision_id: String(row.decision_id ?? decisionId), items };
-}
-
-function asRecord(payload: unknown): Record<string, unknown> {
-  return isRecord(payload) ? payload : {};
 }

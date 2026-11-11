@@ -65,7 +65,7 @@ export function TeamDnaPage() {
   useEffect(() => {
     if (!selectedId) return;
     let cancelled = false;
-    api.decision(selectedId)
+    api.decision(selectedId, repoId)
       .then((row) => {
         if (!cancelled) setDetail(row);
       })
@@ -75,7 +75,7 @@ export function TeamDnaPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedId]);
+  }, [repoId, selectedId]);
 
   const selected = decisions.find((item) => item.id === selectedId) ?? null;
   const shown = detail && detail.id === selectedId ? detail : selected;

@@ -155,6 +155,7 @@ def test_repository_summary_and_decision_lineage(tmp_path):
     assert current["scope"]["paths"] == ["src/orders/**"]
 
     detail = route["/api/decisions/{decision_id}"](DECISION_ID)
+    assert detail["repository_id"] == ACME_REPOSITORY_ID
     assert detail["superseded_by_decision_id"] is None
     assert detail["memory"]["document_id"] == DOCUMENT_ID
     assert detail["memory"]["ingestion_status"] == "pending"
@@ -196,6 +197,18 @@ def test_repository_summary_and_decision_lineage(tmp_path):
     items = route["/api/decisions/{decision_id}/lineage"](SUPERSEDING_DECISION_ID)["items"]
     assert [item["id"] for item in items] == [DECISION_ID, SUPERSEDING_DECISION_ID]
     assert [item["source_pr_number"] for item in items] == [42, 103]
+    assert [item["repository_id"] for item in items] == [
+        ACME_REPOSITORY_ID,
+        ACME_REPOSITORY_ID,
+    ]
+    assert [item["authority"] for item in items] == [
+        "reviewer_confirmed",
+        "reviewer_confirmed",
+    ]
+    assert [item["supersedes_decision_id"] for item in items] == [
+        None,
+        DECISION_ID,
+    ]
     assert items[0]["status"] == "superseded"
     assert items[1]["status"] == "active"
     assert items[1]["rule_text"] == SHIPPING_DECISION_RULE

@@ -130,13 +130,7 @@ def _lineage(session: Session, decision_id: str) -> list[Decision]:
 
 def _lineage_item(session: Session, decision: Decision) -> dict[str, Any]:
     return {
-        "id": decision.id,
-        "title": decision.title,
-        "rule_text": decision.rule_text,
-        "rationale": decision.rationale,
-        "status": decision.status,
-        "source_pr_id": decision.source_pr_id,
-        "source_pr_number": _source_pr_number(session, decision.source_pr_id),
+        **_decision_list_item(session, decision),
         "effective_at": decision.effective_at,
     }
 

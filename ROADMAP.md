@@ -206,7 +206,8 @@
 - **Verified:** Repository PR-list summaries require safe bounded IDs, positive integer numbers, bounded non-blank titles, optional parseable timestamps, and collection-wide unique IDs/numbers before navigation or Memory Lab recovery.
 - **Verified:** Repository decision catalogs require route-matching repository identity, safe unique decision IDs, bounded policy text, lifecycle/authority enums, source PR provenance, object scope, and valid non-self supersession before Team DNA selection or detail reads.
 - **Verified:** Review evidence responses require exact persisted run correlation, route-bound decision provenance, unique IDs, and exact equality with the review's validated citation set before source links render.
-- **Next:** Validate standalone decision-detail and lineage payload correlation before evolution content can replace catalog-trusted policy state.
+- **Verified:** Standalone decision detail and lineage require requested decision/repository correlation, strict source and memory metadata, unique ordered predecessor links, monotonic effective time, and at most one active policy before evolution rendering.
+- **Next:** Validate repository-summary count and identity payloads before overview/Team DNA aggregate claims render.
 
 ## Documentation and version-control policy
 

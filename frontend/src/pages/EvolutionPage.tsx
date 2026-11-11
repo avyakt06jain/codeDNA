@@ -5,6 +5,23 @@ import { ErrorNote, LoadingNote } from "../components/Status";
 import { designStatus, formatWhen, sourceLabel } from "../text";
 import { useWorkspace } from "../workspace";
 
+function matchesLineage(decision: Decision, lineage: Lineage): boolean {
+  const index = lineage.items.findIndex((item) => item.id === decision.id);
+  if (index < 0) return false;
+  const item = lineage.items[index]!;
+  const successorId = lineage.items[index + 1]?.id ?? null;
+  return decision.repository_id === item.repository_id
+    && decision.title === item.title
+    && decision.rule_text === item.rule_text
+    && decision.rationale === item.rationale
+    && decision.status === item.status
+    && decision.authority === item.authority
+    && decision.source_pr_id === item.source_pr_id
+    && decision.source_pr_number === item.source_pr_number
+    && decision.supersedes_decision_id === item.supersedes_decision_id
+    && decision.superseded_by_decision_id === successorId;
+}
+
 export function EvolutionPage() {
   const { repoId = "", decisionId = "" } = useParams();
   const { prs } = useWorkspace();
@@ -17,20 +34,32 @@ export function EvolutionPage() {
     let cancelled = false;
     setLoading(true);
     setError("");
-    Promise.allSettled([api.lineage(decisionId), api.decision(decisionId)]).then(([lineageResult, decisionResult]) => {
+    setLineage(null);
+    setDecision(null);
+    Promise.allSettled([api.lineage(decisionId, repoId), api.decision(decisionId, repoId)]).then(([lineageResult, decisionResult]) => {
       if (cancelled) return;
-      if (lineageResult.status === "fulfilled") setLineage(lineageResult.value);
-      else {
+      if (lineageResult.status === "rejected") {
         setLineage(null);
+        setDecision(null);
         setError("Lineage is unavailable.");
+      } else if (decisionResult.status === "rejected") {
+        setLineage(null);
+        setDecision(null);
+        setError("Decision detail is unavailable.");
+      } else if (!matchesLineage(decisionResult.value, lineageResult.value)) {
+        setLineage(null);
+        setDecision(null);
+        setError("Decision evolution failed correlation validation.");
+      } else {
+        setLineage(lineageResult.value);
+        setDecision(decisionResult.value);
       }
-      setDecision(decisionResult.status === "fulfilled" ? decisionResult.value : null);
       setLoading(false);
     });
     return () => {
       cancelled = true;
     };
-  }, [decisionId]);
+  }, [decisionId, repoId]);
 
   const items = lineage?.items ?? [];
   const current = [...items].reverse().find((item) => item.status === "active") ?? null;

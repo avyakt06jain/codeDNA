@@ -128,10 +128,11 @@
 - Repository PR catalogs now reject malformed rows, unsafe IDs, invalid numbers/titles/timestamps, and duplicate IDs or PR numbers as a whole; Memory Lab clears stale selection before loading and performs no recovery on invalid catalogs.
 - Repository decision catalogs now require route-matching repository identity, safe unique decision IDs, bounded policy text, lifecycle/authority enums, source PR provenance, object scope, and valid non-self supersession before Team DNA selection or detail reads.
 - Review evidence details now require exact run correlation, route-bound decision/source provenance, unique IDs, and exact equality with the review's validated citation set before the evidence panel can render source links.
+- Standalone decision detail and lineage now require requested ID/repository correlation, strict memory metadata, unique ordered predecessor links, nondecreasing effective time, and at most one active policy before evolution content renders.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by validating standalone decision-detail and lineage payloads before evolution rendering.
+- Post-MVP trust hardening continues by validating repository-summary identity/count payloads before aggregate claims render.
 
 ## Blocked
 
@@ -155,9 +156,19 @@
 
 ## Next Action
 
-Validate standalone decision-detail and lineage correlation before evolution content can replace catalog-trusted policy state.
+Validate repository-summary identity and non-negative integer counts before overview/Team DNA aggregate claims render.
 
 ## Session Log
+
+### 2026-11-11 — Correlated policy evolution
+
+- Goal: Prevent standalone decision detail or a malformed lineage chain from replacing route-bound policy history.
+- Implemented: decision detail now must match the requested ID/repository, strict policy/source shape, successor grammar, and paired memory document/status contract. Lineage must match the requested ID, contain a nonempty unique route-bound chain with valid decision/source fields, resolve adjacent predecessor links, preserve nondecreasing effective time, and contain at most one terminal active policy. Detail policy/source/successor fields must then equal its lineage item. Evolution clears old state before route reads and renders no history on any failure or contradiction.
+- Focused checks: `npm test -- --run src/ui.test.tsx -t "decision detail|decision lineage|decision evolution|wrapped decisions"` → **20 passed, 184 skipped**; `.\.venv\Scripts\python.exe -m pytest backend\tests\test_judge_demo.py -q` → **11 passed**. Invalid cases cover response shape, ID/repository mismatch, memory status/pairing, self-successor, invalid/contradictory detail paired with otherwise valid lineage, empty/non-object/duplicate/missing lineage members, broken predecessor, descending time, and multiple/nonterminal active policies.
+- Full checks: `.\.venv\Scripts\python.exe -m pytest backend\tests -q` → **34 passed**; `npm test -- --run` → **224 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 342.84 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: both absent listeners were restarted with Hindsight autostart disabled. The first health probe raced API binding and was refused; the immediate repeat returned `status=ok`, `hindsight=unavailable`, and `interrupted_jobs=0`. `DEC-0103` detail matched its requested ID/repository, its two-item lineage was repository-bound, and the evolution route returned HTTP 200.
+- Provider safety: decision detail and lineage remain read-only SQLite/API requests and start no Hindsight/Gemini call or paid usage.
+- Next: validate repository-summary identity/count payloads before aggregate claims render.
 
 ### 2026-11-11 — Correlated evidence detail
 

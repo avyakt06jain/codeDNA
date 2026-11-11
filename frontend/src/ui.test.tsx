@@ -262,6 +262,8 @@ function installFetch(options?: {
   pullRequestCatalog?: unknown;
   decisionCatalog?: unknown;
   evidencePayload?: unknown;
+  decisionDetailPayload?: unknown;
+  lineagePayload?: unknown;
 }) {
   const hindsight = options?.hindsight ?? "ready";
   let reviewPollFailures = options?.reviewPollFailures ?? 0;
@@ -426,8 +428,9 @@ function installFetch(options?: {
       return json({ pr_id: "pr-acme-120", kind: url.searchParams.get("kind"), job_id: null, status: null, stage: null });
     }
     if (path.endsWith("/lineage")) {
-      return json({
-        decision_id: "DEC-0103",
+      const requestedDecisionId = path.split("/").filter(Boolean).at(-2) ?? "DEC-0103";
+      return json(options?.lineagePayload ?? {
+        decision_id: requestedDecisionId,
         items: [
           { ...decisions[1], effective_at: "2023-12-15T10:00:00Z" },
           { ...decisions[0], effective_at: "2024-01-08T10:00:00Z" },
@@ -436,6 +439,7 @@ function installFetch(options?: {
     }
     if (path.startsWith("/api/decisions/")) {
       const id = path.split("/").filter(Boolean).pop();
+      if (options?.decisionDetailPayload !== undefined) return json(options.decisionDetailPayload);
       if (id === "DEC-0042") {
         return json({
           ...decisions[1],
@@ -2064,6 +2068,58 @@ it("lists wrapped decisions and opens the evolution lineage", async () => {
   expect(current.textContent).toContain("Use the service for status changes.");
   expect(current.textContent).not.toContain("decision-DEC-0042");
   expect(current.textContent).not.toContain("Superseded by");
+});
+
+it.each([
+  ["non-object payload", []],
+  ["another repository", { ...decisions[0], repository_id: "repo-analytics-service", title: "Untrusted detail", memory: { document_id: "decision-DEC-0103", ingestion_status: "ready" } }],
+  ["another decision", { ...decisions[0], id: "DEC-9999", title: "Untrusted detail", memory: { document_id: "decision-DEC-9999", ingestion_status: "ready" } }],
+  ["invalid memory status", { ...decisions[0], title: "Untrusted detail", memory: { document_id: "decision-DEC-0103", ingestion_status: "complete" } }],
+  ["partial memory identity", { ...decisions[0], title: "Untrusted detail", memory: { document_id: null, ingestion_status: "ready" } }],
+  ["self successor", { ...decisions[0], title: "Untrusted detail", superseded_by_decision_id: "DEC-0103", memory: { document_id: "decision-DEC-0103", ingestion_status: "ready" } }],
+])("rejects decision detail with %s before replacing catalog policy", async (_label, decisionDetailPayload) => {
+  const fetchMock = installFetch({ decisionDetailPayload });
+  renderAt("/repos/repo-acme-commerce/dna");
+  expect(await screen.findByRole("button", { name: "Shipping workflow" })).toBeTruthy();
+  await waitFor(() => expect(fetchMock.mock.calls.filter((entry) => new URL(String(entry[0]), "http://localhost").pathname === "/api/decisions/DEC-0103")).toHaveLength(1));
+  expect(screen.queryByText("Untrusted detail")).toBeNull();
+  expect(screen.getByRole("heading", { name: "Shipping workflow" })).toBeTruthy();
+});
+
+it("rejects invalid decision detail before rendering an otherwise valid evolution", async () => {
+  installFetch({ decisionDetailPayload: [] });
+  renderAt("/repos/repo-acme-commerce/dna/DEC-0103");
+  expect(await screen.findByText("Decision detail is unavailable.")).toBeTruthy();
+  expect(screen.queryByText("Use the service for status changes.")).toBeNull();
+  expect(screen.getByText("No lineage was returned for this decision.")).toBeTruthy();
+});
+
+it("rejects decision detail that contradicts its valid lineage", async () => {
+  installFetch({ decisionDetailPayload: { ...decisions[0], title: "Conflicting detail", memory: { document_id: "decision-DEC-0103", ingestion_status: "ready" } } });
+  renderAt("/repos/repo-acme-commerce/dna/DEC-0103");
+  expect(await screen.findByText("Decision evolution failed correlation validation.")).toBeTruthy();
+  expect(screen.queryByText("Conflicting detail")).toBeNull();
+  expect(screen.queryByText("Use the service for status changes.")).toBeNull();
+});
+
+it.each([
+  ["non-object payload", []],
+  ["another requested decision", { decision_id: "DEC-9999", items: [{ ...decisions[0], effective_at: "2024-01-08T10:00:00Z" }] }],
+  ["empty items", { decision_id: "DEC-0103", items: [] }],
+  ["non-object item", { decision_id: "DEC-0103", items: [null] }],
+  ["another repository", { decision_id: "DEC-0103", items: [{ ...decisions[0], repository_id: "repo-analytics-service", effective_at: "2024-01-08T10:00:00Z" }] }],
+  ["duplicate ID", { decision_id: "DEC-0103", items: [{ ...decisions[0], effective_at: "2024-01-08T10:00:00Z" }, { ...decisions[0], effective_at: "2024-01-09T10:00:00Z" }] }],
+  ["missing requested item", { decision_id: "DEC-0103", items: [{ ...decisions[1], effective_at: "2023-12-15T10:00:00Z" }] }],
+  ["broken predecessor", { decision_id: "DEC-0103", items: [{ ...decisions[1], effective_at: "2023-12-15T10:00:00Z" }, { ...decisions[0], supersedes_decision_id: "DEC-9999", effective_at: "2024-01-08T10:00:00Z" }] }],
+  ["descending time", { decision_id: "DEC-0103", items: [{ ...decisions[1], effective_at: "2024-01-08T10:00:00Z" }, { ...decisions[0], effective_at: "2023-12-15T10:00:00Z" }] }],
+  ["multiple active policies", { decision_id: "DEC-0103", items: [{ ...decisions[1], status: "active", effective_at: "2023-12-15T10:00:00Z" }, { ...decisions[0], effective_at: "2024-01-08T10:00:00Z" }] }],
+  ["nonterminal active policy", { decision_id: "DEC-0103", items: [{ ...decisions[1], status: "active", effective_at: "2023-12-15T10:00:00Z" }, { ...decisions[0], status: "revoked", effective_at: "2024-01-08T10:00:00Z" }] }],
+])("rejects decision lineage with %s before evolution rendering", async (_label, lineagePayload) => {
+  installFetch({ lineagePayload });
+  renderAt("/repos/repo-acme-commerce/dna/DEC-0103");
+  expect(await screen.findByText("Lineage is unavailable.")).toBeTruthy();
+  expect(screen.queryByText("Use the service for status changes.")).toBeNull();
+  expect(screen.getByText("No lineage was returned for this decision.")).toBeTruthy();
 });
 
 it.each([
