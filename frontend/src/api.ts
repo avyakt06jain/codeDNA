@@ -670,6 +670,7 @@ export class InvalidReviewResultError extends Error {}
 export class InvalidComparisonResultError extends Error {}
 export class InvalidPullRequestError extends Error {}
 export class InvalidRepositoryCatalogError extends Error {}
+export class InvalidPullRequestCatalogError extends Error {}
 
 function jobFailure(job: ReviewJob, fallback: string): TerminalJobError {
   const code = job.error_code?.trim();
@@ -699,7 +700,7 @@ export const api = {
     return item ? [item] : [];
   }),
   summary: async (repositoryId: string) => normalizeSummary(await request<unknown>(`/api/repositories/${repositoryId}/summary`)),
-  prs: async (repositoryId: string) => unwrapRecords(await request<unknown>(`/api/repositories/${repositoryId}/prs`)).map(normalizePullRequestSummary),
+  prs: async (repositoryId: string) => normalizePullRequestCatalog(await request<unknown>(`/api/repositories/${repositoryId}/prs`)),
   pr: async (prId: string, repositoryId: string) => {
     const pullRequest = normalizePullRequest(await request<unknown>(`/api/prs/${prId}`));
     if (!pullRequest) {
@@ -957,13 +958,35 @@ function normalizeSummary(payload: unknown): Summary {
   };
 }
 
-function normalizePullRequestSummary(raw: Record<string, unknown>): PullRequestSummary {
-  return {
-    id: String(raw.id ?? ""),
-    number: asNumber(raw.number) ?? 0,
-    title: String(raw.title ?? ""),
-    created_at: asString(raw.created_at),
-  };
+function normalizePullRequestSummary(raw: Record<string, unknown>): PullRequestSummary | null {
+  const id = asString(raw.id)?.trim();
+  const number = asNumber(raw.number);
+  const title = asString(raw.title)?.trim();
+  const createdAt = raw.created_at == null ? undefined : normalizeJobTimestamp(raw.created_at);
+  if (!id || id.length > MAX_PULL_REQUEST_ID_LENGTH || !SAFE_REPOSITORY_ID.test(id)
+    || number === undefined || !Number.isInteger(number) || number < 1
+    || !title || title.length > MAX_PULL_REQUEST_TITLE_LENGTH
+    || (raw.created_at != null && createdAt === undefined)) return null;
+  return { id, number, title, created_at: createdAt };
+}
+
+function normalizePullRequestCatalog(payload: unknown): PullRequestSummary[] {
+  const rows = Array.isArray(payload)
+    ? payload
+    : isRecord(payload) && Array.isArray(payload.items) ? payload.items : null;
+  if (!rows || !rows.every(isRecord)) {
+    throw new InvalidPullRequestCatalogError("The pull-request catalog failed identity validation.");
+  }
+  const pullRequests = rows.map(normalizePullRequestSummary);
+  if (pullRequests.some((pullRequest) => pullRequest === null)) {
+    throw new InvalidPullRequestCatalogError("The pull-request catalog failed identity validation.");
+  }
+  const valid = pullRequests as PullRequestSummary[];
+  if (new Set(valid.map((pullRequest) => pullRequest.id)).size !== valid.length
+    || new Set(valid.map((pullRequest) => pullRequest.number)).size !== valid.length) {
+    throw new InvalidPullRequestCatalogError("The pull-request catalog failed identity validation.");
+  }
+  return valid;
 }
 
 function normalizePullRequest(payload: unknown): PullRequest | null {

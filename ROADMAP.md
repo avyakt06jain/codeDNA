@@ -203,7 +203,8 @@
 - **Verified:** Repository catalog rows require safe bounded IDs, lowercase hyphenated slugs, bounded non-blank display names, and collection-wide unique IDs/slugs. A malformed or ambiguous catalog cannot establish Review Workspace context.
 - **Verified:** Full pull-request payloads require safe bounded identities, positive integer number, bounded non-blank title, bounded string description, a diff within the 100,000-byte backend limit, and an optional parseable creation timestamp before rendering or recovery.
 - **Verified:** Review Workspace validates unified-diff headers, safe paths, hunk grammar/counts, file count, text-only form, and presence of added lines before its display splitter or recovery runs.
-- **Next:** Validate repository PR-list summaries before their IDs and titles can drive navigation into the full PR boundary.
+- **Verified:** Repository PR-list summaries require safe bounded IDs, positive integer numbers, bounded non-blank titles, optional parseable timestamps, and collection-wide unique IDs/numbers before navigation or Memory Lab recovery.
+- **Next:** Validate decision-list and evidence-detail payloads before policy titles, status, lineage, or source links can render.
 
 ## Documentation and version-control policy
 

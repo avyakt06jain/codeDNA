@@ -116,6 +116,10 @@ export function MemoryLabPage() {
     let cancelled = false;
     setLoading(true);
     setError("");
+    setPrs([]);
+    setPrId("");
+    setRecoveredPrId("");
+    setComparison(null);
     api.prs(repoId)
       .then((rows) => {
         if (cancelled) return;
@@ -126,7 +130,11 @@ export function MemoryLabPage() {
         });
       })
       .catch((reason: Error) => {
-        if (!cancelled) setError(reason.message);
+        if (!cancelled) {
+          setPrs([]);
+          setPrId("");
+          setError(reason.message);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

@@ -256,6 +256,7 @@ function installFetch(options?: {
   repositorySlug?: string;
   repositoryCatalog?: unknown;
   pullRequestPayload?: unknown;
+  pullRequestCatalog?: unknown;
 }) {
   const hindsight = options?.hindsight ?? "ready";
   let reviewPollFailures = options?.reviewPollFailures ?? 0;
@@ -351,7 +352,7 @@ function installFetch(options?: {
         updated_at: jobUpdatedAt,
       }] : []);
     }
-    if (path.endsWith("/prs")) return json(prs);
+    if (path.endsWith("/prs")) return json(options?.pullRequestCatalog ?? prs);
     if (path === "/api/prs/pr-acme-87" && method === "GET") {
       return json(options?.pullRequestPayload ?? { ...prs[0], repository_id: options?.pullRequestRepositoryId ?? "repo-acme-commerce", description: "Sets order status directly.", diff_text: diff });
     }
@@ -659,6 +660,36 @@ it.each([
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active"))).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
+it.each([
+  ["non-object row", [null]],
+  ["unsafe ID", [{ ...prs[0], id: "pr acme 87" }]],
+  ["non-positive number", [{ ...prs[0], number: 0 }]],
+  ["blank title", [{ ...prs[0], title: " " }]],
+  ["invalid timestamp", [{ ...prs[0], created_at: "not-a-date" }]],
+  ["duplicate ID", [prs[0], { ...prs[1], id: prs[0]!.id }]],
+  ["duplicate number", [prs[0], { ...prs[1], number: prs[0]!.number }]],
+])("rejects a pull-request catalog with %s before navigation", async (_label, pullRequestCatalog) => {
+  const fetchMock = installFetch({ pullRequestCatalog });
+  renderAt("/");
+  expect((await screen.findAllByText("The pull-request catalog failed identity validation.")).length).toBeGreaterThan(0);
+  expect(screen.queryByRole("link", { name: "Update order status" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => new URL(String(entry[0]), "http://localhost").pathname === "/api/prs/pr-acme-87")).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
+it("rejects an invalid pull-request catalog before Memory Lab recovery", async () => {
+  saveActiveJob("comparison", "pr-acme-87", "job-cmp");
+  const fetchMock = installFetch({ pullRequestCatalog: [{ ...prs[0], title: " " }] });
+  renderAt("/repos/repo-acme-commerce/lab?case=pr-acme-87");
+  expect((await screen.findAllByText("The pull-request catalog failed identity validation.")).length).toBeGreaterThan(0);
+  expect(screen.getByRole("option", { name: "No pull requests" })).toBeTruthy();
+  expect((screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 

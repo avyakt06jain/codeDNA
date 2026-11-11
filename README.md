@@ -72,6 +72,7 @@ CodeDNA separates memory from authority:
 - Validated repository catalog: malformed or duplicate repository identities fail closed before workspace recovery
 - Validated PR payloads: malformed metadata and diffs over 100,000 UTF-8 bytes fail closed before rendering or recovery
 - Validated diff grammar: unsafe paths, binary patches, malformed hunk counts, and addition-free diffs fail closed before display
+- Validated PR catalogs: malformed or duplicate PR identities cannot drive navigation or Memory Lab recovery
 - Safe stale-job recovery that clears a missing locator and restores the latest persisted same-PR result without rerunning providers
 - Read-only same-PR active-job discovery after tab/session loss, before any completed-result fallback
 - Atomic same-PR active-job reuse so simultaneous tabs schedule only one provider task

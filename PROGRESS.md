@@ -125,10 +125,11 @@
 - Repository catalog ingestion now rejects non-object/malformed rows, unsafe or blank identity fields, and duplicate repository IDs or slugs before they can establish workspace context.
 - Full PR ingestion now rejects unsafe identities, non-positive/fractional numbers, blank or oversized titles, non-string/oversized descriptions, diffs above 100,000 UTF-8 bytes, and malformed optional creation timestamps before display or recovery.
 - Full PR ingestion now also rejects empty, binary, addition-free, unsafe-path, over-30-file, missing-header/hunk, malformed-header, and hunk-count-inconsistent unified diffs before the display splitter.
+- Repository PR catalogs now reject malformed rows, unsafe IDs, invalid numbers/titles/timestamps, and duplicate IDs or PR numbers as a whole; Memory Lab clears stale selection before loading and performs no recovery on invalid catalogs.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by validating repository PR-list summaries before they drive navigation.
+- Post-MVP trust hardening continues by validating decision-list and evidence-detail payloads before policy UI rendering.
 
 ## Blocked
 
@@ -152,9 +153,19 @@
 
 ## Next Action
 
-Validate repository PR-list IDs, numbers, titles, timestamps, and collection identity before navigation.
+Validate decision-list and evidence-detail fields before Team DNA or finding provenance can render.
 
 ## Session Log
+
+### 2026-11-11 — Fail-closed pull-request catalog
+
+- Goal: Prevent malformed or ambiguous repository PR summaries from driving navigation or Memory Lab recovery.
+- Implemented: PR-list normalization now requires a direct/wrapped array of object rows, safe bounded IDs, positive integer numbers, bounded non-blank titles, optional parseable timestamps normalized to UTC, and collection-wide unique IDs and PR numbers. Invalid catalogs reject wholly. Memory Lab clears its PRs, selection, recovered marker, and comparison before loading, so a failed catalog cannot preserve or recover stale work.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "pull-request catalog"` → **8 passed, 154 skipped**, covering malformed row, unsafe ID, invalid number/title/timestamp, duplicate ID/number, and preloaded Memory Lab comparison recovery. Invalid catalogs produce zero full-PR, job-status, active, latest, or creation requests.
+- Full checks: `.\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **182 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 340.07 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: the local autostart-disabled API and Vite listeners remained available after restart reconciliation; `GET /api/health` returned `status=ok`, `hindsight=unavailable`, and `interrupted_jobs=0`, while the Memory Lab route returned HTTP 200. No provider request was started.
+- Provider safety: PR-catalog validation is local and blocks downstream work; it adds no Hindsight/Gemini call or paid usage.
+- Next: validate decision collections and evidence-detail records before policy content renders.
 
 ### 2026-11-11 — Fail-closed display diff grammar
 
