@@ -205,7 +205,8 @@
 - **Verified:** Review Workspace validates unified-diff headers, safe paths, hunk grammar/counts, file count, text-only form, and presence of added lines before its display splitter or recovery runs.
 - **Verified:** Repository PR-list summaries require safe bounded IDs, positive integer numbers, bounded non-blank titles, optional parseable timestamps, and collection-wide unique IDs/numbers before navigation or Memory Lab recovery.
 - **Verified:** Repository decision catalogs require route-matching repository identity, safe unique decision IDs, bounded policy text, lifecycle/authority enums, source PR provenance, object scope, and valid non-self supersession before Team DNA selection or detail reads.
-- **Next:** Validate evidence-detail response correlation and decision provenance before finding source links can render.
+- **Verified:** Review evidence responses require exact persisted run correlation, route-bound decision provenance, unique IDs, and exact equality with the review's validated citation set before source links render.
+- **Next:** Validate standalone decision-detail and lineage payload correlation before evolution content can replace catalog-trusted policy state.
 
 ## Documentation and version-control policy
 

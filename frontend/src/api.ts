@@ -379,7 +379,7 @@ function normalizeDecision(raw: Record<string, unknown>): Decision {
   };
 }
 
-function normalizeDecisionCatalogItem(raw: Record<string, unknown>, repositoryId: string): Decision | null {
+function normalizeDecisionItem(raw: Record<string, unknown>, repositoryId: string): Decision | null {
   const id = asString(raw.id)?.trim();
   const itemRepositoryId = asString(raw.repository_id)?.trim();
   const title = asString(raw.title)?.trim();
@@ -428,7 +428,7 @@ function normalizeDecisionCatalog(payload: unknown, repositoryId: string): Decis
   if (!rows || !rows.every(isRecord)) {
     throw new InvalidDecisionCatalogError("The decision catalog failed provenance validation.");
   }
-  const decisions = rows.map((row) => normalizeDecisionCatalogItem(row, repositoryId));
+  const decisions = rows.map((row) => normalizeDecisionItem(row, repositoryId));
   if (decisions.some((decision) => decision === null)) {
     throw new InvalidDecisionCatalogError("The decision catalog failed provenance validation.");
   }
@@ -440,6 +440,31 @@ function normalizeDecisionCatalog(payload: unknown, repositoryId: string): Decis
     throw new InvalidDecisionCatalogError("The decision catalog failed provenance validation.");
   }
   return valid;
+}
+
+function normalizeEvidenceResponse(
+  payload: unknown,
+  runId: string,
+  repositoryId: string,
+  expectedDecisionIds: string[],
+): { decisions: Decision[] } {
+  if (!isRecord(payload) || payload.run_id !== runId || !Array.isArray(payload.decisions)
+    || !payload.decisions.every(isRecord)) {
+    throw new InvalidEvidenceResponseError("The evidence response failed provenance validation.");
+  }
+  const expectedIds = new Set(expectedDecisionIds);
+  const decisions = payload.decisions.map((row) => normalizeDecisionItem(row, repositoryId));
+  if (expectedIds.size === 0 || decisions.some((decision) => decision === null)) {
+    throw new InvalidEvidenceResponseError("The evidence response failed provenance validation.");
+  }
+  const valid = decisions as Decision[];
+  const returnedIds = new Set(valid.map((decision) => decision.id));
+  if (valid.some((decision) => decision.authority !== "reviewer_confirmed")
+    || returnedIds.size !== valid.length || returnedIds.size !== expectedIds.size
+    || [...expectedIds].some((decisionId) => !returnedIds.has(decisionId))) {
+    throw new InvalidEvidenceResponseError("The evidence response failed provenance validation.");
+  }
+  return { decisions: valid };
 }
 
 function normalizeLineageItem(raw: Record<string, unknown>): LineageItem {
@@ -742,6 +767,7 @@ export class InvalidPullRequestError extends Error {}
 export class InvalidRepositoryCatalogError extends Error {}
 export class InvalidPullRequestCatalogError extends Error {}
 export class InvalidDecisionCatalogError extends Error {}
+export class InvalidEvidenceResponseError extends Error {}
 
 function jobFailure(job: ReviewJob, fallback: string): TerminalJobError {
   const code = job.error_code?.trim();
@@ -880,10 +906,9 @@ export const api = {
     const started = await api.startReview(prId, memoryEnabled);
     return api.reviewJob(started.jobId, prId, repositoryId, repositorySlug, memoryEnabled ? "memory" : "baseline", onStage, shouldContinue);
   },
-  evidence: async (runId: string) => {
+  evidence: async (runId: string, repositoryId: string, expectedDecisionIds: string[]) => {
     const payload = await request<unknown>(`/api/reviews/${runId}/evidence`);
-    const decisions = isRecord(payload) ? unwrapRecords(payload.decisions ?? payload) : unwrapRecords(payload);
-    return { decisions: decisions.map(normalizeDecision) };
+    return normalizeEvidenceResponse(payload, runId, repositoryId, expectedDecisionIds);
   },
   feedback: async (findingId: string, action: string, reason: string) => {
     const payload = await request<unknown>(`/api/findings/${findingId}/feedback`, {

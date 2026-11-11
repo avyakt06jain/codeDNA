@@ -23,6 +23,7 @@ Synthetic PR #103 establishes `DEC-0103`: shipping transitions use `OrderWorkflo
 - Hindsight retention failure: preserve truthful ingestion status; do not claim the new decision is retrievable.
 - Missing or stale citations: deterministic review validation drops the finding.
 - Malformed, duplicated, off-repository, or self-superseding decision catalog row: reject the full catalog before rendering policy content.
+- Evidence-detail run mismatch or a malformed, missing, extra, duplicate, or cross-repository cited decision: reject the full response and render no partial provenance links.
 - `demo-maintainer` is a local demonstration boundary, not production authentication.
 
 ## Checks

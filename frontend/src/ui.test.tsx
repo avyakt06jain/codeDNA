@@ -261,6 +261,7 @@ function installFetch(options?: {
   pullRequestPayload?: unknown;
   pullRequestCatalog?: unknown;
   decisionCatalog?: unknown;
+  evidencePayload?: unknown;
 }) {
   const hindsight = options?.hindsight ?? "ready";
   let reviewPollFailures = options?.reviewPollFailures ?? 0;
@@ -501,7 +502,7 @@ function installFetch(options?: {
       }
       return json({ status: "complete", stage: "complete", error_code: null, created_at: jobCreatedAt, updated_at: jobUpdatedAt, comparison: withComparisonIdentity(options?.comparison) });
     }
-    if (path.endsWith("/evidence")) return json({ decisions });
+    if (path.endsWith("/evidence")) return json(options?.evidencePayload ?? { run_id: "run-1", decisions });
     if (path.endsWith("/feedback") && method === "POST") return json({ id: "fb-1", binding: false }, 201);
     return json({ detail: `unmocked ${method} ${path}` }, 404);
   });
@@ -1831,6 +1832,31 @@ it("shows active and superseded evidence for a design-mismatch finding", async (
   expect(panel.textContent).toContain("PR #42");
   fireEvent.click(within(panel).getByRole("button", { name: "Close evidence" }));
   expect(document.activeElement).toBe(evidenceButton);
+});
+
+it.each([
+  ["non-object payload", []],
+  ["another run", { run_id: "run-other", decisions }],
+  ["non-array decisions", { run_id: "run-1", decisions: {} }],
+  ["non-object decision", { run_id: "run-1", decisions: [null] }],
+  ["another repository", { run_id: "run-1", decisions: [{ ...decisions[0], repository_id: "repo-analytics-service" }, decisions[1]] }],
+  ["missing cited decision", { run_id: "run-1", decisions: [decisions[0]] }],
+  ["unexpected decision", { run_id: "run-1", decisions: [...decisions, { ...decisions[1], id: "DEC-9999" }] }],
+  ["duplicate decision", { run_id: "run-1", decisions: [decisions[0], decisions[0]] }],
+  ["malformed provenance", { run_id: "run-1", decisions: [{ ...decisions[0], source_pr_number: 0 }, decisions[1]] }],
+  ["unconfirmed authority", { run_id: "run-1", decisions: [{ ...decisions[0], authority: "proposed" }, decisions[1]] }],
+])("rejects evidence detail with %s before provenance rendering", async (_label, evidencePayload) => {
+  const fetchMock = installFetch({ evidencePayload });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  await screen.findByRole("heading", { name: /Update order status/ });
+  fireEvent.click(await screen.findByRole("button", { name: "Run CodeDNA Review" }));
+  const team = await screen.findByRole("article", { name: "Direct status write skips the service" });
+  fireEvent.click(within(team).getByRole("button", { name: "View evidence" }));
+  const panel = await screen.findByRole("region", { name: "Finding evidence" });
+  expect(await within(panel).findByText("The evidence response failed provenance validation.")).toBeTruthy();
+  expect(within(panel).queryByText("Shipping workflow")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).endsWith("/evidence"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/feedback"))).toHaveLength(0);
 });
 
 it("contains keyboard focus in feedback and restores the dismiss trigger on Escape", async () => {

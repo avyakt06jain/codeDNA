@@ -74,6 +74,7 @@ CodeDNA separates memory from authority:
 - Validated diff grammar: unsafe paths, binary patches, malformed hunk counts, and addition-free diffs fail closed before display
 - Validated PR catalogs: malformed or duplicate PR identities cannot drive navigation or Memory Lab recovery
 - Validated decision catalogs: malformed, duplicate, off-repository, or self-superseding policies cannot drive Team DNA
+- Validated evidence details: run, repository, source PR, and exact citation-set integrity are required before source links render
 - Safe stale-job recovery that clears a missing locator and restores the latest persisted same-PR result without rerunning providers
 - Read-only same-PR active-job discovery after tab/session loss, before any completed-result fallback
 - Atomic same-PR active-job reuse so simultaneous tabs schedule only one provider task

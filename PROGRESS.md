@@ -127,10 +127,11 @@
 - Full PR ingestion now also rejects empty, binary, addition-free, unsafe-path, over-30-file, missing-header/hunk, malformed-header, and hunk-count-inconsistent unified diffs before the display splitter.
 - Repository PR catalogs now reject malformed rows, unsafe IDs, invalid numbers/titles/timestamps, and duplicate IDs or PR numbers as a whole; Memory Lab clears stale selection before loading and performs no recovery on invalid catalogs.
 - Repository decision catalogs now require route-matching repository identity, safe unique decision IDs, bounded policy text, lifecycle/authority enums, source PR provenance, object scope, and valid non-self supersession before Team DNA selection or detail reads.
+- Review evidence details now require exact run correlation, route-bound decision/source provenance, unique IDs, and exact equality with the review's validated citation set before the evidence panel can render source links.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by validating evidence-detail response correlation before finding provenance rendering.
+- Post-MVP trust hardening continues by validating standalone decision-detail and lineage payloads before evolution rendering.
 
 ## Blocked
 
@@ -154,9 +155,19 @@
 
 ## Next Action
 
-Validate evidence-detail run correlation and decision provenance before finding source links can render.
+Validate standalone decision-detail and lineage correlation before evolution content can replace catalog-trusted policy state.
 
 ## Session Log
+
+### 2026-11-11 — Correlated evidence detail
+
+- Goal: Prevent a malformed or cross-context run-evidence response from rendering partial/fabricated source links.
+- Implemented: the backend evidence contract now returns the full authoritative decision/source shape. The client binds the response to the displayed persisted run, selected repository, strict decision fields, unique decision IDs, and exact equality with all validated citations in that review. Any missing, extra, duplicate, malformed, off-repository, or wrong-run data rejects the whole response; the evidence panel renders only the integrity alert.
+- Focused checks: `npm test -- --run src/ui.test.tsx -t "evidence detail|active and superseded evidence"` → **11 passed, 174 skipped**; `.\.venv\Scripts\python.exe -m pytest backend\tests\test_judge_demo.py -q` → **11 passed**. Cases cover payload/collection shape, run mismatch, repository mismatch, missing/extra/duplicate citations, malformed source provenance, unconfirmed authority, and the valid active/superseded panel.
+- Full checks: `.\.venv\Scripts\python.exe -m pytest backend\tests -q` → **34 passed**; `npm test -- --run` → **205 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 342.06 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: the API was cleanly restarted with `CODEDNA_HINDSIGHT_AUTOSTART=0`; health returned `status=ok`, `hindsight=unavailable`, and `interrupted_jobs=0`. PR #87's latest persisted memory run returned one evidence decision with the exact run ID, Acme repository ID, and source PR number; Review Workspace returned HTTP 200.
+- Provider safety: evidence inspection remains one read-only SQLite/API request and starts no Hindsight/Gemini call or paid usage.
+- Next: validate standalone decision-detail and lineage correlation before evolution content renders.
 
 ### 2026-11-11 — Route-bound decision catalog
 

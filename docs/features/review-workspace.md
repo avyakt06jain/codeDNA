@@ -28,6 +28,8 @@ Repository-list responses must be arrays (directly or under `items`) containing 
 
 Repository PR-list responses likewise reject the whole collection unless every row is an object with a safe bounded ID, positive integer number, bounded non-blank title, optional parseable timestamp, and collection-unique ID/number. Invalid rows cannot populate sidebar, overview, evidence-source labels, or Memory Lab selection.
 
+Opening finding evidence performs a read-only run-evidence request. Its persisted run ID must equal the displayed review; every returned decision must carry the selected repository identity and the strict decision/source shape; IDs must be unique; and the response ID set must exactly equal all validated citations in that review. Missing, extra, duplicate, malformed, or cross-repository records reject the entire response and render no source decision links.
+
 `Run CodeDNA Review` stays disabled until pull-request loading and that recovery sequence have both completed for the exact route PR. Route changes clear the recovery marker before the control can create work. Tests hold latest-result recovery and reused-job polling behind explicit promise gates, proving the control barrier, zero recovery POSTs, and the reattachment announcement without wall-clock delays.
 
 The page exposes one named `Review workspace` region with `aria-busy=true` for that combined load/recovery boundary and `false` after it settles. The visible loading note remains present, while the existing polite/atomic live region is the only element with status semantics for the loading message. This busy state adds no request, focus movement, or provider work.

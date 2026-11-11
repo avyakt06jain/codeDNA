@@ -351,7 +351,8 @@ export function ReviewPage() {
     setEvidenceError("");
     setEvidence([]);
     try {
-      const result = await api.evidence(review.run_id);
+      const expectedDecisionIds = [...new Set(review.findings.flatMap((item) => item.evidence_ids))];
+      const result = await api.evidence(review.run_id, repoId, expectedDecisionIds);
       const ids = new Set(finding.evidence_ids);
       setEvidence(result.decisions.filter((item) => ids.has(item.id)));
     } catch (reason) {

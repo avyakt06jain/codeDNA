@@ -601,7 +601,7 @@ def create_app(
             return {
                 "run_id": run_id,
                 "decisions": [
-                    {"id": item.id, "title": item.title, "rule_text": item.rule_text, "rationale": item.rationale, "status": item.status, "source_pr_id": item.source_pr_id}
+                    _decision_list_item(session, item)
                     for item in decisions_by_id
                     if item is not None
                 ],

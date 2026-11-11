@@ -81,6 +81,27 @@ class DemoModel:
         )
 
 
+class EvidenceModel:
+    provider = "test"
+    model_name = "evidence-model"
+
+    def generate(self, parsed, evidence):
+        return ReviewModelOutput(
+            findings=[
+                CandidateFinding(
+                    file_path="src/orders/update.ts",
+                    new_line=_status_line(),
+                    severity="warning",
+                    category="team_convention",
+                    title="Use the order transition service",
+                    explanation="The validated decision requires the service boundary.",
+                    confidence="high",
+                    evidence_ids=[DECISION_ID],
+                )
+            ]
+        )
+
+
 class RecallClient:
     def recall(self, **kwargs):
         return SimpleNamespace(
@@ -234,6 +255,30 @@ def test_feedback_confirm_as_policy_fails_closed(tmp_path):
     with session_factory(create_database_engine(url))() as session:
         assert session.get(Decision, DECISION_ID).status == "active"
         assert session.get(Decision, SUPERSEDING_DECISION_ID) is None
+
+
+def test_review_evidence_returns_route_bound_decision_provenance(tmp_path):
+    url = f"sqlite:///{tmp_path / 'evidence.sqlite3'}"
+    app = create_app(
+        database_url=url,
+        model_factory=EvidenceModel,
+        memory_client_factory=fake_memory_client,
+    )
+    with session_factory(create_database_engine(url))() as session:
+        document = session.get(MemoryDocument, DOCUMENT_ID)
+        assert document is not None
+        document.ingestion_status = "ready"
+        session.commit()
+    route = endpoints(app)
+    created = route["/api/prs/{pr_id}/reviews"](
+        CANDIDATE_PR_ID, ReviewRequest(memory_enabled=True)
+    )
+    evidence = route["/api/reviews/{run_id}/evidence"](created.run_id)
+    assert evidence["run_id"] == created.run_id
+    assert [item["id"] for item in evidence["decisions"]] == [DECISION_ID]
+    assert evidence["decisions"][0]["repository_id"] == ACME_REPOSITORY_ID
+    assert evidence["decisions"][0]["source_pr_number"] == 42
+    assert evidence["decisions"][0]["authority"] == "reviewer_confirmed"
 
 
 def test_warm_runtime_is_not_started_under_pytest(tmp_path, monkeypatch):
