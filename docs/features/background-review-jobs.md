@@ -20,7 +20,7 @@ Cited validated evidence requires complete fact/document/decision/source-PR/repo
 
 Review Workspace does not begin saved-job polling, active discovery, or latest-result recovery until the fetched pull request's ID and repository ID match the route. Off-route PR payloads cannot use a valid-looking job locator to recover or render state in another repository context.
 
-Before the same recovery boundary, the full PR must carry safe bounded identities, a positive integer number, bounded title/description strings, a diff within 100,000 UTF-8 bytes, and an optional parseable creation timestamp. Malformed metadata cannot unlock a saved locator or active/latest read.
+Before the same recovery boundary, the full PR must carry safe bounded identities, a positive integer number, bounded title/description strings, a diff within 100,000 UTF-8 bytes, and an optional parseable creation timestamp. Its unified diff must also satisfy text-only/file-count/path/header/hunk/count/addition rules. Malformed metadata or grammar cannot unlock a saved locator or active/latest read.
 
 Repository catalog identity is validated before that boundary: malformed rows, unsafe/blank IDs or slugs, blank display names, duplicate IDs, and duplicate slugs reject the complete catalog. A rejected catalog cannot start PR or review-recovery reads.
 
@@ -94,6 +94,7 @@ An HTTP `404` has separate terminal meaning: the saved active-job locator no lon
 - Pull-request route correlation preloads a saved locator and stored result, returns an off-route PR payload, and verifies zero status/active/latest/creation requests.
 - Catalog-integrity regressions preload saved state, then prove malformed identity, duplicate ID, and duplicate slug catalogs cause zero PR/status/active/latest/creation requests.
 - Pull-request payload regressions preload saved state, then reject invalid number/title/description/timestamp and oversized diff values with zero status/active/latest/creation requests.
+- Diff-grammar regressions reject malformed hunk counts, unsafe old/new paths, binary markers, and addition-free diffs before display or recovery.
 - Evaluation-count regressions reject a missing block, negative/non-integer/partial values, and values inconsistent with nested results. Product cases cover active completion plus initial/manual latest-result recovery without rendering numeric claims or replaying work.
 - Component tests inject a transient `503` into each active-job polling flow, observe the reconnecting state, then verify the original job completes after exactly two GETs and zero POSTs.
 - Component tests exhaust four consecutive `503` responses for each page, verify the active locator remains, activate `Check again`, and confirm the original job completes after one additional GET and zero POSTs.

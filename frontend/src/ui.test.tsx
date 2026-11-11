@@ -107,7 +107,7 @@ const diff = [
   "diff --git a/src/orders/update.ts b/src/orders/update.ts",
   "--- a/src/orders/update.ts",
   "+++ b/src/orders/update.ts",
-  "@@ -16,3 +16,4 @@",
+  "@@ -16,2 +16,2 @@",
   " context",
   "-previous",
   "+order.status = next;",
@@ -681,6 +681,9 @@ it.each([
   ["oversized description", { ...validPullRequestPayload, description: "x".repeat(20_001) }],
   ["non-string diff", { ...validPullRequestPayload, diff_text: 42 }],
   ["oversized diff", { ...validPullRequestPayload, diff_text: "x".repeat(100_001) }],
+  ["malformed diff hunk", { ...validPullRequestPayload, diff_text: "--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1 +1 @@\n+new\n" }],
+  ["unsafe diff path", { ...validPullRequestPayload, diff_text: "--- a/../../secret\n+++ b/../../secret\n@@ -0,0 +1 @@\n+x\n" }],
+  ["binary diff", { ...validPullRequestPayload, diff_text: "Binary files a/image.png and b/image.png differ\n" }],
   ["invalid creation time", { ...validPullRequestPayload, created_at: "not-a-date" }],
 ])("rejects a pull request with %s before review recovery", async (_label, pullRequestPayload) => {
   saveActiveJob("review", "pr-acme-87", "job-review");

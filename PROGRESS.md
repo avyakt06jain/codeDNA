@@ -124,10 +124,11 @@
 - Review Workspace now waits for the selected repository catalog entry and requires cited evidence's shared repository slug to match that API-provided slug across initial, active, and manual recovery.
 - Repository catalog ingestion now rejects non-object/malformed rows, unsafe or blank identity fields, and duplicate repository IDs or slugs before they can establish workspace context.
 - Full PR ingestion now rejects unsafe identities, non-positive/fractional numbers, blank or oversized titles, non-string/oversized descriptions, diffs above 100,000 UTF-8 bytes, and malformed optional creation timestamps before display or recovery.
+- Full PR ingestion now also rejects empty, binary, addition-free, unsafe-path, over-30-file, missing-header/hunk, malformed-header, and hunk-count-inconsistent unified diffs before the display splitter.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by validating diff grammar before the permissive display splitter renders it.
+- Post-MVP trust hardening continues by validating repository PR-list summaries before they drive navigation.
 
 ## Blocked
 
@@ -151,9 +152,20 @@
 
 ## Next Action
 
-Reject malformed diff grammar before it can enter Review Workspace's display splitter.
+Validate repository PR-list IDs, numbers, titles, timestamps, and collection identity before navigation.
 
 ## Session Log
+
+### 2026-11-11 — Fail-closed display diff grammar
+
+- Goal: Prevent malformed or unsafe diff text from entering the permissive visual splitter even when its payload type and byte size are valid.
+- Implemented: a display-side unified-diff validator now enforces nonempty text changes, rejects binary markers, caps files at 30, validates old/new headers and both paths, requires hunks with valid headers, reconciles declared source/target counts, and requires at least one added line. Full PR normalization runs it before rendering or any review recovery.
+- Focused check: `npm test -- --run src/diffFiles.test.ts src/ui.test.tsx -t "complete hunk counts|unsafe, binary|pull request with"` → **17 passed, 141 skipped across 2 files**. Product cases cover malformed hunk counts, unsafe paths, and binary diffs with preloaded saved state; parser cases also cover asymmetric unsafe paths and addition-free diffs.
+- Fixture correction: the shared PR #87 UI hunk header was corrected from inconsistent `-16,3 +16,4` counts to the actual two-source/two-target lines; the cited added line remains line 17.
+- Full checks: `.\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **174 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 339.39 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: `GET /api/health` returned `status=ok`, `hindsight=unavailable`, and `interrupted_jobs=0`; the stored PR #87 payload returned a 584-character diff and its Review Workspace route returned HTTP 200. No review or provider request was started.
+- Provider safety: diff validation is local and blocks downstream work; it adds no Hindsight/Gemini call or paid usage.
+- Next: validate repository-scoped PR summary collections before their values drive navigation.
 
 ### 2026-11-11 — Validated pull-request payload
 

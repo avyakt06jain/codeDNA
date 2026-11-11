@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { splitDiff } from "./diffFiles";
+import { isValidUnifiedDiff, splitDiff } from "./diffFiles";
 
 describe("splitDiff", () => {
   it("splits files and counts edits", () => {
@@ -15,5 +15,17 @@ describe("splitDiff", () => {
     const files = splitDiff("--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1,0 +2,1 @@\n+changed();\n");
     expect(files).toHaveLength(1);
     expect(files[0]?.path).toBe("src/a.ts");
+  });
+
+  it("validates complete hunk counts", () => {
+    expect(isValidUnifiedDiff("--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1 +1 @@\n-old\n+new\n")).toBe(true);
+    expect(isValidUnifiedDiff("--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1 +1 @@\n+new\n")).toBe(false);
+  });
+
+  it("rejects unsafe, binary, and addition-free diffs", () => {
+    expect(isValidUnifiedDiff("--- a/../../secret\n+++ b/../../secret\n@@ -0,0 +1 @@\n+x\n")).toBe(false);
+    expect(isValidUnifiedDiff("--- a/../../secret\n+++ b/src/a.ts\n@@ -0,0 +1 @@\n+x\n")).toBe(false);
+    expect(isValidUnifiedDiff("Binary files a/image.png and b/image.png differ\n")).toBe(false);
+    expect(isValidUnifiedDiff("--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1 +0,0 @@\n-old\n")).toBe(false);
   });
 });

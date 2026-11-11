@@ -1,3 +1,5 @@
+import { isValidUnifiedDiff } from "./diffFiles";
+
 export type HindsightState = "starting" | "ready" | "unavailable";
 
 const MAX_PROVIDER_ID_LENGTH = 80;
@@ -978,7 +980,7 @@ function normalizePullRequest(payload: unknown): PullRequest | null {
     || number === undefined || !Number.isInteger(number) || number < 1
     || !title || title.length > MAX_PULL_REQUEST_TITLE_LENGTH
     || description === undefined || description.length > MAX_PULL_REQUEST_DESCRIPTION_LENGTH
-    || diffText === undefined || new TextEncoder().encode(diffText).length > MAX_DIFF_BYTES
+    || diffText === undefined || new TextEncoder().encode(diffText).length > MAX_DIFF_BYTES || !isValidUnifiedDiff(diffText)
     || (payload.created_at != null && createdAt === undefined)) return null;
   return {
     id,

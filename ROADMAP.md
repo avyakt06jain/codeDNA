@@ -202,7 +202,8 @@
 - **Verified:** Cited evidence's shared repository slug must equal the selected repository's API-catalog slug. Review recovery waits for the catalog identity and off-catalog evidence fails closed.
 - **Verified:** Repository catalog rows require safe bounded IDs, lowercase hyphenated slugs, bounded non-blank display names, and collection-wide unique IDs/slugs. A malformed or ambiguous catalog cannot establish Review Workspace context.
 - **Verified:** Full pull-request payloads require safe bounded identities, positive integer number, bounded non-blank title, bounded string description, a diff within the 100,000-byte backend limit, and an optional parseable creation timestamp before rendering or recovery.
-- **Next:** Make Review Workspace reject malformed diff grammar instead of relying on its permissive display splitter.
+- **Verified:** Review Workspace validates unified-diff headers, safe paths, hunk grammar/counts, file count, text-only form, and presence of added lines before its display splitter or recovery runs.
+- **Next:** Validate repository PR-list summaries before their IDs and titles can drive navigation into the full PR boundary.
 
 ## Documentation and version-control policy
 
