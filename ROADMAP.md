@@ -198,7 +198,8 @@
 - **Verified:** Cited single-review evidence requires fact/document/decision/source-PR/repository/bank identifiers plus a positive source PR number. Incomplete provenance cannot ground a rendered policy claim.
 - **Verified:** All cited evidence in one single-review result must agree on repository ID, repository slug, and bank ID. Mixed repository/bank provenance cannot ground rendered policy claims.
 - **Verified:** Cited evidence's shared repository ID must equal the repository selected by the current Review Workspace route. Internally consistent evidence from another repository fails closed.
-- **Next:** Reject a pull-request payload whose authoritative `repository_id` does not match the current route before displaying or recovering review state.
+- **Verified:** Review Workspace requires the fetched pull request's ID and authoritative repository ID to match the route before displaying the diff or beginning saved/active/latest review recovery.
+- **Next:** Bind cited evidence's repository slug to the selected repository catalog entry, complementing route-ID validation without deriving bank IDs in the browser.
 
 ## Documentation and version-control policy
 

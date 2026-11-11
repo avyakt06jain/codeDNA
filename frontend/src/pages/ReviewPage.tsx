@@ -143,23 +143,27 @@ export function ReviewPage() {
       });
     }
 
-    const recovery = savedJobId
-      ? Promise.resolve({ job: { jobId: savedJobId, createdAt: undefined, updatedAt: undefined }, review: null as Review | null })
+    const pullRequest = api.pr(prId, repoId);
+    const recovery = pullRequest.then(() => (savedJobId
+      ? { job: { jobId: savedJobId, createdAt: undefined, updatedAt: undefined }, review: null as Review | null }
       : api.activeJob(prId, "review").then(async (job) => ({
         job,
         review: job ? null : await api.latestReview(prId, repoId, "memory"),
-      }));
+      }))));
 
     const reconcilingCreation = creationUncertainPrId === prId;
     let recoveryRejected = false;
-    Promise.allSettled([api.pr(prId), recovery])
+    let pullRequestRejected = false;
+    Promise.allSettled([pullRequest, recovery])
       .then(([pullRequestResult, recoveryResult]) => {
         if (cancelled) return;
         if (pullRequestResult.status === "fulfilled") {
           setPr(pullRequestResult.value);
         } else {
+          pullRequestRejected = true;
           setPr(null);
           setError(pullRequestResult.reason instanceof Error ? pullRequestResult.reason.message : "Pull request unavailable.");
+          return;
         }
         if (recoveryResult.status === "rejected") {
           recoveryRejected = true;
@@ -185,7 +189,7 @@ export function ReviewPage() {
       .finally(() => {
         if (!cancelled) {
           setLoading(false);
-          if (!reconcilingCreation || !recoveryRejected) setRecoveredPrId(prId);
+          if (!pullRequestRejected && (!reconcilingCreation || !recoveryRejected)) setRecoveredPrId(prId);
         }
       });
     return () => {

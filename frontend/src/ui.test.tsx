@@ -252,6 +252,7 @@ function installFetch(options?: {
   evaluationCaseFailuresAfter?: number;
   evaluationCaseUpdateAfter?: number;
   evaluationCaseDelayMs?: number;
+  pullRequestRepositoryId?: string;
 }) {
   const hindsight = options?.hindsight ?? "ready";
   let reviewPollFailures = options?.reviewPollFailures ?? 0;
@@ -346,7 +347,7 @@ function installFetch(options?: {
     }
     if (path.endsWith("/prs")) return json(prs);
     if (path === "/api/prs/pr-acme-87" && method === "GET") {
-      return json({ ...prs[0], repository_id: "repo-acme-commerce", description: "Sets order status directly.", diff_text: diff });
+      return json({ ...prs[0], repository_id: options?.pullRequestRepositoryId ?? "repo-acme-commerce", description: "Sets order status directly.", diff_text: diff });
     }
     if (path === "/api/prs/pr-acme-87/reviews/latest" && method === "GET") {
       latestReviewReads += 1;
@@ -612,6 +613,23 @@ it("restores the latest memory review after the pull-request page reloads", asyn
   expect(within(team).getByRole("button", { name: "Dismiss" })).toBeTruthy();
   expect(screen.getAllByText("Latest saved review restored").length).toBeGreaterThan(0);
   expect(screen.getAllByRole("status").filter((item) => item.textContent === "Latest saved review restored")).toHaveLength(1);
+});
+
+it("rejects an off-route pull request before recovering review state", async () => {
+  saveActiveJob("review", "pr-acme-87", "job-review");
+  const fetchMock = installFetch({
+    pullRequestRepositoryId: "repo-analytics-service",
+    latestReview: true,
+  });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("The pull request does not belong to this repository.");
+  expect(screen.queryByRole("heading", { name: /Update order status/ })).toBeNull();
+  expect((screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
 it("surfaces an invalid stored review instead of rendering it without correlation", async () => {

@@ -655,6 +655,7 @@ export class PollingUnavailableError extends Error {}
 export class CreationOutcomeUnknownError extends Error {}
 export class InvalidReviewResultError extends Error {}
 export class InvalidComparisonResultError extends Error {}
+export class InvalidPullRequestError extends Error {}
 
 function jobFailure(job: ReviewJob, fallback: string): TerminalJobError {
   const code = job.error_code?.trim();
@@ -685,7 +686,13 @@ export const api = {
   }),
   summary: async (repositoryId: string) => normalizeSummary(await request<unknown>(`/api/repositories/${repositoryId}/summary`)),
   prs: async (repositoryId: string) => unwrapRecords(await request<unknown>(`/api/repositories/${repositoryId}/prs`)).map(normalizePullRequestSummary),
-  pr: async (prId: string) => normalizePullRequest(await request<unknown>(`/api/prs/${prId}`)),
+  pr: async (prId: string, repositoryId: string) => {
+    const pullRequest = normalizePullRequest(await request<unknown>(`/api/prs/${prId}`));
+    if (pullRequest.id !== prId || pullRequest.repository_id !== repositoryId) {
+      throw new InvalidPullRequestError("The pull request does not belong to this repository.");
+    }
+    return pullRequest;
+  },
   decisions: async (repositoryId: string) => unwrapRecords(await request<unknown>(`/api/repositories/${repositoryId}/decisions`)).map(normalizeDecision),
   decision: async (decisionId: string) => normalizeDecision(asRecord(await request<unknown>(`/api/decisions/${decisionId}`))),
   lineage: async (decisionId: string) => normalizeLineage(await request<unknown>(`/api/decisions/${decisionId}/lineage`), decisionId),

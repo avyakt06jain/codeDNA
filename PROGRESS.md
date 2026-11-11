@@ -4,7 +4,7 @@
 
 ## Current State
 
-- Date: 2026-11-10
+- Date: 2026-11-11
 - Phase: G0–G5 MVP gates complete; the evolved judge demo was exercised against a restarted local API.
 - Implementation: The retain → recall → validate → review → feedback → supersede → ablate loop is verified locally against real Hindsight and Gemini. `CODEDNA_DEMO_SCENE=evolved` leaves `DEC-0103` active and `DEC-0042` superseded.
 - Git: `main` is initialized, connected to GitHub, and verified checkpoints are pushed without rewriting published history.
@@ -120,10 +120,11 @@
 - Review Workspace now requires cited validated evidence to carry non-blank fact/document/decision/source-PR/repository/bank identifiers and a positive source PR number. Incomplete provenance fails closed.
 - Review Workspace now rejects cited evidence that disagrees on repository ID, repository slug, or bank ID within one result, including duplicate records for a cited decision.
 - Review Workspace now requires cited evidence's shared repository ID to match the repository selected by the current route. Internally consistent off-route evidence fails closed.
+- Review Workspace now validates the fetched pull request's ID and authoritative repository ID against the route before displaying its diff or starting any saved/active/latest review recovery read.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by correlating the loaded pull request's repository identity with the current route before review recovery.
+- Post-MVP trust hardening continues by binding cited evidence's repository slug to the selected repository catalog entry.
 
 ## Blocked
 
@@ -147,9 +148,20 @@
 
 ## Next Action
 
-Reject pull-request payloads whose authoritative repository identity does not match the current Review Workspace route.
+Bind cited evidence's repository slug to the selected repository catalog entry.
 
 ## Session Log
+
+### 2026-11-11 — Route-bound pull-request recovery
+
+- Goal: Prevent a pull request from another repository from rendering or activating review recovery under the current repository route.
+- Implemented: `api.pr` now requires both returned PR ID and authoritative repository ID to match the requested route context. Review Workspace sequences active/latest/saved-job recovery after that validation, so an off-route payload leaves the run control disabled and performs no job-status, active-discovery, latest-result, or creation request.
+- Corrections: the first focused run caught an unbalanced conditional-expression parenthesis; the second caught an unsupported `toBeDisabled` matcher. Both test-only/development errors were corrected before the passing focused and full runs.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "off-route pull request"` → **1 passed, 132 skipped**. The test preloads a saved job and a stored review, then proves neither recovery path is read.
+- Full checks: `.\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **151 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 336.70 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: `GET /api/health` returned `status=ok`, `hindsight=unavailable`, and `interrupted_jobs=0`; Review Workspace returned HTTP 200. The autostart-disabled processes remained running and no provider work was started.
+- Provider safety: route validation adds no request and blocks provider/recovery work on mismatched context; no Hindsight/Gemini call or paid usage is introduced.
+- Next: compare cited evidence's repository slug with the selected repository catalog entry.
 
 ### 2026-11-10 — Route-bound cited evidence
 
