@@ -440,7 +440,9 @@ def create_app(
                     else None,
                 )
             return {
+                "pr_id": claim.job.pr_id,
                 "job_id": claim.job.id,
+                "kind": claim.job.kind,
                 "status": claim.job.status,
                 "stage": claim.job.stage,
                 "reused": not claim.created,
@@ -532,7 +534,9 @@ def create_app(
                     memory_client_factory=memory_client_factory or shared_memory_client,
                 )
             return {
+                "pr_id": claim.job.pr_id,
                 "job_id": claim.job.id,
+                "kind": claim.job.kind,
                 "status": claim.job.status,
                 "stage": claim.job.stage,
                 "reused": not claim.created,

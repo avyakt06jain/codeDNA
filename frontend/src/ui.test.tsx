@@ -261,11 +261,13 @@ function installFetch(options?: {
   repositoryActiveJobFailures?: number;
   repositoryActiveJobPayload?: unknown;
   reusedReviewStart?: boolean;
+  reviewCreationPayload?: unknown;
   reviewCreationHangs?: boolean;
   reviewCreationClaimVisible?: boolean;
   reviewCreationClaimVisibleAfterActiveRead?: number;
   reviewRecoveryFailureAtActiveRead?: number;
   reusedComparisonStart?: boolean;
+  comparisonCreationPayload?: unknown;
   comparisonCreationHangs?: boolean;
   comparisonCreationClaimVisible?: boolean;
   comparisonCreationClaimVisibleAfterActiveRead?: number;
@@ -481,7 +483,12 @@ function installFetch(options?: {
           init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
         });
       }
-      return json({ job_id: "job-review", status: "queued", stage: "queued", reused: options?.reusedReviewStart === true, created_at: jobCreatedAt, updated_at: jobCreatedAt }, 202);
+      if (options?.reviewCreationPayload !== undefined) {
+        reviewCreationStarted = true;
+        reviewCreationClaimed = options.reviewCreationClaimVisible !== false;
+        return json(options.reviewCreationPayload, 202);
+      }
+      return json({ pr_id: path.split("/")[3], job_id: "job-review", kind: "review", status: "queued", stage: "queued", reused: options?.reusedReviewStart === true, created_at: jobCreatedAt, updated_at: jobCreatedAt }, 202);
     }
     if (path === "/api/review-jobs/job-review") {
       if (options?.reviewPollGate) await options.reviewPollGate;
@@ -514,7 +521,12 @@ function installFetch(options?: {
           init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
         });
       }
-      return json({ job_id: "job-cmp", status: "queued", stage: "queued", reused: options?.reusedComparisonStart === true, created_at: jobCreatedAt, updated_at: jobCreatedAt }, 202);
+      if (options?.comparisonCreationPayload !== undefined) {
+        comparisonCreationStarted = true;
+        comparisonCreationClaimed = options.comparisonCreationClaimVisible !== false;
+        return json(options.comparisonCreationPayload, 202);
+      }
+      return json({ pr_id: path.split("/")[3], job_id: "job-cmp", kind: "comparison", status: "queued", stage: "queued", reused: options?.reusedComparisonStart === true, created_at: jobCreatedAt, updated_at: jobCreatedAt }, 202);
     }
     if (path === "/api/review-jobs/job-cmp") {
       if (options?.comparisonPollGate) await options.comparisonPollGate;
@@ -1323,6 +1335,58 @@ it("reconciles a lost review-creation response through the backend claim", async
   expect(await screen.findByRole("article", { name: "Direct status write skips the service" }, { timeout: 3000 })).toBeTruthy();
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=review"))).toHaveLength(2);
+});
+
+it("rejects a mismatched review-creation response and reattaches through the correlated claim", async () => {
+  let releaseReviewPoll = () => {};
+  const reviewPollGate = new Promise<void>((resolve) => {
+    releaseReviewPoll = resolve;
+  });
+  const fetchMock = installFetch({
+    reviewPollGate,
+    reviewCreationPayload: {
+      pr_id: "pr-acme-120",
+      job_id: "job-wrong",
+      kind: "review",
+      status: "queued",
+      stage: "queued",
+      reused: false,
+      created_at: "2026-10-26T10:00:00Z",
+      updated_at: "2026-10-26T10:00:00Z",
+    },
+  });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const run = screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  try {
+    expect((await screen.findAllByText("Existing review found. Reattached without starting another provider call.")).length).toBeGreaterThan(0);
+  } finally {
+    await act(async () => releaseReviewPoll());
+  }
+  expect(await screen.findByRole("article", { name: "Direct status write skips the service" })).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-wrong"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(1);
+});
+
+it.each([
+  ["missing correlation metadata", { job_id: "job-review" }],
+  ["a non-Boolean reuse flag", { pr_id: "pr-acme-87", job_id: "job-review", kind: "review", status: "queued", stage: "queued", reused: "false", created_at: "2026-10-26T10:00:00Z", updated_at: "2026-10-26T10:00:00Z" }],
+  ["a terminal status", { pr_id: "pr-acme-87", job_id: "job-review", kind: "review", status: "complete", stage: "complete", reused: false, created_at: "2026-10-26T10:00:00Z", updated_at: "2026-10-26T10:00:00Z" }],
+  ["an unsafe stage", { pr_id: "pr-acme-87", job_id: "job-review", kind: "review", status: "queued", stage: "../queued", reused: false, created_at: "2026-10-26T10:00:00Z", updated_at: "2026-10-26T10:00:00Z" }],
+  ["reversed timestamps", { pr_id: "pr-acme-87", job_id: "job-review", kind: "review", status: "queued", stage: "queued", reused: false, created_at: "2026-10-26T10:00:01Z", updated_at: "2026-10-26T10:00:00Z" }],
+])("fails closed when a review-creation response has %s and no correlated claim", async (_case, payload) => {
+  const fetchMock = installFetch({ reviewCreationPayload: payload, reviewCreationClaimVisible: false });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const run = screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("The review creation response was lost and no active job is visible yet.");
+  expect(run.disabled).toBe(true);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(0);
 });
 
 it("fails closed, then reconciles a lost review creation through GET-only status", async () => {
@@ -3044,6 +3108,46 @@ it("announces when starting a comparison reuses existing provider work", async (
   }
   expect(await screen.findByText("Guardrails passed")).toBeTruthy();
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+});
+
+it("rejects a cross-kind comparison-creation response and reattaches through the correlated claim", async () => {
+  let releaseComparisonPoll = () => {};
+  const comparisonPollGate = new Promise<void>((resolve) => {
+    releaseComparisonPoll = resolve;
+  });
+  const comparison = {
+    evaluation: { passed: true, checks: comparisonChecks(), counts: { memory_findings: 1 } },
+    memory: { run_id: "run-correlated-memory", status: "complete", mode: "memory", findings: [teamFinding], retrieval: {} },
+    baseline: { run_id: "run-correlated-baseline", status: "complete", mode: "baseline", findings: [generalFinding], retrieval: {} },
+  };
+  const fetchMock = installFetch({
+    comparison,
+    comparisonPollGate,
+    comparisonCreationPayload: {
+      pr_id: "pr-acme-87",
+      job_id: "job-wrong",
+      kind: "review",
+      status: "queued",
+      stage: "queued",
+      reused: false,
+      created_at: "2026-10-26T10:00:00Z",
+      updated_at: "2026-10-26T10:00:00Z",
+    },
+  });
+  renderAt("/repos/repo-acme-commerce/lab");
+  await screen.findByRole("option", { name: /Update order status/ });
+  const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  try {
+    expect((await screen.findAllByText("Existing comparison found. Reattached without starting either provider branch.")).length).toBeGreaterThan(0);
+  } finally {
+    await act(async () => releaseComparisonPoll());
+  }
+  expect(await screen.findByText("Guardrails passed")).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-wrong"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(1);
 });
 
 it("reconciles a lost comparison creation through an explicit GET-only check", async () => {

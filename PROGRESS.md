@@ -4,7 +4,7 @@
 
 ## Current State
 
-- Date: 2026-11-11
+- Date: 2026-11-12
 - Phase: G0–G5 MVP gates complete; the evolved judge demo was exercised against a restarted local API.
 - Implementation: The retain → recall → validate → review → feedback → supersede → ablate loop is verified locally against real Hindsight and Gemini. `CODEDNA_DEMO_SCENE=evolved` leaves `DEC-0103` active and `DEC-0042` superseded.
 - Git: `main` is initialized, connected to GitHub, and verified checkpoints are pushed without rewriting published history.
@@ -134,10 +134,11 @@
 - Repository active-work summaries now fail closed as one catalog unless every row matches the requested repository, has valid bounded PR/job/stage/timestamp state, and preserves unique job, PR-kind claim, and PR-number identity.
 - Application-health responses now fail closed unless healthy app status, memory configuration, Hindsight state, and a safe interrupted-job count form one complete consistent contract; invalid reads preserve only prior trusted observation and close the memory gate.
 - Same-PR active-job discovery now requires exact requested PR/kind correlation and either a fully explicit empty state or a valid queued/running locator with safe stage and chronological timestamps before browser persistence or polling.
+- Review/comparison creation responses now repeat backend-owned PR/kind identity and are accepted only with a valid job ID, Boolean reuse flag, active status, safe stage, and chronological timestamps. Rejected responses reconcile through exact-PR/kind GETs and cannot seed session storage, wrong-ID polling, or a replacement POST.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by making review/comparison creation responses fail closed before a returned locator is persisted.
+- Post-MVP trust hardening continues by correlating individual background-job status responses before accepting progress or terminal results.
 
 ## Blocked
 
@@ -161,9 +162,19 @@
 
 ## Next Action
 
-Reject malformed review/comparison creation responses before storing and polling their locators.
+Require every review/comparison status response to repeat and match the requested job ID, PR ID, and job kind before accepting its stage, failure, or result payload.
 
 ## Session Log
+
+### 2026-11-12 — Correlated job-creation responses
+
+- Goal: Prevent a malformed or cross-request creation response from becoming a persisted browser locator or wrong-job poll.
+- Files: `backend/src/codedna_memory/api.py`, `backend/tests/test_judge_demo.py`, `frontend/src/api.ts`, `frontend/src/ui.test.tsx`, and living documentation.
+- Implemented: both queue endpoints now repeat backend-owned `pr_id` and `kind`. The client requires exact PR/kind correlation plus a bounded job ID, Boolean `reused`, queued/running status, safe bounded stage, and parseable chronological timestamps. Any invalid response is treated as an ambiguous accepted request: the client performs only bounded exact-PR/kind active-claim GETs, reattaches a valid claim, and otherwise keeps creation uncertain without polling the untrusted ID or sending another POST.
+- Focused checks: backend queue contract **11 passed**; frontend creation/correlation and affected catalog cases **10 passed**. The initial focused run exposed missing poll gates in two new announcement tests; deterministic gates and a valid comparison fixture corrected the tests. The first full frontend run then exposed hard-coded PR identity in the mock creation contract for held-out PR #120; deriving mock identity from the request path corrected that regression.
+- Full checks: `.venv\Scripts\python.exe -m pytest backend\tests -q` → **34 passed**; `npm --prefix frontend test -- --run` → **306 passed across 5 files**; `npm --prefix frontend run build` → **PASS**, 40 modules, 347.07 kB JavaScript and 16.43 kB CSS before gzip. No provider call was made.
+- Live check: the existing local API returned healthy/configured with Hindsight intentionally unavailable and zero interrupted jobs; Review Workspace returned HTTP 200. Creation was not invoked against the live provider-disabled process.
+- Next: correlate individual status envelopes to job, PR, and kind before accepting progress or terminal results.
 
 ### 2026-11-12 — Correlated same-PR active discovery
 

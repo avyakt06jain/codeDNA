@@ -212,7 +212,8 @@
 - **Verified:** Repository active-job summaries fail closed as one catalog unless every row matches the requested repository, has valid bounded PR/job/stage/timestamp state, and preserves unique job, PR-kind claim, and PR-number identity.
 - **Verified:** Application-health responses fail closed unless application status, memory configuration, Hindsight state, and interrupted-job count form one complete consistent contract; invalid reads close the memory gate and preserve only prior trusted state.
 - **Verified:** Same-PR active-job discovery fails closed unless the response exactly matches requested PR/kind and presents either a fully explicit empty state or a valid active locator/status/stage/timestamp state.
-- **Next:** Make review/comparison creation responses fail closed on malformed job state before storing and polling their locators.
+- **Verified:** Review/comparison creation responses repeat the backend-owned PR and job kind and must contain a valid job ID, Boolean reuse signal, queued/running status, safe bounded stage, and chronological UTC timestamps before the browser stores or polls a locator. Invalid or mismatched responses enter the same GET-only claim reconciliation as a lost response and never trigger a second POST.
+- **Next:** Correlate every background-job status response to the requested job, PR, and kind before accepting stage, failure, or result state.
 
 ## Documentation and version-control policy
 

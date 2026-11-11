@@ -785,6 +785,7 @@ export class InvalidEvaluationCatalogError extends Error {}
 export class InvalidActiveJobCatalogError extends Error {}
 export class InvalidHealthResponseError extends Error {}
 export class InvalidActiveJobResponseError extends Error {}
+export class InvalidJobCreationResponseError extends Error {}
 
 function jobFailure(job: ReviewJob, fallback: string): TerminalJobError {
   const code = job.error_code?.trim();
@@ -804,6 +805,27 @@ async function reconcileTimedOutCreation(prId: string, kind: "review" | "compari
   throw new CreationOutcomeUnknownError(
     `The ${kind} creation response was lost and no active job is visible yet. Use Check creation status before trying again.`,
   );
+}
+
+function normalizeStartedJob(
+  payload: unknown,
+  expectedPrId: string,
+  expectedKind: "review" | "comparison",
+): StartedJob {
+  if (!isRecord(payload) || payload.pr_id !== expectedPrId || payload.kind !== expectedKind) {
+    throw new InvalidJobCreationResponseError("The job creation response failed correlation validation.");
+  }
+  const jobId = jobIdFrom(payload.job_id);
+  const status = payload.status === "queued" || payload.status === "running" ? payload.status : null;
+  const stage = asString(payload.stage)?.trim();
+  const createdAt = normalizeJobTimestamp(payload.created_at);
+  const updatedAt = normalizeJobTimestamp(payload.updated_at);
+  if (!jobId || typeof payload.reused !== "boolean" || !status
+    || !stage || stage.length > MAX_JOB_STAGE_LENGTH || !SAFE_JOB_STAGE.test(stage)
+    || !createdAt || !updatedAt || Date.parse(updatedAt) < Date.parse(createdAt)) {
+    throw new InvalidJobCreationResponseError("The job creation response failed correlation validation.");
+  }
+  return { jobId, reused: payload.reused, createdAt, updatedAt };
 }
 
 export const api = {
@@ -871,9 +893,9 @@ export const api = {
     );
   },
   async startReview(prId: string, memoryEnabled: boolean) {
-    let created: ReviewJob & { reused?: boolean };
+    let created: unknown;
     try {
-      created = await requestCreation<ReviewJob & { reused?: boolean }>(`/api/prs/${prId}/review-jobs`, {
+      created = await requestCreation<unknown>(`/api/prs/${prId}/review-jobs`, {
         method: "POST",
         body: JSON.stringify({ memory_enabled: memoryEnabled }),
       });
@@ -881,9 +903,12 @@ export const api = {
       if (reason instanceof CreationResponseTimeoutError) return reconcileTimedOutCreation(prId, "review");
       throw reason;
     }
-    const jobId = jobIdFrom(created.job_id || created.id);
-    if (!jobId) throw new Error("The review did not return a job.");
-    return { jobId, reused: created.reused === true, ...jobTimingFrom(created) } satisfies StartedJob;
+    try {
+      return normalizeStartedJob(created, prId, "review");
+    } catch (reason) {
+      if (reason instanceof InvalidJobCreationResponseError) return reconcileTimedOutCreation(prId, "review");
+      throw reason;
+    }
   },
   async reviewJob(jobId: string, expectedPrId: string, expectedRepositoryId: string, expectedRepositorySlug: string, expectedMode: "memory" | "baseline" | undefined, onStage?: (stage: string) => void, shouldContinue?: () => boolean, onTiming?: (timing: JobTiming) => void) {
     let job: (ReviewJob & Record<string, unknown>) | null;
@@ -926,16 +951,19 @@ export const api = {
     return { id: String(row.id ?? ""), binding: row.binding === true };
   },
   async startComparison(prId: string) {
-    let created: ReviewJob & Record<string, unknown>;
+    let created: unknown;
     try {
-      created = await requestCreation<ReviewJob & Record<string, unknown>>(`/api/prs/${prId}/comparison`, { method: "POST" });
+      created = await requestCreation<unknown>(`/api/prs/${prId}/comparison`, { method: "POST" });
     } catch (reason) {
       if (reason instanceof CreationResponseTimeoutError) return reconcileTimedOutCreation(prId, "comparison");
       throw reason;
     }
-    const jobId = jobIdFrom(created.job_id || created.id);
-    if (!jobId) throw new Error("The comparison did not return a job.");
-    return { jobId, reused: created.reused === true, ...jobTimingFrom(created) } satisfies StartedJob;
+    try {
+      return normalizeStartedJob(created, prId, "comparison");
+    } catch (reason) {
+      if (reason instanceof InvalidJobCreationResponseError) return reconcileTimedOutCreation(prId, "comparison");
+      throw reason;
+    }
   },
   async comparisonJob(jobId: string, expectedPrId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean, onTiming?: (timing: JobTiming) => void) {
     let job: (ReviewJob & Record<string, unknown>) | null;

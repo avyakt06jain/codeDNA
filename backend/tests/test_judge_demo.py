@@ -448,6 +448,8 @@ def test_queue_endpoints_reuse_active_jobs_and_schedule_once(tmp_path):
         repeated_review_tasks,
     )
     assert first_review["job_id"] == repeated_review["job_id"]
+    assert first_review["pr_id"] == repeated_review["pr_id"] == CANDIDATE_PR_ID
+    assert first_review["kind"] == repeated_review["kind"] == "review"
     assert first_review["reused"] is False
     assert repeated_review["reused"] is True
     assert first_review["created_at"].endswith("Z")
@@ -475,6 +477,8 @@ def test_queue_endpoints_reuse_active_jobs_and_schedule_once(tmp_path):
         repeated_comparison_tasks,
     )
     assert first_comparison["job_id"] == repeated_comparison["job_id"]
+    assert first_comparison["pr_id"] == repeated_comparison["pr_id"] == CANDIDATE_PR_ID
+    assert first_comparison["kind"] == repeated_comparison["kind"] == "comparison"
     assert first_comparison["reused"] is False
     assert repeated_comparison["reused"] is True
     assert first_comparison["created_at"].endswith("Z")
