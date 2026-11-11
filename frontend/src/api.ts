@@ -779,6 +779,7 @@ export class InvalidEvidenceResponseError extends Error {}
 export class InvalidDecisionDetailError extends Error {}
 export class InvalidLineageError extends Error {}
 export class InvalidRepositorySummaryError extends Error {}
+export class InvalidEvaluationCatalogError extends Error {}
 
 function jobFailure(job: ReviewJob, fallback: string): TerminalJobError {
   const code = job.error_code?.trim();
@@ -803,10 +804,7 @@ async function reconcileTimedOutCreation(prId: string, kind: "review" | "compari
 export const api = {
   health: async (signal?: AbortSignal) => normalizeHealth(await request<unknown>("/api/health", { signal })),
   repositories: async () => normalizeRepositoryCatalog(await request<unknown>("/api/repositories")),
-  evaluationCases: async () => unwrapRecords(await request<unknown>("/api/evaluation-cases")).flatMap((row) => {
-    const item = normalizeEvaluationCase(row);
-    return item ? [item] : [];
-  }),
+  evaluationCases: async () => normalizeEvaluationCatalog(await request<unknown>("/api/evaluation-cases")),
   summary: async (repositoryId: string) => normalizeSummary(
     await request<unknown>(`/api/repositories/${repositoryId}/summary`), repositoryId,
   ),
@@ -1026,23 +1024,35 @@ function normalizeEvaluationCase(raw: Record<string, unknown>): EvaluationCase |
   const candidatePrNumber = asNumber(raw.candidate_pr_number);
   const decisionId = asString(raw.decision_id)?.trim();
   const decisionStatus = asString(raw.decision_status)?.trim();
-  if (!repositoryId || !repositoryName || !sourcePrId || !sourcePrNumber || !candidatePrId || !candidatePrNumber || !decisionId || !decisionStatus) return null;
+  if (!repositoryId || repositoryId.length > MAX_REPOSITORY_ID_LENGTH || !SAFE_REPOSITORY_ID.test(repositoryId)
+    || !repositoryName || repositoryName.length > MAX_REPOSITORY_NAME_LENGTH
+    || !sourcePrId || sourcePrId.length > MAX_PULL_REQUEST_ID_LENGTH || !SAFE_REPOSITORY_ID.test(sourcePrId)
+    || sourcePrNumber === undefined || !Number.isInteger(sourcePrNumber) || sourcePrNumber < 1
+    || !candidatePrId || candidatePrId.length > MAX_PULL_REQUEST_ID_LENGTH || !SAFE_REPOSITORY_ID.test(candidatePrId)
+    || candidatePrNumber === undefined || !Number.isInteger(candidatePrNumber) || candidatePrNumber < 1
+    || sourcePrId === candidatePrId || sourcePrNumber === candidatePrNumber
+    || !decisionId || decisionId.length > MAX_DECISION_ID_LENGTH || !SAFE_REPOSITORY_ID.test(decisionId)
+    || decisionStatus !== "active") return null;
 
+  if (raw.latest_evaluation != null && !isRecord(raw.latest_evaluation)) return null;
   const evaluation = isRecord(raw.latest_evaluation) ? raw.latest_evaluation : null;
   let latestEvaluation: EvaluationCase["latest_evaluation"] = null;
   if (evaluation) {
     const jobId = jobIdFrom(evaluation.job_id);
     const passedChecks = asNumber(evaluation.passed_checks);
     const totalChecks = asNumber(evaluation.total_checks);
-    if (jobId && typeof evaluation.passed === "boolean" && passedChecks !== undefined && totalChecks !== undefined && passedChecks >= 0 && totalChecks > 0 && passedChecks <= totalChecks) {
-      latestEvaluation = {
-        job_id: jobId,
-        passed: evaluation.passed,
-        passed_checks: passedChecks,
-        total_checks: totalChecks,
-        updated_at: normalizeJobTimestamp(evaluation.updated_at),
-      };
-    }
+    const updatedAt = normalizeJobTimestamp(evaluation.updated_at);
+    if (!jobId || typeof evaluation.passed !== "boolean"
+      || passedChecks === undefined || !Number.isInteger(passedChecks) || passedChecks < 0
+      || totalChecks !== 6 || passedChecks > totalChecks
+      || evaluation.passed !== (passedChecks === totalChecks) || !updatedAt) return null;
+    latestEvaluation = {
+      job_id: jobId,
+      passed: evaluation.passed,
+      passed_checks: passedChecks,
+      total_checks: totalChecks,
+      updated_at: updatedAt,
+    };
   }
   return {
     repository_id: repositoryId,
@@ -1055,6 +1065,29 @@ function normalizeEvaluationCase(raw: Record<string, unknown>): EvaluationCase |
     decision_status: decisionStatus,
     latest_evaluation: latestEvaluation,
   };
+}
+
+function normalizeEvaluationCatalog(payload: unknown): EvaluationCase[] {
+  const rows = Array.isArray(payload)
+    ? payload
+    : isRecord(payload) && Array.isArray(payload.items) ? payload.items : null;
+  if (!rows || !rows.every(isRecord)) {
+    throw new InvalidEvaluationCatalogError("The evaluation fixture catalog failed identity validation.");
+  }
+  const cases = rows.map(normalizeEvaluationCase);
+  if (cases.some((item) => item === null)) {
+    throw new InvalidEvaluationCatalogError("The evaluation fixture catalog failed identity validation.");
+  }
+  const valid = cases as EvaluationCase[];
+  const candidateIds = valid.map((item) => item.candidate_pr_id);
+  const candidateNumbers = valid.map((item) => `${item.repository_id}:${item.candidate_pr_number}`);
+  const jobIds = valid.flatMap((item) => item.latest_evaluation ? [item.latest_evaluation.job_id] : []);
+  if (new Set(candidateIds).size !== candidateIds.length
+    || new Set(candidateNumbers).size !== candidateNumbers.length
+    || new Set(jobIds).size !== jobIds.length) {
+    throw new InvalidEvaluationCatalogError("The evaluation fixture catalog failed identity validation.");
+  }
+  return valid;
 }
 
 function normalizeSummary(payload: unknown, repositoryId: string): Summary {

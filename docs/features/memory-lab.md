@@ -19,6 +19,8 @@ Both nested reviews must carry IDs that pass the bounded `review-...` or `run-..
 
 ## Labeled cases
 
+The fixture catalog is fail closed as a collection. Rows require bounded safe repository/source/candidate/decision identity, distinct positive source/candidate PRs, active decision status, and either no stored result or one complete six-guardrail result whose Boolean outcome matches its counts and whose timestamp is valid UTC. Candidate IDs, repository-scoped candidate numbers, and stored job IDs are unique. A bad initial response renders no cases; a failed refresh preserves only the prior validated catalog as last-known-good.
+
 - Acme Commerce: historical PR #103 → held-out PR #120 → active `DEC-0103`.
 - Analytics Service: historical PR #11 → held-out PR #29 → active `DEC-0211`.
 

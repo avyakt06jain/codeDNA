@@ -77,6 +77,7 @@ CodeDNA separates memory from authority:
 - Validated evidence details: run, repository, source PR, and exact citation-set integrity are required before source links render
 - Validated policy evolution: decision detail, memory status, lineage identity, ordering, and predecessor links fail closed
 - Validated repository summaries: aggregate counts render only after route and PR/decision catalog correlation
+- Validated evaluation fixtures: malformed, contradictory, or duplicate cases cannot partially populate Memory Lab
 - Safe stale-job recovery that clears a missing locator and restores the latest persisted same-PR result without rerunning providers
 - Read-only same-PR active-job discovery after tab/session loss, before any completed-result fallback
 - Atomic same-PR active-job reuse so simultaneous tabs schedule only one provider task

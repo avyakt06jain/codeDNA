@@ -265,6 +265,7 @@ function installFetch(options?: {
   decisionDetailPayload?: unknown;
   lineagePayload?: unknown;
   summaryPayload?: unknown;
+  evaluationCasePayload?: unknown;
 }) {
   const hindsight = options?.hindsight ?? "ready";
   let reviewPollFailures = options?.reviewPollFailures ?? 0;
@@ -305,6 +306,7 @@ function installFetch(options?: {
     })));
     if (path === "/api/evaluation-cases") {
       evaluationCaseReads += 1;
+      if (options?.evaluationCasePayload !== undefined) return json(options.evaluationCasePayload);
       if (options?.evaluationCaseDelayMs) await new Promise((resolve) => setTimeout(resolve, options.evaluationCaseDelayMs));
       if (evaluationCaseFailures > 0 && evaluationCaseReads > (options?.evaluationCaseFailuresAfter ?? 0)) {
         evaluationCaseFailures -= 1;
@@ -2527,6 +2529,33 @@ it("makes both recorded held-out evaluation fixtures inspectable in Memory Lab",
     "/repos/repo-acme-commerce/lab?case=pr-acme-120",
     "/repos/repo-analytics-service/lab?case=pr-analytics-29",
   ]);
+});
+
+it.each([
+  ["non-array payload", {}],
+  ["non-object row", [null]],
+  ["unsafe repository ID", [{ ...evaluationCases[0], repository_id: "repo acme" }]],
+  ["blank repository name", [{ ...evaluationCases[0], repository_name: " " }]],
+  ["unsafe source PR", [{ ...evaluationCases[0], source_pr_id: "pr acme 103" }]],
+  ["invalid source number", [{ ...evaluationCases[0], source_pr_number: -1 }]],
+  ["same source and candidate", [{ ...evaluationCases[0], source_pr_id: "pr-acme-120", source_pr_number: 120 }]],
+  ["unsafe decision ID", [{ ...evaluationCases[0], decision_id: "DEC 0103" }]],
+  ["non-active decision", [{ ...evaluationCases[0], decision_status: "superseded" }]],
+  ["non-object stored result", [{ ...evaluationCases[0], latest_evaluation: "recorded" }]],
+  ["non-Boolean outcome", [{ ...evaluationCases[0], latest_evaluation: { ...evaluationCases[0]!.latest_evaluation, passed: "yes" } }]],
+  ["fractional guardrail count", [{ ...evaluationCases[0], latest_evaluation: { ...evaluationCases[0]!.latest_evaluation, passed_checks: 5.5 } }]],
+  ["incomplete guardrail total", [{ ...evaluationCases[0], latest_evaluation: { ...evaluationCases[0]!.latest_evaluation, total_checks: 5 } }]],
+  ["contradictory outcome", [{ ...evaluationCases[0], latest_evaluation: { ...evaluationCases[0]!.latest_evaluation, passed: false } }]],
+  ["invalid result timestamp", [{ ...evaluationCases[0], latest_evaluation: { ...evaluationCases[0]!.latest_evaluation, updated_at: "not-a-date" } }]],
+  ["duplicate candidate ID", [evaluationCases[0], { ...evaluationCases[1], candidate_pr_id: evaluationCases[0]!.candidate_pr_id }]],
+  ["duplicate repository candidate number", [evaluationCases[0], { ...evaluationCases[1], repository_id: evaluationCases[0]!.repository_id, candidate_pr_number: evaluationCases[0]!.candidate_pr_number }]],
+  ["duplicate stored job", [evaluationCases[0], { ...evaluationCases[1], latest_evaluation: { ...evaluationCases[1]!.latest_evaluation, job_id: evaluationCases[0]!.latest_evaluation.job_id } }]],
+])("rejects an evaluation fixture catalog with %s as a whole", async (_label, evaluationCasePayload) => {
+  const fetchMock = installFetch({ evaluationCasePayload });
+  renderAt("/repos/repo-acme-commerce/lab");
+  expect(await screen.findByText("Fixture catalog unavailable: The evaluation fixture catalog failed identity validation.")).toBeTruthy();
+  expect(screen.queryByRole("link", { name: /Open case:/ })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
 it("opens a recorded fixture on its held-out candidate without starting work", async () => {

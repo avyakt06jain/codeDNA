@@ -130,10 +130,11 @@
 - Review evidence details now require exact run correlation, route-bound decision/source provenance, unique IDs, and exact equality with the review's validated citation set before the evidence panel can render source links.
 - Standalone decision detail and lineage now require requested ID/repository correlation, strict memory metadata, unique ordered predecessor links, nondecreasing effective time, and at most one active policy before evolution content renders.
 - Repository summaries now require route identity, bounded repository fields, non-negative integer counts, a valid decision subtotal/Hindsight state, and exact correlation with validated PR/decision catalogs before Overview aggregate rendering; Team DNA derives safe lifecycle counts when summary validation fails.
+- Evaluation fixtures now fail closed as one catalog unless every row has safe distinct source/candidate identity, active decision provenance, an optional internally consistent six-guardrail result, and collection-unique candidate/job identity; malformed refreshes cannot replace last-known-good rows.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by making the evaluation-case catalog fail closed as a complete fixture set.
+- Post-MVP trust hardening continues by making repository active-job summaries fail closed as a complete observable-work set.
 
 ## Blocked
 
@@ -157,9 +158,19 @@
 
 ## Next Action
 
-Reject malformed, duplicate, or cross-repository evaluation cases as a whole before Memory Lab fixture navigation renders.
+Reject malformed, duplicate, or cross-repository active-job summary rows as a whole before Overview work navigation renders.
 
 ## Session Log
+
+### 2026-11-11 — Fail-closed evaluation fixture catalog
+
+- Goal: Prevent a malformed or ambiguous held-out case from being silently dropped while the remaining catalog appears authoritative.
+- Implemented: evaluation-case responses now require a direct/wrapped object array. Every row validates bounded repository/source/candidate/decision identity, distinct positive source/candidate PRs, active decision status, and either null stored result or a complete six-guardrail result with integer counts, consistent outcome, valid job ID, and UTC timestamp. Candidate IDs, repository-scoped candidate numbers, and stored job IDs are unique across the full response; one violation rejects the whole refresh while existing last-known-good recovery remains intact.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "evaluation fixture catalog|held-out evaluation fixtures"` → **19 passed, 214 skipped**. Cases cover collection/row shape, identity and PR provenance, decision state, stored-result shape/count/outcome/time, and duplicate candidate/job identity, plus the valid two-case catalog.
+- Regression checks: `.venv\Scripts\python.exe -m pytest backend\tests -q` → **34 passed**; `npm test -- --run` → **253 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 344.79 kB JavaScript and 16.43 kB CSS before gzip.
+- Live check: `/api/health` returned `status: ok`, the catalog returned both distinct synthetic repositories with distinct candidate/job identities and persisted **6/6** results, and `/memory-lab` returned HTTP 200. Hindsight remained truthfully `unavailable`; no provider startup was attempted.
+- Provider safety: catalog validation is local and the fetch remains GET-only; no comparison, Hindsight/Gemini call, or paid usage starts.
+- Next: make repository active-job summaries fail closed on malformed or ambiguous rows.
 
 ### 2026-11-11 — Correlated repository summary
 
