@@ -2,6 +2,11 @@ export type HindsightState = "starting" | "ready" | "unavailable";
 
 const MAX_PROVIDER_ID_LENGTH = 80;
 const MAX_MODEL_ID_LENGTH = 160;
+const MAX_REPOSITORY_ID_LENGTH = 160;
+const MAX_REPOSITORY_SLUG_LENGTH = 160;
+const MAX_REPOSITORY_NAME_LENGTH = 200;
+const SAFE_REPOSITORY_ID = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+const SAFE_REPOSITORY_SLUG = /^[a-z0-9][a-z0-9-]*$/;
 const FINDING_CATEGORIES = new Set(["general", "team_convention"]);
 const FINDING_SEVERITIES = new Set(["info", "warning", "error"]);
 const FINDING_CONFIDENCES = new Set(["low", "medium", "high"]);
@@ -658,6 +663,7 @@ export class CreationOutcomeUnknownError extends Error {}
 export class InvalidReviewResultError extends Error {}
 export class InvalidComparisonResultError extends Error {}
 export class InvalidPullRequestError extends Error {}
+export class InvalidRepositoryCatalogError extends Error {}
 
 function jobFailure(job: ReviewJob, fallback: string): TerminalJobError {
   const code = job.error_code?.trim();
@@ -681,7 +687,7 @@ async function reconcileTimedOutCreation(prId: string, kind: "review" | "compari
 
 export const api = {
   health: async (signal?: AbortSignal) => normalizeHealth(await request<unknown>("/api/health", { signal })),
-  repositories: async () => unwrapRecords(await request<unknown>("/api/repositories")).map(normalizeRepository),
+  repositories: async () => normalizeRepositoryCatalog(await request<unknown>("/api/repositories")),
   evaluationCases: async () => unwrapRecords(await request<unknown>("/api/evaluation-cases")).flatMap((row) => {
     const item = normalizeEvaluationCase(row);
     return item ? [item] : [];
@@ -856,14 +862,33 @@ function normalizeHealth(payload: unknown): Health {
   };
 }
 
-function normalizeRepository(raw: Record<string, unknown>): Repository {
-  const id = String(raw.id ?? "");
-  const slug = String(raw.slug ?? "");
-  return {
-    id,
-    slug,
-    display_name: String(raw.display_name ?? slug ?? id ?? "Repository"),
-  };
+function normalizeRepository(raw: Record<string, unknown>): Repository | null {
+  const id = asString(raw.id)?.trim();
+  const slug = asString(raw.slug)?.trim();
+  const displayName = asString(raw.display_name)?.trim();
+  if (!id || id.length > MAX_REPOSITORY_ID_LENGTH || !SAFE_REPOSITORY_ID.test(id)
+    || !slug || slug.length > MAX_REPOSITORY_SLUG_LENGTH || !SAFE_REPOSITORY_SLUG.test(slug)
+    || !displayName || displayName.length > MAX_REPOSITORY_NAME_LENGTH) return null;
+  return { id, slug, display_name: displayName };
+}
+
+function normalizeRepositoryCatalog(payload: unknown): Repository[] {
+  const rows = Array.isArray(payload)
+    ? payload
+    : isRecord(payload) && Array.isArray(payload.items) ? payload.items : null;
+  if (!rows || !rows.every(isRecord)) {
+    throw new InvalidRepositoryCatalogError("The repository catalog failed identity validation.");
+  }
+  const repositories = rows.map(normalizeRepository);
+  if (repositories.some((repository) => repository === null)) {
+    throw new InvalidRepositoryCatalogError("The repository catalog failed identity validation.");
+  }
+  const valid = repositories as Repository[];
+  if (new Set(valid.map((repository) => repository.id)).size !== valid.length
+    || new Set(valid.map((repository) => repository.slug)).size !== valid.length) {
+    throw new InvalidRepositoryCatalogError("The repository catalog failed identity validation.");
+  }
+  return valid;
 }
 
 function normalizeEvaluationCase(raw: Record<string, unknown>): EvaluationCase | null {

@@ -254,6 +254,7 @@ function installFetch(options?: {
   evaluationCaseDelayMs?: number;
   pullRequestRepositoryId?: string;
   repositorySlug?: string;
+  repositoryCatalog?: unknown;
 }) {
   const hindsight = options?.hindsight ?? "ready";
   let reviewPollFailures = options?.reviewPollFailures ?? 0;
@@ -288,7 +289,7 @@ function installFetch(options?: {
       if (options?.healthGate) await options.healthGate;
       return json({ status: "ok", memory: "configured", hindsight, interrupted_jobs: options?.interruptedJobs ?? 0 });
     }
-    if (path === "/api/repositories") return json(repositories.map((repository) => ({
+    if (path === "/api/repositories") return json(options?.repositoryCatalog ?? repositories.map((repository) => ({
       ...repository,
       slug: options?.repositorySlug ?? repository.slug,
     })));
@@ -630,6 +631,30 @@ it("rejects an off-route pull request before recovering review state", async () 
   expect(alert.textContent).toContain("The pull request does not belong to this repository.");
   expect(screen.queryByRole("heading", { name: /Update order status/ })).toBeNull();
   expect((screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
+it.each([
+  ["malformed identity", [{ id: " ", slug: "acme-commerce", display_name: "Acme Commerce" }]],
+  ["duplicate repository ID", [
+    { id: "repo-acme-commerce", slug: "acme-commerce", display_name: "Acme Commerce" },
+    { id: "repo-acme-commerce", slug: "acme-copy", display_name: "Acme Copy" },
+  ]],
+  ["duplicate repository slug", [
+    { id: "repo-acme-commerce", slug: "acme-commerce", display_name: "Acme Commerce" },
+    { id: "repo-acme-copy", slug: "acme-commerce", display_name: "Acme Copy" },
+  ]],
+])("rejects a repository catalog with %s before review recovery", async (_label, repositoryCatalog) => {
+  saveActiveJob("review", "pr-acme-87", "job-review");
+  const fetchMock = installFetch({ repositoryCatalog, latestReview: true });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  expect((await screen.findAllByText("The repository catalog failed identity validation.")).length).toBeGreaterThan(0);
+  expect(screen.queryByRole("heading", { name: /Update order status/ })).toBeNull();
+  expect((screen.getByRole("button", { name: "Run CodeDNA Review" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(fetchMock.mock.calls.filter((entry) => new URL(String(entry[0]), "http://localhost").pathname === "/api/prs/pr-acme-87")).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active"))).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);

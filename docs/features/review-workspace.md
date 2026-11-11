@@ -22,6 +22,8 @@ Cited validated evidence must also contain non-blank fact, document, source PR, 
 
 The fetched pull request must name both the requested PR ID and the repository ID selected by the route. This check completes before saved-job polling, active discovery, or latest-result recovery starts. A mismatched payload renders neither PR content nor recovered review state and keeps review creation disabled.
 
+Repository-list responses must be arrays (directly or under `items`) containing only object rows. IDs must use a bounded alphanumeric/underscore/hyphen grammar, slugs a bounded lowercase alphanumeric/hyphen grammar, display names must be bounded and non-blank, and IDs/slugs must each be unique. Any invalid row rejects the catalog rather than being dropped or defaulted, so no ambiguous repository can authorize this workspace.
+
 `Run CodeDNA Review` stays disabled until pull-request loading and that recovery sequence have both completed for the exact route PR. Route changes clear the recovery marker before the control can create work. Tests hold latest-result recovery and reused-job polling behind explicit promise gates, proving the control barrier, zero recovery POSTs, and the reattachment announcement without wall-clock delays.
 
 The page exposes one named `Review workspace` region with `aria-busy=true` for that combined load/recovery boundary and `false` after it settles. The visible loading note remains present, while the existing polite/atomic live region is the only element with status semantics for the loading message. This busy state adds no request, focus movement, or provider work.

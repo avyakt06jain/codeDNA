@@ -122,10 +122,11 @@
 - Review Workspace now requires cited evidence's shared repository ID to match the repository selected by the current route. Internally consistent off-route evidence fails closed.
 - Review Workspace now validates the fetched pull request's ID and authoritative repository ID against the route before displaying its diff or starting any saved/active/latest review recovery read.
 - Review Workspace now waits for the selected repository catalog entry and requires cited evidence's shared repository slug to match that API-provided slug across initial, active, and manual recovery.
+- Repository catalog ingestion now rejects non-object/malformed rows, unsafe or blank identity fields, and duplicate repository IDs or slugs before they can establish workspace context.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by validating repository catalog identity fields before they can establish workspace context.
+- Post-MVP trust hardening continues by validating the remaining pull-request payload fields before rendering untrusted content.
 
 ## Blocked
 
@@ -149,9 +150,19 @@
 
 ## Next Action
 
-Validate repository catalog identity fields at the API boundary before they can establish Review Workspace context.
+Validate pull-request number/title/description/diff fields before they can enter Review Workspace.
 
 ## Session Log
+
+### 2026-11-11 — Fail-closed repository catalog
+
+- Goal: Prevent malformed or ambiguous repository catalog rows from selecting a Review Workspace trust context.
+- Implemented: catalog normalization now requires an array (direct or wrapped), object-only rows, safe bounded repository IDs, lowercase hyphenated bounded slugs, bounded non-blank display names, and collection-wide unique IDs and slugs. Any violation rejects the entire catalog; Review Workspace renders no PR and performs no PR, saved-job, active, latest, or creation request.
+- Focused check: `npm test -- --run src/ui.test.tsx -t "repository catalog with"` → **3 passed, 136 skipped**, covering malformed identity, duplicate ID, and duplicate slug with a preloaded saved locator/result.
+- Full checks: `.\.venv\Scripts\python.exe -m pytest backend\tests -q` → **33 passed**; `npm test -- --run` → **157 passed across 5 files**; `npm run build` → **PASS**, 40 modules, 337.56 kB JavaScript and 16.43 kB CSS before gzip.
+- Live app: `GET /api/health` returned `status=ok`, `hindsight=unavailable`, and `interrupted_jobs=0`; Review Workspace returned HTTP 200 through the existing autostart-disabled processes.
+- Provider safety: catalog validation is local and blocks downstream work on invalid context; it adds no Hindsight/Gemini call or paid usage.
+- Next: validate the remaining pull-request fields before rendering title, description, or diff content.
 
 ### 2026-11-11 — Catalog-bound evidence slug
 

@@ -200,7 +200,8 @@
 - **Verified:** Cited evidence's shared repository ID must equal the repository selected by the current Review Workspace route. Internally consistent evidence from another repository fails closed.
 - **Verified:** Review Workspace requires the fetched pull request's ID and authoritative repository ID to match the route before displaying the diff or beginning saved/active/latest review recovery.
 - **Verified:** Cited evidence's shared repository slug must equal the selected repository's API-catalog slug. Review recovery waits for the catalog identity and off-catalog evidence fails closed.
-- **Next:** Validate repository catalog identity fields at the API boundary before they can select or authorize a Review Workspace context.
+- **Verified:** Repository catalog rows require safe bounded IDs, lowercase hyphenated slugs, bounded non-blank display names, and collection-wide unique IDs/slugs. A malformed or ambiguous catalog cannot establish Review Workspace context.
+- **Next:** Validate the remaining pull-request payload fields before untrusted titles, descriptions, or malformed diffs can enter Review Workspace.
 
 ## Documentation and version-control policy
 
