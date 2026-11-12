@@ -136,10 +136,11 @@
 - Same-PR active-job discovery now requires exact requested PR/kind correlation and either a fully explicit empty state or a valid queued/running locator with safe stage and chronological timestamps before browser persistence or polling.
 - Review/comparison creation responses now repeat backend-owned PR/kind identity and are accepted only with a valid job ID, Boolean reuse flag, active status, safe stage, and chronological timestamps. Rejected responses reconcile through exact-PR/kind GETs and cannot seed session storage, wrong-ID polling, or a replacement POST.
 - Individual review/comparison status responses now repeat job/PR/kind identity and are rejected before progress or results unless identity, status, stage, timestamps, and failure-code state form one valid envelope. Rejected terminal envelopes clear the saved locator and cannot render nested content, read latest-result fallback, or create work.
+- Successive status polls now preserve one job's creation timestamp, reject decreasing update time or status rank, and require a strictly newer update timestamp when status or stage changes. Regressed observations are rejected before callbacks and cannot replay work.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by preventing successive polls of one job from regressing status or persisted update time.
+- Post-MVP trust hardening continues by binding the first status observation to the already validated creation/discovery locator timing.
 
 ## Blocked
 
@@ -163,9 +164,19 @@
 
 ## Next Action
 
-Require status and persisted update time to progress monotonically across successive polls of the same job; reject regressed observations without replaying work.
+Carry accepted creation/discovery timing into polling as an initial progression floor so the first status observation cannot predate the locator that authorized the read.
 
 ## Session Log
+
+### 2026-11-12 — Monotonic background-job polling
+
+- Goal: Prevent a stale or out-of-order response for the same job from moving visible progress backward or accepting a result after contradictory persisted timing.
+- Files: `frontend/src/api.ts`, `frontend/src/ui.test.tsx`, and living documentation.
+- Implemented: polling retains the last accepted status, stage, creation time, and update time. Later observations must preserve creation time, keep update time and queued/running/terminal rank monotonic, and use a strictly later update time for any status or stage change. A violation raises the existing terminal status-integrity error before stage/timing/result callbacks, clears the locator, and performs no fallback or POST.
+- Focused check: `npm --prefix frontend test -- --run -t "monotonic queued|status regression|update-time regression"` → **3 passed, 316 skipped**. Cases cover queued → running → complete acceptance, running → queued rejection, and changed-stage/decreasing-time rejection for both review and comparison paths.
+- Full checks: `.venv\Scripts\python.exe -m pytest backend\tests -q` → **34 passed**; `npm --prefix frontend test -- --run` → **319 passed across 5 files**; `npm --prefix frontend run build` → **PASS**, 40 modules, 348.34 kB JavaScript and 16.43 kB CSS before gzip. No provider call was made.
+- Live check: the existing autostart-disabled API returned `ok`, configured memory truthfully `unavailable`, and zero interrupted jobs; the Vite UI returned HTTP 200. No process restart or provider request was needed.
+- Next: compare the first status read against the already accepted creation/discovery timestamp floor.
 
 ### 2026-11-12 — Correlated background-job status envelopes
 

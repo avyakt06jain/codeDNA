@@ -732,6 +732,36 @@ function jobIdFrom(value: unknown): string {
   return SAFE_JOB_ID.test(jobId) ? jobId : "";
 }
 
+type JobProgress = {
+  status: "queued" | "running" | "complete" | "failed";
+  stage: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+function validateJobProgress(
+  job: ReviewJob & Record<string, unknown>,
+  previous: JobProgress | null,
+): JobProgress {
+  const current: JobProgress = {
+    status: job.status as JobProgress["status"],
+    stage: job.stage!,
+    createdAt: job.created_at!,
+    updatedAt: job.updated_at!,
+  };
+  if (previous) {
+    const rank = { queued: 0, running: 1, complete: 2, failed: 2 } as const;
+    const stateChanged = current.status !== previous.status || current.stage !== previous.stage;
+    if (current.createdAt !== previous.createdAt
+      || Date.parse(current.updatedAt) < Date.parse(previous.updatedAt)
+      || rank[current.status] < rank[previous.status]
+      || (stateChanged && Date.parse(current.updatedAt) <= Date.parse(previous.updatedAt))) {
+      throw new InvalidJobStatusResponseError("The job status response failed progression validation.");
+    }
+  }
+  return current;
+}
+
 async function pollReviewJob(
   jobId: string,
   expectedPrId: string,
@@ -741,6 +771,7 @@ async function pollReviewJob(
   onTiming?: (timing: JobTiming) => void,
 ): Promise<(ReviewJob & Record<string, unknown>) | null> {
   let consecutiveFailures = 0;
+  let previous: JobProgress | null = null;
   for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {
     if (!shouldContinue()) return null;
     let job: ReviewJob & Record<string, unknown>;
@@ -751,6 +782,7 @@ async function pollReviewJob(
         expectedPrId,
         expectedKind,
       );
+      previous = validateJobProgress(job, previous);
       consecutiveFailures = 0;
     } catch (reason) {
       if (!isTransientRequestError(reason)) throw reason;
