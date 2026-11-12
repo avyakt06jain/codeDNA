@@ -137,10 +137,11 @@
 - Review/comparison creation responses now repeat backend-owned PR/kind identity and are accepted only with a valid job ID, Boolean reuse flag, active status, safe stage, and chronological timestamps. Rejected responses reconcile through exact-PR/kind GETs and cannot seed session storage, wrong-ID polling, or a replacement POST.
 - Individual review/comparison status responses now repeat job/PR/kind identity and are rejected before progress or results unless identity, status, stage, timestamps, and failure-code state form one valid envelope. Rejected terminal envelopes clear the saved locator and cannot render nested content, read latest-result fallback, or create work.
 - Successive status polls now preserve one job's creation timestamp, reject decreasing update time or status rank, and require a strictly newer update timestamp when status or stage changes. Regressed observations are rejected before callbacks and cannot replay work.
+- Creation and active-discovery timestamps now become the first status poll's trusted floor; a first observation cannot change creation time or report an older update. Same-job manual retry carries its last accepted timing into the new poll loop.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by binding the first status observation to the already validated creation/discovery locator timing.
+- Post-MVP trust hardening continues by preserving the trusted timing floor across same-tab refreshes that resume directly from session storage.
 
 ## Blocked
 
@@ -164,9 +165,19 @@
 
 ## Next Action
 
-Carry accepted creation/discovery timing into polling as an initial progression floor so the first status observation cannot predate the locator that authorized the read.
+Persist validated creation/update timing with the per-tab job locator so a direct same-tab refresh keeps the same first-poll progression floor.
 
 ## Session Log
+
+### 2026-11-12 — First-poll locator timing floor
+
+- Goal: Prevent a stale first status response from predating the creation or active-discovery response that supplied the accepted job locator.
+- Files: `frontend/src/api.ts`, `frontend/src/pages/ReviewPage.tsx`, `frontend/src/pages/MemoryLabPage.tsx`, `frontend/src/ui.test.tsx`, and living documentation.
+- Implemented: review and comparison polling accept initial trusted timing. The first status read must preserve a supplied creation timestamp and meet or exceed its supplied update timestamp before any callback or result handling. Creation, active discovery, and manual same-job retry all provide that floor; saved ID-only refresh remains explicitly outside this slice.
+- Focused check: `npm --prefix frontend test -- --run -t "predates its (discovered locator|creation response)|monotonic queued"` → **3 passed, 318 skipped**. Cases cover accepted monotonic progress, an older first review observation after discovery, and an older first comparison observation after creation.
+- Regression checks: `.venv\Scripts\python.exe -m pytest backend\tests -q` → **34 passed**; `npm --prefix frontend run build` → **PASS**, 40 modules, 348.74 kB JavaScript and 16.43 kB CSS before gzip. Two default-pool full frontend runs each reached **320 passed, 1 failed** on the pre-existing fixture-catalog retry focus timing assertion; its focused rerun passed. The deterministic serial command `npm --prefix frontend test -- --run --pool=vmThreads --maxWorkers=1 --isolate=false` → **321 passed across 5 files**.
+- Live check: both listeners were absent at inspection. The API and Vite UI were restarted from the pinned project commands; health returned `ok`, configured memory truthfully `unavailable`, zero interrupted jobs, PR #87 review discovery empty, and the UI HTTP 200. No provider request was started.
+- Next: persist the validated timing floor with the per-tab locator so direct refresh recovery does not lose it.
 
 ### 2026-11-12 — Monotonic background-job polling
 

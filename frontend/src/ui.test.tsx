@@ -1123,6 +1123,22 @@ it("accepts monotonic queued-to-running-to-complete review progress", async () =
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
+it("rejects a first review status that predates its discovered locator", async () => {
+  const fetchMock = installFetch({
+    activeJobPayload: { ...activeReviewJobResponse, updated_at: jobLatestUpdatedAt },
+    reviewJobPayload: completeReviewJobEnvelope({ updated_at: jobLaterUpdatedAt }),
+  });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("The job status response predates its accepted locator.");
+  expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
+  expect(screen.queryByRole("article", { name: "Direct status write skips the service" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=review"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
 it("rejects a review status regression without replaying work", async () => {
   saveActiveJob("review", "pr-acme-87", "job-review");
   const fetchMock = installFetch({
@@ -3210,6 +3226,34 @@ it("rejects a comparison update-time regression without accepting later-stage ou
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(2);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
+it("rejects a first comparison status that predates its creation response", async () => {
+  const fetchMock = installFetch({
+    comparisonCreationPayload: {
+      pr_id: "pr-acme-87",
+      job_id: "job-cmp",
+      kind: "comparison",
+      status: "queued",
+      stage: "queued",
+      reused: false,
+      created_at: jobCreatedAt,
+      updated_at: jobLatestUpdatedAt,
+    },
+    comparisonJobPayload: completeComparisonJobEnvelope({ updated_at: jobLaterUpdatedAt }),
+  });
+  renderAt("/repos/repo-acme-commerce/lab");
+  await screen.findByRole("option", { name: /Update order status/ });
+  const run = screen.getByRole("button", { name: "Run comparison" }) as HTMLButtonElement;
+  await waitFor(() => expect(run.disabled).toBe(false));
+  fireEvent.click(run);
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("The job status response predates its accepted locator.");
+  expect(loadActiveJob("comparison", "pr-acme-87")).toBeNull();
+  expect(screen.queryByText("Guardrails passed")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-cmp"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/comparisons/latest"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(1);
 });
 
 it("discovers an active comparison after tab storage is lost without starting another job", async () => {

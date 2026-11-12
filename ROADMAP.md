@@ -215,7 +215,8 @@
 - **Verified:** Review/comparison creation responses repeat the backend-owned PR and job kind and must contain a valid job ID, Boolean reuse signal, queued/running status, safe bounded stage, and chronological UTC timestamps before the browser stores or polls a locator. Invalid or mismatched responses enter the same GET-only claim reconciliation as a lost response and never trigger a second POST.
 - **Verified:** Every individual background-job status response repeats backend-owned job/PR/kind identity and must match the requested operation. The client also requires a known status, safe bounded stage, chronological timestamps, and status-consistent failure state before accepting progress, errors, or results; invalid envelopes are terminal and cannot render returned content or trigger fallback/provider work.
 - **Verified:** Successive polls of one background job preserve its creation timestamp, never move persisted status backward, never move `updated_at` backward, and require a strictly later update timestamp whenever status or stage changes. A regressed observation is terminal and cannot render nested content or replay work.
-- **Next:** Carry the validated creation/discovery timestamp into the first status poll as an initial progression floor so the first observation cannot predate its accepted locator.
+- **Verified:** The first status poll is checked against the validated creation or active-discovery timestamps that supplied its locator. It must preserve `created_at` and cannot report an `updated_at` older than that accepted floor; manual same-job retry also carries the last trusted timing forward.
+- **Next:** Persist validated job timing with the per-tab locator so a same-tab refresh retains the progression floor even when it resumes directly from session storage.
 
 ## Documentation and version-control policy
 

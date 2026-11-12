@@ -115,6 +115,7 @@ export function ReviewPage() {
         },
         () => !cancelled && alive.current,
         updateJobTiming,
+        timing,
       ).then((result) => {
         if (!result || cancelled) return;
         terminal = true;
@@ -265,7 +266,7 @@ export function ReviewPage() {
       if (started.reused) setStage("review_reattached");
       const result = await api.reviewJob(jobId, prId, repoId, repositorySlug, memoryEnabled ? "memory" : "baseline", (next) => {
         if (alive.current) setStage(next);
-      }, () => alive.current, updateJobTiming);
+      }, () => alive.current, updateJobTiming, started);
       if (!result || !alive.current) return;
       terminal = true;
       setRetryJobId("");
@@ -305,7 +306,7 @@ export function ReviewPage() {
     try {
       const result = await api.reviewJob(jobId, prId, repoId, repositorySlug, memoryEnabled ? "memory" : "baseline", (next) => {
         if (alive.current) setStage(next);
-      }, () => alive.current, updateJobTiming);
+      }, () => alive.current, updateJobTiming, jobTiming);
       if (!result || !alive.current) return;
       terminal = true;
       setReview(result);

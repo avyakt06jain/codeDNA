@@ -762,6 +762,24 @@ function validateJobProgress(
   return current;
 }
 
+function validateInitialJobTiming(
+  job: ReviewJob & Record<string, unknown>,
+  initialTiming: JobTiming,
+) {
+  const initialCreatedAt = initialTiming.createdAt === undefined
+    ? undefined
+    : normalizeJobTimestamp(initialTiming.createdAt);
+  const initialUpdatedAt = initialTiming.updatedAt === undefined
+    ? undefined
+    : normalizeJobTimestamp(initialTiming.updatedAt);
+  if ((initialTiming.createdAt !== undefined && initialCreatedAt === undefined)
+    || (initialTiming.updatedAt !== undefined && initialUpdatedAt === undefined)
+    || (initialCreatedAt !== undefined && job.created_at !== initialCreatedAt)
+    || (initialUpdatedAt !== undefined && Date.parse(job.updated_at!) < Date.parse(initialUpdatedAt))) {
+    throw new InvalidJobStatusResponseError("The job status response predates its accepted locator.");
+  }
+}
+
 async function pollReviewJob(
   jobId: string,
   expectedPrId: string,
@@ -769,6 +787,7 @@ async function pollReviewJob(
   onStage?: (stage: string) => void,
   shouldContinue: () => boolean = () => true,
   onTiming?: (timing: JobTiming) => void,
+  initialTiming: JobTiming = {},
 ): Promise<(ReviewJob & Record<string, unknown>) | null> {
   let consecutiveFailures = 0;
   let previous: JobProgress | null = null;
@@ -782,6 +801,7 @@ async function pollReviewJob(
         expectedPrId,
         expectedKind,
       );
+      if (!previous) validateInitialJobTiming(job, initialTiming);
       previous = validateJobProgress(job, previous);
       consecutiveFailures = 0;
     } catch (reason) {
@@ -988,10 +1008,10 @@ export const api = {
       throw reason;
     }
   },
-  async reviewJob(jobId: string, expectedPrId: string, expectedRepositoryId: string, expectedRepositorySlug: string, expectedMode: "memory" | "baseline" | undefined, onStage?: (stage: string) => void, shouldContinue?: () => boolean, onTiming?: (timing: JobTiming) => void) {
+  async reviewJob(jobId: string, expectedPrId: string, expectedRepositoryId: string, expectedRepositorySlug: string, expectedMode: "memory" | "baseline" | undefined, onStage?: (stage: string) => void, shouldContinue?: () => boolean, onTiming?: (timing: JobTiming) => void, initialTiming?: JobTiming) {
     let job: (ReviewJob & Record<string, unknown>) | null;
     try {
-      job = await pollReviewJob(jobId, expectedPrId, "review", onStage, shouldContinue, onTiming);
+      job = await pollReviewJob(jobId, expectedPrId, "review", onStage, shouldContinue, onTiming, initialTiming);
     } catch (reason) {
       if (reason instanceof ApiRequestError && reason.status === 404) {
         throw new MissingJobError("The active review is no longer available.");
@@ -1043,10 +1063,10 @@ export const api = {
       throw reason;
     }
   },
-  async comparisonJob(jobId: string, expectedPrId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean, onTiming?: (timing: JobTiming) => void) {
+  async comparisonJob(jobId: string, expectedPrId: string, onStage?: (stage: string) => void, shouldContinue?: () => boolean, onTiming?: (timing: JobTiming) => void, initialTiming?: JobTiming) {
     let job: (ReviewJob & Record<string, unknown>) | null;
     try {
-      job = await pollReviewJob(jobId, expectedPrId, "comparison", onStage, shouldContinue, onTiming);
+      job = await pollReviewJob(jobId, expectedPrId, "comparison", onStage, shouldContinue, onTiming, initialTiming);
     } catch (reason) {
       if (reason instanceof ApiRequestError && reason.status === 404) {
         throw new MissingJobError("The active comparison is no longer available.");

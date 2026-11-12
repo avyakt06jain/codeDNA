@@ -228,6 +228,7 @@ export function MemoryLabPage() {
         },
         () => !cancelled && alive.current,
         updateJobTiming,
+        timing,
       ).then((result) => {
         if (!result || cancelled) return;
         terminal = true;
@@ -384,7 +385,7 @@ export function MemoryLabPage() {
       if (started.reused) setStage("comparison_reattached");
       const result = await api.comparisonJob(jobId, selected, (next) => {
         if (alive.current) setStage(next);
-      }, () => alive.current, updateJobTiming);
+      }, () => alive.current, updateJobTiming, started);
       if (!result || !alive.current) return;
       terminal = true;
       setRetryJobId("");
@@ -425,7 +426,7 @@ export function MemoryLabPage() {
     try {
       const result = await api.comparisonJob(jobId, selected, (next) => {
         if (alive.current) setStage(next);
-      }, () => alive.current, updateJobTiming);
+      }, () => alive.current, updateJobTiming, jobTiming);
       if (!result || !alive.current) return;
       terminal = true;
       setComparison(result);
