@@ -1066,6 +1066,20 @@ it("reattaches to an active review after refresh without starting another job", 
   expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
 });
 
+it("uses the saved baseline mode when validating a refreshed review", async () => {
+  saveActiveJob("review", "pr-acme-87", "job-review", { reviewMode: "baseline" });
+  const fetchMock = installFetch({
+    reviewJobPayload: completeReviewJobEnvelope({ review: { ...review, mode: "memory" } }),
+  });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("invalid correlation metadata");
+  expect(screen.queryByRole("article", { name: "Direct status write skips the service" })).toBeNull();
+  expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
 it.each([
   ["another job ID", completeReviewJobEnvelope({ job_id: "job-other" })],
   ["another pull request", completeReviewJobEnvelope({ pr_id: "pr-acme-120" })],

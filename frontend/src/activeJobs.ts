@@ -4,6 +4,7 @@ export type ActiveJobLocator = {
   jobId: string;
   createdAt?: string;
   updatedAt?: string;
+  reviewMode?: "memory" | "baseline";
 };
 
 const PREFIX = "codedna.active-job.v2";
@@ -20,17 +21,24 @@ function normalizeTimestamp(value: unknown): string | undefined {
   return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : undefined;
 }
 
-function parseLocator(raw: string): ActiveJobLocator | null {
+function parseLocator(raw: string, kind: ActiveJobKind): ActiveJobLocator | null {
   try {
     const value = JSON.parse(raw) as unknown;
     if (!value || typeof value !== "object" || Array.isArray(value)) return null;
     const row = value as Record<string, unknown>;
     if (typeof row.jobId !== "string" || !SAFE_JOB_ID.test(row.jobId)) return null;
-    if (row.createdAt === undefined && row.updatedAt === undefined) return { jobId: row.jobId };
-    const createdAt = normalizeTimestamp(row.createdAt);
-    const updatedAt = normalizeTimestamp(row.updatedAt);
-    if (!createdAt || !updatedAt || Date.parse(updatedAt) < Date.parse(createdAt)) return null;
-    return { jobId: row.jobId, createdAt, updatedAt };
+    if (kind === "comparison" && row.reviewMode !== undefined) return null;
+    if (row.reviewMode !== undefined && row.reviewMode !== "memory" && row.reviewMode !== "baseline") return null;
+    const locator: ActiveJobLocator = { jobId: row.jobId };
+    if (row.createdAt !== undefined || row.updatedAt !== undefined) {
+      const createdAt = normalizeTimestamp(row.createdAt);
+      const updatedAt = normalizeTimestamp(row.updatedAt);
+      if (!createdAt || !updatedAt || Date.parse(updatedAt) < Date.parse(createdAt)) return null;
+      locator.createdAt = createdAt;
+      locator.updatedAt = updatedAt;
+    }
+    if (row.reviewMode !== undefined) locator.reviewMode = row.reviewMode;
+    return locator;
   } catch {
     return null;
   }
@@ -41,7 +49,7 @@ export function loadActiveJobLocator(kind: ActiveJobKind, prId: string): ActiveJ
     const key = storageKey(kind, prId);
     const raw = window.sessionStorage.getItem(key);
     if (raw) {
-      const locator = parseLocator(raw);
+      const locator = parseLocator(raw, kind);
       if (locator) return locator;
       window.sessionStorage.removeItem(key);
     }
@@ -64,15 +72,18 @@ export function saveActiveJob(
   kind: ActiveJobKind,
   prId: string,
   jobId: string,
-  timing: { createdAt?: string; updatedAt?: string } = {},
+  timing: { createdAt?: string; updatedAt?: string; reviewMode?: "memory" | "baseline" } = {},
 ): void {
   if (!SAFE_JOB_ID.test(jobId)) return;
+  if (kind === "comparison" && timing.reviewMode !== undefined) return;
+  if (timing.reviewMode !== undefined && timing.reviewMode !== "memory" && timing.reviewMode !== "baseline") return;
   let locator: ActiveJobLocator = { jobId };
+  if (kind === "review" && timing.reviewMode) locator.reviewMode = timing.reviewMode;
   if (timing.createdAt !== undefined || timing.updatedAt !== undefined) {
     const createdAt = normalizeTimestamp(timing.createdAt);
     const updatedAt = normalizeTimestamp(timing.updatedAt);
     if (!createdAt || !updatedAt || Date.parse(updatedAt) < Date.parse(createdAt)) return;
-    locator = { jobId, createdAt, updatedAt };
+    locator = { ...locator, createdAt, updatedAt };
   }
   try {
     window.sessionStorage.setItem(storageKey(kind, prId), JSON.stringify(locator));
@@ -86,7 +97,7 @@ export function clearActiveJob(kind: ActiveJobKind, prId: string, jobId: string)
   try {
     const key = storageKey(kind, prId);
     const raw = window.sessionStorage.getItem(key);
-    if (raw && parseLocator(raw)?.jobId === jobId) window.sessionStorage.removeItem(key);
+    if (raw && parseLocator(raw, kind)?.jobId === jobId) window.sessionStorage.removeItem(key);
     const legacyKey = storageKey(kind, prId, LEGACY_PREFIX);
     if (window.sessionStorage.getItem(legacyKey) === jobId) window.sessionStorage.removeItem(legacyKey);
   } catch {

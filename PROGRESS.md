@@ -5,6 +5,7 @@
 ## Current State
 
 - Date: 2026-11-12
+- Latest incremental change: same-tab review-job recovery preserves and validates expected memory/baseline mode. Focused regression, frontend build, and backend suite passed; the full frontend suite completed with 322 passed and two fixture-catalog focus failures.
 - Phase: G0–G5 MVP gates complete; the evolved judge demo was exercised against a restarted local API.
 - Implementation: The retain → recall → validate → review → feedback → supersede → ablate loop is verified locally against real Hindsight and Gemini. `CODEDNA_DEMO_SCENE=evolved` leaves `DEC-0103` active and `DEC-0042` superseded.
 - Git: `main` is initialized, connected to GitHub, and verified checkpoints are pushed without rewriting published history.
@@ -166,7 +167,7 @@
 
 ## Next Action
 
-Persist the expected review mode with each review locator and require the recovered completed run to match it after same-tab refresh.
+Expose backend-owned review mode through active-job discovery so a newly opened tab can validate the result mode too.
 
 ## Session Log
 
@@ -177,6 +178,14 @@ Persist the expected review mode with each review locator and require the recove
 - Implemented: session storage now uses a versioned JSON locator with a bounded job ID and either a complete chronological timestamp pair or no timing. Creation/discovery persists trusted timing, each accepted status callback advances it, refresh passes it back into the first-poll validator, and terminal cleanup removes both current and legacy keys. Malformed records are removed; valid legacy ID-only values still resume without fabricated timing.
 - Focused check: `npm --prefix frontend test -- --run -t "timing-preserving refresh locator|persists validated active-discovery timing"` → **2 passed, 321 skipped**. The cases prove discovery timing is stored before completion and a refreshed ID/timing locator rejects an older first status without discovery, fallback, POST, or rendered result.
 - Regression checks: `.venv\Scripts\python.exe -m pytest backend\tests -q` → **34 passed**; `npm --prefix frontend test -- --run --pool=vmThreads --maxWorkers=1 --isolate=false` → **323 passed across 5 files**; `npm --prefix frontend run build` → **PASS**, 40 modules, 349.88 kB JavaScript and 16.43 kB CSS before gzip. No provider call was made.
+
+### 2026-11-13 — Persist review mode in refresh locator
+
+- Goal: Ensure a refreshed review continues validating against the mode selected when the background job was created.
+- Files: `frontend/src/activeJobs.ts`, `frontend/src/pages/ReviewPage.tsx`, `frontend/src/ui.test.tsx`, `ARCHITECTURE.md`, `README.md`, `ROADMAP.md`, and `docs/features/background-review-jobs.md`.
+- Implemented: validated per-tab review locators now carry `memory` or `baseline`; initial refresh polling and manual same-job retry use that saved mode. Comparison locators reject review-only metadata. A regression verifies a baseline locator rejects a memory result and makes no fallback or POST.
+- Checks: focused test → **1 passed, 303 skipped**; frontend build → **PASS**, 40 modules; backend pytest → **34 passed**. Full deterministic frontend suite → **322 passed, 2 failed** on existing fixture-catalog focus assertions. API and UI were not running when checked. No Hindsight/provider calls were made.
+- Next: Carry the authoritative review mode in active-job discovery, then fix or isolate the flaky focus assertions.
 - Live check: the already running autostart-disabled API returned `ok`, configured memory truthfully `unavailable`, and zero interrupted jobs; Vite hot reload served the UI with HTTP 200.
 - Next: include expected review mode in the versioned locator and enforce it on recovered completion.
 

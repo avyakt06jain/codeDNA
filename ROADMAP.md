@@ -217,7 +217,8 @@
 - **Verified:** Successive polls of one background job preserve its creation timestamp, never move persisted status backward, never move `updated_at` backward, and require a strictly later update timestamp whenever status or stage changes. A regressed observation is terminal and cannot render nested content or replay work.
 - **Verified:** The first status poll is checked against the validated creation or active-discovery timestamps that supplied its locator. It must preserve `created_at` and cannot report an `updated_at` older than that accepted floor; manual same-job retry also carries the last trusted timing forward.
 - **Verified:** Per-tab recovery locators now persist the validated creation/update timing in a versioned, fail-closed JSON record. Same-tab refresh restores that timing as the first-poll floor, accepted status reads advance it, terminal cleanup removes it, and valid legacy ID-only locators remain recoverable.
-- **Next:** Persist the expected memory/baseline review mode with review locators so same-tab refresh cannot accept a completed result for a different mode.
+- **Verified:** Same-tab review locators persist the expected memory/baseline mode and apply it during initial refresh polling and manual same-job retry; a mismatched completed result is rejected without latest-result recovery or a replacement POST.
+- **Next:** Include the backend-owned mode in active-job discovery so a new tab can enforce the same mode boundary.
 
 ## Documentation and version-control policy
 

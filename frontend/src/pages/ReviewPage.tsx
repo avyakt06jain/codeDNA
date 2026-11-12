@@ -97,10 +97,10 @@ export function ReviewPage() {
       };
     }
 
-    function observeJob(jobId: string, timing: JobTiming = {}, reattached = false) {
+    function observeJob(jobId: string, timing: JobTiming = {}, reattached = false, expectedMode?: "memory" | "baseline") {
       setActiveJobId(jobId);
       setJobTiming(timing);
-      saveActiveJob("review", prId, jobId, timing);
+      saveActiveJob("review", prId, jobId, { ...timing, reviewMode: expectedMode });
       setRunning(true);
       setStage(reattached ? "review_reattached" : "queued");
       let terminal = false;
@@ -109,14 +109,14 @@ export function ReviewPage() {
         prId,
         repoId,
         repositorySlug,
-        undefined,
+        expectedMode,
         (next) => {
           if (!cancelled) setStage(next);
         },
         () => !cancelled && alive.current,
         (next) => {
           updateJobTiming(next);
-          saveActiveJob("review", prId, jobId, next);
+          saveActiveJob("review", prId, jobId, { ...next, reviewMode: expectedMode });
         },
         timing,
       ).then((result) => {
@@ -194,7 +194,7 @@ export function ReviewPage() {
         } else {
           if (reconcilingCreation) setCreationUncertainPrId("");
           if (recoveryResult.value.job) {
-            observeJob(recoveryResult.value.job.jobId, recoveryResult.value.job, reconcilingCreation);
+            observeJob(recoveryResult.value.job.jobId, recoveryResult.value.job, reconcilingCreation, savedJob?.reviewMode);
           } else if (recoveryResult.value.review) {
             setReview(recoveryResult.value.review);
             setStage("review_restored");
@@ -265,13 +265,14 @@ export function ReviewPage() {
       jobId = started.jobId;
       setActiveJobId(jobId);
       setJobTiming({ createdAt: started.createdAt, updatedAt: started.updatedAt });
-      saveActiveJob("review", prId, jobId, started);
+      const expectedMode = memoryEnabled ? "memory" : "baseline";
+      saveActiveJob("review", prId, jobId, { ...started, reviewMode: expectedMode });
       if (started.reused) setStage("review_reattached");
-      const result = await api.reviewJob(jobId, prId, repoId, repositorySlug, memoryEnabled ? "memory" : "baseline", (next) => {
+      const result = await api.reviewJob(jobId, prId, repoId, repositorySlug, expectedMode, (next) => {
         if (alive.current) setStage(next);
       }, () => alive.current, (next) => {
         updateJobTiming(next);
-        saveActiveJob("review", prId, jobId, next);
+        saveActiveJob("review", prId, jobId, { ...next, reviewMode: expectedMode });
       }, started);
       if (!result || !alive.current) return;
       terminal = true;
@@ -304,17 +305,18 @@ export function ReviewPage() {
   async function checkReviewAgain() {
     if (!retryJobId) return;
     const jobId = retryJobId;
+    const expectedMode = loadActiveJobLocator("review", prId)?.reviewMode ?? (memoryEnabled ? "memory" : "baseline");
     setRunning(true);
     setRetryJobId("");
     setError("");
     setStage("queued");
     let terminal = false;
     try {
-      const result = await api.reviewJob(jobId, prId, repoId, repositorySlug, memoryEnabled ? "memory" : "baseline", (next) => {
+      const result = await api.reviewJob(jobId, prId, repoId, repositorySlug, expectedMode, (next) => {
         if (alive.current) setStage(next);
       }, () => alive.current, (next) => {
         updateJobTiming(next);
-        saveActiveJob("review", prId, jobId, next);
+        saveActiveJob("review", prId, jobId, { ...next, reviewMode: expectedMode });
       }, jobTiming);
       if (!result || !alive.current) return;
       terminal = true;
