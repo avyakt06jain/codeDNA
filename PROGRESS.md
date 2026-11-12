@@ -138,10 +138,11 @@
 - Individual review/comparison status responses now repeat job/PR/kind identity and are rejected before progress or results unless identity, status, stage, timestamps, and failure-code state form one valid envelope. Rejected terminal envelopes clear the saved locator and cannot render nested content, read latest-result fallback, or create work.
 - Successive status polls now preserve one job's creation timestamp, reject decreasing update time or status rank, and require a strictly newer update timestamp when status or stage changes. Regressed observations are rejected before callbacks and cannot replay work.
 - Creation and active-discovery timestamps now become the first status poll's trusted floor; a first observation cannot change creation time or report an older update. Same-job manual retry carries its last accepted timing into the new poll loop.
+- Per-tab active-job recovery now stores a versioned JSON locator containing the validated opaque ID and trusted timing. Same-tab refresh restores that floor directly, accepted polls advance it, malformed records fail closed, and valid legacy ID-only state remains recoverable.
 
 ## In Progress
 
-- Post-MVP trust hardening continues by preserving the trusted timing floor across same-tab refreshes that resume directly from session storage.
+- Post-MVP trust hardening continues by preserving the expected memory/baseline review mode across same-tab refresh recovery.
 
 ## Blocked
 
@@ -165,9 +166,19 @@
 
 ## Next Action
 
-Persist validated creation/update timing with the per-tab job locator so a direct same-tab refresh keeps the same first-poll progression floor.
+Persist the expected review mode with each review locator and require the recovered completed run to match it after same-tab refresh.
 
 ## Session Log
+
+### 2026-11-12 — Timing-preserving refresh locators
+
+- Goal: Keep the trusted job-timing floor across a same-tab refresh instead of resuming from an opaque ID with no temporal context.
+- Files: `frontend/src/activeJobs.ts`, `frontend/src/pages/ReviewPage.tsx`, `frontend/src/pages/MemoryLabPage.tsx`, `frontend/src/ui.test.tsx`, and living documentation.
+- Implemented: session storage now uses a versioned JSON locator with a bounded job ID and either a complete chronological timestamp pair or no timing. Creation/discovery persists trusted timing, each accepted status callback advances it, refresh passes it back into the first-poll validator, and terminal cleanup removes both current and legacy keys. Malformed records are removed; valid legacy ID-only values still resume without fabricated timing.
+- Focused check: `npm --prefix frontend test -- --run -t "timing-preserving refresh locator|persists validated active-discovery timing"` → **2 passed, 321 skipped**. The cases prove discovery timing is stored before completion and a refreshed ID/timing locator rejects an older first status without discovery, fallback, POST, or rendered result.
+- Regression checks: `.venv\Scripts\python.exe -m pytest backend\tests -q` → **34 passed**; `npm --prefix frontend test -- --run --pool=vmThreads --maxWorkers=1 --isolate=false` → **323 passed across 5 files**; `npm --prefix frontend run build` → **PASS**, 40 modules, 349.88 kB JavaScript and 16.43 kB CSS before gzip. No provider call was made.
+- Live check: the already running autostart-disabled API returned `ok`, configured memory truthfully `unavailable`, and zero interrupted jobs; Vite hot reload served the UI with HTTP 200.
+- Next: include expected review mode in the versioned locator and enforce it on recovered completion.
 
 ### 2026-11-12 — First-poll locator timing floor
 

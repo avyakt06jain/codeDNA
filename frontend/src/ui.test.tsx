@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { afterEach, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import App from "./App";
-import { loadActiveJob, saveActiveJob } from "./activeJobs";
+import { loadActiveJob, loadActiveJobLocator, saveActiveJob } from "./activeJobs";
 
 const comparisonChecks = (overrides: Record<string, boolean> = {}) => ({
   same_candidate: true,
@@ -1136,6 +1136,47 @@ it("rejects a first review status that predates its discovered locator", async (
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=review"))).toHaveLength(1);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(1);
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
+it("rejects a first review status that predates its timing-preserving refresh locator", async () => {
+  saveActiveJob("review", "pr-acme-87", "job-review", {
+    createdAt: jobCreatedAt,
+    updatedAt: jobLatestUpdatedAt,
+  });
+  const fetchMock = installFetch({
+    reviewJobPayload: completeReviewJobEnvelope({ updated_at: jobLaterUpdatedAt }),
+  });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("The job status response predates its accepted locator.");
+  expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
+  expect(screen.queryByRole("article", { name: "Direct status write skips the service" })).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=review"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/api/review-jobs/job-review"))).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
+});
+
+it("persists validated active-discovery timing before the first review poll completes", async () => {
+  let releaseReviewPoll = () => {};
+  const reviewPollGate = new Promise<void>((resolve) => {
+    releaseReviewPoll = resolve;
+  });
+  const fetchMock = installFetch({ activeReviewJob: true, reviewPollGate });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  try {
+    await screen.findByText("Active job details");
+    await waitFor(() => expect(loadActiveJobLocator("review", "pr-acme-87")).toEqual({
+      jobId: "job-review",
+      createdAt: jobCreatedAt,
+      updatedAt: jobUpdatedAt,
+    }));
+  } finally {
+    await act(async () => releaseReviewPoll());
+  }
+  expect(await screen.findByRole("article", { name: "Direct status write skips the service" })).toBeTruthy();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/review-jobs/active?kind=review"))).toHaveLength(1);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api, CreationOutcomeUnknownError, MissingJobError, PollingUnavailableError, TerminalJobError, type Decision, type Finding, type JobTiming, type PullRequest, type Review } from "../api";
-import { clearActiveJob, loadActiveJob, saveActiveJob } from "../activeJobs";
+import { clearActiveJob, loadActiveJobLocator, saveActiveJob } from "../activeJobs";
 import { DiffView } from "../components/DiffView";
 import { ActiveJobDetails } from "../components/ActiveJobDetails";
 import { EvidencePanel } from "../components/EvidencePanel";
@@ -66,7 +66,7 @@ export function ReviewPage() {
 
   useEffect(() => {
     let cancelled = false;
-    const savedJobId = loadActiveJob("review", prId);
+    const savedJob = loadActiveJobLocator("review", prId);
     setRecoveredPrId("");
     setRecoveryFailed(false);
     setRecoveryMessage("");
@@ -100,7 +100,7 @@ export function ReviewPage() {
     function observeJob(jobId: string, timing: JobTiming = {}, reattached = false) {
       setActiveJobId(jobId);
       setJobTiming(timing);
-      saveActiveJob("review", prId, jobId);
+      saveActiveJob("review", prId, jobId, timing);
       setRunning(true);
       setStage(reattached ? "review_reattached" : "queued");
       let terminal = false;
@@ -114,7 +114,10 @@ export function ReviewPage() {
           if (!cancelled) setStage(next);
         },
         () => !cancelled && alive.current,
-        updateJobTiming,
+        (next) => {
+          updateJobTiming(next);
+          saveActiveJob("review", prId, jobId, next);
+        },
         timing,
       ).then((result) => {
         if (!result || cancelled) return;
@@ -160,8 +163,8 @@ export function ReviewPage() {
     }
 
     const pullRequest = api.pr(prId, repoId);
-    const recovery = pullRequest.then(() => (savedJobId
-      ? { job: { jobId: savedJobId, createdAt: undefined, updatedAt: undefined }, review: null as Review | null }
+    const recovery = pullRequest.then(() => (savedJob
+      ? { job: savedJob, review: null as Review | null }
       : api.activeJob(prId, "review").then(async (job) => ({
         job,
         review: job ? null : await api.latestReview(prId, repoId, repositorySlug, "memory"),
@@ -262,11 +265,14 @@ export function ReviewPage() {
       jobId = started.jobId;
       setActiveJobId(jobId);
       setJobTiming({ createdAt: started.createdAt, updatedAt: started.updatedAt });
-      saveActiveJob("review", prId, jobId);
+      saveActiveJob("review", prId, jobId, started);
       if (started.reused) setStage("review_reattached");
       const result = await api.reviewJob(jobId, prId, repoId, repositorySlug, memoryEnabled ? "memory" : "baseline", (next) => {
         if (alive.current) setStage(next);
-      }, () => alive.current, updateJobTiming, started);
+      }, () => alive.current, (next) => {
+        updateJobTiming(next);
+        saveActiveJob("review", prId, jobId, next);
+      }, started);
       if (!result || !alive.current) return;
       terminal = true;
       setRetryJobId("");
@@ -306,7 +312,10 @@ export function ReviewPage() {
     try {
       const result = await api.reviewJob(jobId, prId, repoId, repositorySlug, memoryEnabled ? "memory" : "baseline", (next) => {
         if (alive.current) setStage(next);
-      }, () => alive.current, updateJobTiming, jobTiming);
+      }, () => alive.current, (next) => {
+        updateJobTiming(next);
+        saveActiveJob("review", prId, jobId, next);
+      }, jobTiming);
       if (!result || !alive.current) return;
       terminal = true;
       setReview(result);

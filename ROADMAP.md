@@ -216,7 +216,8 @@
 - **Verified:** Every individual background-job status response repeats backend-owned job/PR/kind identity and must match the requested operation. The client also requires a known status, safe bounded stage, chronological timestamps, and status-consistent failure state before accepting progress, errors, or results; invalid envelopes are terminal and cannot render returned content or trigger fallback/provider work.
 - **Verified:** Successive polls of one background job preserve its creation timestamp, never move persisted status backward, never move `updated_at` backward, and require a strictly later update timestamp whenever status or stage changes. A regressed observation is terminal and cannot render nested content or replay work.
 - **Verified:** The first status poll is checked against the validated creation or active-discovery timestamps that supplied its locator. It must preserve `created_at` and cannot report an `updated_at` older than that accepted floor; manual same-job retry also carries the last trusted timing forward.
-- **Next:** Persist validated job timing with the per-tab locator so a same-tab refresh retains the progression floor even when it resumes directly from session storage.
+- **Verified:** Per-tab recovery locators now persist the validated creation/update timing in a versioned, fail-closed JSON record. Same-tab refresh restores that timing as the first-poll floor, accepted status reads advance it, terminal cleanup removes it, and valid legacy ID-only locators remain recoverable.
+- **Next:** Persist the expected memory/baseline review mode with review locators so same-tab refresh cannot accept a completed result for a different mode.
 
 ## Documentation and version-control policy
 

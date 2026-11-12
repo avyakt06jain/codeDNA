@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, CreationOutcomeUnknownError, isTransientRequestError, MissingJobError, PollingUnavailableError, TerminalJobError, type Comparison, type EvaluationCase, type JobTiming, type PullRequestSummary, type Review } from "../api";
-import { clearActiveJob, loadActiveJob, saveActiveJob } from "../activeJobs";
+import { clearActiveJob, loadActiveJobLocator, saveActiveJob } from "../activeJobs";
 import { ActiveJobDetails } from "../components/ActiveJobDetails";
 import { FindingArticle } from "../components/FindingArticle";
 import { EmptyNote, ErrorNote, LiveStatus, LoadingNote } from "../components/Status";
@@ -194,7 +194,7 @@ export function MemoryLabPage() {
 
   useEffect(() => {
     let cancelled = false;
-    const savedJobId = prId ? loadActiveJob("comparison", prId) : null;
+    const savedJob = prId ? loadActiveJobLocator("comparison", prId) : null;
     setRecoveredPrId("");
     setRecoveryFailed(false);
     setRecoveryMessage("");
@@ -215,7 +215,7 @@ export function MemoryLabPage() {
       setRestoring(false);
       setActiveJobId(jobId);
       setJobTiming(timing);
-      saveActiveJob("comparison", prId, jobId);
+      saveActiveJob("comparison", prId, jobId, timing);
       setRunning(true);
       setStage(reattached ? "comparison_reattached" : "queued");
       setError("");
@@ -227,7 +227,10 @@ export function MemoryLabPage() {
           if (!cancelled) setStage(next);
         },
         () => !cancelled && alive.current,
-        updateJobTiming,
+        (next) => {
+          updateJobTiming(next);
+          saveActiveJob("comparison", prId, jobId, next);
+        },
         timing,
       ).then((result) => {
         if (!result || cancelled) return;
@@ -279,8 +282,8 @@ export function MemoryLabPage() {
     let recoveryRejected = false;
     void (async () => {
       try {
-        const activeJob = savedJobId
-          ? { jobId: savedJobId, createdAt: undefined, updatedAt: undefined }
+        const activeJob = savedJob
+          ? savedJob
           : await api.activeJob(prId, "comparison");
         if (cancelled) return;
         if (activeJob) {
@@ -381,11 +384,14 @@ export function MemoryLabPage() {
       jobId = started.jobId;
       setActiveJobId(jobId);
       setJobTiming({ createdAt: started.createdAt, updatedAt: started.updatedAt });
-      saveActiveJob("comparison", selected, jobId);
+      saveActiveJob("comparison", selected, jobId, started);
       if (started.reused) setStage("comparison_reattached");
       const result = await api.comparisonJob(jobId, selected, (next) => {
         if (alive.current) setStage(next);
-      }, () => alive.current, updateJobTiming, started);
+      }, () => alive.current, (next) => {
+        updateJobTiming(next);
+        saveActiveJob("comparison", selected, jobId, next);
+      }, started);
       if (!result || !alive.current) return;
       terminal = true;
       setRetryJobId("");
@@ -426,7 +432,10 @@ export function MemoryLabPage() {
     try {
       const result = await api.comparisonJob(jobId, selected, (next) => {
         if (alive.current) setStage(next);
-      }, () => alive.current, updateJobTiming, jobTiming);
+      }, () => alive.current, (next) => {
+        updateJobTiming(next);
+        saveActiveJob("comparison", selected, jobId, next);
+      }, jobTiming);
       if (!result || !alive.current) return;
       terminal = true;
       setComparison(result);
