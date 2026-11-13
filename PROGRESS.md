@@ -8,6 +8,7 @@
 - Latest incremental change: same-tab review-job recovery preserves and validates expected memory/baseline mode. Focused regression, frontend build, and backend suite passed; the full frontend suite completed with 322 passed and two fixture-catalog focus failures.
 - Follow-up reliability fix: fixture-catalog retry focus restoration now runs in a layout effect once loading settles; its two focused regressions pass.
 - Full deterministic frontend run after the focus fix: **323 passed, 1 failed**; remaining failure is an unrelated application-health focus assertion (`distinguishes an application health failure from confirmed Hindsight unavailability`). Backend pytest: **34 passed**; frontend build: **PASS**.
+- The application-health focus assertion is addressed by moving the shell's post-retry focus restoration to a layout effect. Targeted regression passes; full frontend suite now passes (**324/324**), frontend build passes, and backend pytest passes (**34 passed**). API/UI were not running at the session health check.
 - Phase: G0–G5 MVP gates complete; the evolved judge demo was exercised against a restarted local API.
 - Implementation: The retain → recall → validate → review → feedback → supersede → ablate loop is verified locally against real Hindsight and Gemini. `CODEDNA_DEMO_SCENE=evolved` leaves `DEC-0103` active and `DEC-0042` superseded.
 - Git: `main` is initialized, connected to GitHub, and verified checkpoints are pushed without rewriting published history.

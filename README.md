@@ -38,6 +38,7 @@ CodeDNA separates memory from authority:
 - Active Review Workspace and Memory Lab jobs reattached after a same-tab refresh without posting duplicate provider work
 - Refreshed review jobs retain their expected memory or baseline mode and reject a completed result for the other mode
 - Memory Lab catalog retries restore keyboard focus after a successful or failed refresh
+- An explicit health check returns focus to the updated memory-status announcement
 - Bounded reconnect for transient job-status failures, with visible review/comparison-specific status and no replacement POST
 - Ten-second client timeout for read-only job status/recovery requests; timeout preserves the existing locator or actionable GET-only recovery and never replays creation
 - Ambiguity-safe creation timeout with a GET-only `Check creation status` action that resolves active, completed, empty, and failed boundaries without replaying the POST; late-claim, read-outage, and just-completed result behavior is regression tested

@@ -1136,4 +1136,6 @@ A CodeDNA v0.1 architecture is demonstrated, not just specified, when:
 
 Same-tab review-job locators also persist the expected `memory` or `baseline` mode selected at creation. Refresh polling and same-job retries use that saved mode when validating the completed result, so a result from the other mode is rejected. New-tab discovery does not yet include the mode.
 
+After a manual health retry settles, the shell restores keyboard focus to the persistent memory-status announcement in a layout effect, so the result is focused as soon as its updated state is committed.
+
 Memory Lab's manual fixture-catalog retry restores keyboard focus after the refreshed catalog settles. The focus target is selected synchronously in a layout effect, avoiding a frame-timing race between the state update and the focus restoration.

@@ -220,6 +220,7 @@
 - **Verified:** Same-tab review locators persist the expected memory/baseline mode and apply it during initial refresh polling and manual same-job retry; a mismatched completed result is rejected without latest-result recovery or a replacement POST.
 - **Next:** Include the backend-owned mode in active-job discovery so a new tab can enforce the same mode boundary.
 - **Verified:** Memory Lab fixture-catalog retry focus now restores in a layout effect after the retry settles, eliminating frame scheduling from the focus transition.
+- **Verified:** Explicit health-retry focus returns to the persistent memory-status announcement in a layout effect after the health state settles.
 
 ## Documentation and version-control policy
 

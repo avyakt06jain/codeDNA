@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Link, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { formatWhen, memoryLabel, preferredPullRequestId } from "../text";
@@ -36,7 +36,7 @@ export function Shell() {
   const inDna = pathname.includes("/dna");
   const inLab = pathname.includes("/lab");
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!restoreHealthFocus || healthChecking) return;
     healthStatusRef.current?.focus();
     setRestoreHealthFocus(false);
