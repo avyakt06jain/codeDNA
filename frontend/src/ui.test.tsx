@@ -241,6 +241,7 @@ const activeReviewJobResponse = {
   job_id: "job-review",
   status: "running",
   stage: "reviewing_diff",
+  review_mode: "memory",
   created_at: jobCreatedAt,
   updated_at: jobUpdatedAt,
 };
@@ -475,12 +476,13 @@ function installFetch(options?: {
         job_id: jobId,
         status: jobId ? "running" : null,
         stage: jobId ? "reviewing_diff" : null,
+        review_mode: jobId && kind === "review" ? "memory" : null,
         created_at: jobId ? jobCreatedAt : null,
         updated_at: jobId ? jobUpdatedAt : null,
       });
     }
     if (path === "/api/prs/pr-acme-120/review-jobs/active" && method === "GET") {
-      return json({ pr_id: "pr-acme-120", kind: url.searchParams.get("kind"), job_id: null, status: null, stage: null, created_at: null, updated_at: null });
+      return json({ pr_id: "pr-acme-120", kind: url.searchParams.get("kind"), job_id: null, status: null, stage: null, review_mode: null, created_at: null, updated_at: null });
     }
     if (path.endsWith("/lineage")) {
       const requestedDecisionId = path.split("/").filter(Boolean).at(-2) ?? "DEC-0103";
@@ -1185,6 +1187,7 @@ it("persists validated active-discovery timing before the first review poll comp
       jobId: "job-review",
       createdAt: jobCreatedAt,
       updatedAt: jobUpdatedAt,
+      reviewMode: "memory",
     }));
   } finally {
     await act(async () => releaseReviewPoll());
@@ -1491,6 +1494,19 @@ it("discovers an active review after tab storage is lost without starting anothe
   expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);
   expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
   expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
+});
+
+it("uses the discovered review mode when validating a cross-tab result", async () => {
+  const fetchMock = installFetch({
+    activeJobPayload: { ...activeReviewJobResponse, review_mode: "baseline" },
+    reviewJobPayload: completeReviewJobEnvelope({ review: { ...review, mode: "memory" } }),
+  });
+  renderAt("/repos/repo-acme-commerce/prs/pr-acme-87");
+  expect((await screen.findByRole("alert")).textContent).toContain("invalid correlation metadata");
+  expect(screen.queryByRole("article", { name: "Direct status write skips the service" })).toBeNull();
+  expect(loadActiveJob("review", "pr-acme-87")).toBeNull();
+  expect(fetchMock.mock.calls.filter((entry) => String(entry[0]).includes("/reviews/latest"))).toHaveLength(0);
+  expect(fetchMock.mock.calls.filter((entry) => (entry[1]?.method ?? "GET") === "POST")).toHaveLength(0);
 });
 
 it("announces when starting a review reuses existing provider work", async () => {

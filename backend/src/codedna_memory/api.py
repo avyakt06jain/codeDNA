@@ -491,6 +491,7 @@ def create_app(
                 "job_id": None if job is None else job.id,
                 "status": None if job is None else job.status,
                 "stage": None if job is None else job.stage,
+                "review_mode": None if job is None or kind != "review" else ("memory" if job.memory_enabled else "baseline"),
                 "created_at": None if job is None else _utc_timestamp(job.created_at),
                 "updated_at": None if job is None else _utc_timestamp(job.updated_at),
             }

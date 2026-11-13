@@ -36,7 +36,7 @@ CodeDNA separates memory from authority:
 - Latest memory review restored after refreshing the pull-request page
 - Latest completed Memory Lab comparison restored after refresh without rerunning providers
 - Active Review Workspace and Memory Lab jobs reattached after a same-tab refresh without posting duplicate provider work
-- Refreshed review jobs retain their expected memory or baseline mode and reject a completed result for the other mode
+- Refreshed and cross-tab discovered review jobs retain their expected memory or baseline mode and reject a completed result for the other mode
 - Memory Lab catalog retries restore keyboard focus after a successful or failed refresh
 - An explicit health check returns focus to the updated memory-status announcement
 - Bounded reconnect for transient job-status failures, with visible review/comparison-specific status and no replacement POST

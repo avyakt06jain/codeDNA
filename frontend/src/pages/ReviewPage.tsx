@@ -194,7 +194,7 @@ export function ReviewPage() {
         } else {
           if (reconcilingCreation) setCreationUncertainPrId("");
           if (recoveryResult.value.job) {
-            observeJob(recoveryResult.value.job.jobId, recoveryResult.value.job, reconcilingCreation, savedJob?.reviewMode);
+            observeJob(recoveryResult.value.job.jobId, recoveryResult.value.job, reconcilingCreation, savedJob?.reviewMode ?? recoveryResult.value.job.reviewMode);
           } else if (recoveryResult.value.review) {
             setReview(recoveryResult.value.review);
             setStage("review_restored");

@@ -198,6 +198,7 @@ export type StartedJob = JobTiming & {
 
 export type ActiveJob = JobTiming & {
   jobId: string;
+  reviewMode?: "memory" | "baseline";
 };
 
 export type RepositoryActiveJob = JobTiming & {
@@ -1267,7 +1268,7 @@ function normalizeActiveJob(payload: unknown, expectedPrId: string, expectedKind
     throw new InvalidActiveJobResponseError("The active job response failed correlation validation.");
   }
   if (payload.job_id === null) {
-    if (payload.status !== null || payload.stage !== null || payload.created_at !== null || payload.updated_at !== null) {
+    if (payload.status !== null || payload.stage !== null || (payload.review_mode !== undefined && payload.review_mode !== null) || payload.created_at !== null || payload.updated_at !== null) {
       throw new InvalidActiveJobResponseError("The active job response failed correlation validation.");
     }
     return null;
@@ -1277,11 +1278,13 @@ function normalizeActiveJob(payload: unknown, expectedPrId: string, expectedKind
   const stage = asString(payload.stage)?.trim();
   const createdAt = normalizeJobTimestamp(payload.created_at);
   const updatedAt = normalizeJobTimestamp(payload.updated_at);
+  const reviewMode = payload.review_mode === "memory" || payload.review_mode === "baseline" ? payload.review_mode : null;
   if (!jobId || !status || !stage || stage.length > MAX_JOB_STAGE_LENGTH || !SAFE_JOB_STAGE.test(stage)
-    || !createdAt || !updatedAt || Date.parse(updatedAt) < Date.parse(createdAt)) {
+    || !createdAt || !updatedAt || Date.parse(updatedAt) < Date.parse(createdAt)
+    || (expectedKind === "review" && !reviewMode) || (expectedKind === "comparison" && payload.review_mode !== null)) {
     throw new InvalidActiveJobResponseError("The active job response failed correlation validation.");
   }
-  return { jobId, createdAt, updatedAt };
+  return { jobId, createdAt, updatedAt, ...(reviewMode ? { reviewMode } : {}) };
 }
 
 function normalizeSummary(payload: unknown, repositoryId: string): Summary {

@@ -359,6 +359,7 @@ def test_comparison_job_completes_with_injected_clients(tmp_path, monkeypatch):
     }
     assert active["created_at"].endswith("Z")
     assert active["updated_at"].endswith("Z")
+    assert active["review_mode"] is None
     repository_active = endpoints(app)[
         "/api/repositories/{repository_id}/review-jobs/active"
     ](ACME_REPOSITORY_ID)
@@ -470,6 +471,7 @@ def test_queue_endpoints_reuse_active_jobs_and_schedule_once(tmp_path):
     )
     assert active_review["created_at"] == first_review["created_at"]
     assert active_review["updated_at"].endswith("Z")
+    assert active_review["review_mode"] == "memory"
 
     first_comparison_tasks = BackgroundTasks()
     first_comparison = route["/api/prs/{pr_id}/comparison"](

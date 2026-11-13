@@ -118,6 +118,6 @@ An HTTP `404` has separate terminal meaning: the saved active-job locator no lon
 - Completed-result reconciliation tests keep active discovery empty and delay the latest persisted review/comparison until the manual check. Both workspaces restore the result, focus its findings/guardrails heading, issue no job-status GET, and retain exactly one creation POST.
 - A live paired job returned queued state immediately and later resolved to two persisted runs with all six provenance/contamination guardrails passing.
 - An isolated live API restart converted a persisted queued job to `job_interrupted_by_restart` and reported `interrupted_jobs: 1` without touching the running demo.
-- Same-tab review locators preserve the expected mode across refresh and same-job retry; a saved baseline locator rejects a memory-mode result. New-tab active discovery does not yet return mode.
+- Review mode is returned by backend active discovery, then preserved through per-tab storage, refresh polling, and same-job retry. Regression tests reject a memory result for a discovered baseline job without latest-result fallback or another POST.
 - Manual fixture-catalog retries restore focus to the catalog heading on success or the retry control on failure after state settles; focused regression tests cover both outcomes.
 - The shell restores focus to its persistent memory-status announcement after an explicit health retry settles; a focused regression verifies the connected result receives focus.

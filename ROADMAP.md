@@ -218,7 +218,8 @@
 - **Verified:** The first status poll is checked against the validated creation or active-discovery timestamps that supplied its locator. It must preserve `created_at` and cannot report an `updated_at` older than that accepted floor; manual same-job retry also carries the last trusted timing forward.
 - **Verified:** Per-tab recovery locators now persist the validated creation/update timing in a versioned, fail-closed JSON record. Same-tab refresh restores that timing as the first-poll floor, accepted status reads advance it, terminal cleanup removes it, and valid legacy ID-only locators remain recoverable.
 - **Verified:** Same-tab review locators persist the expected memory/baseline mode and apply it during initial refresh polling and manual same-job retry; a mismatched completed result is rejected without latest-result recovery or a replacement POST.
-- **Next:** Include the backend-owned mode in active-job discovery so a new tab can enforce the same mode boundary.
+- **Verified:** Active review-job discovery now includes backend-owned mode, and a new tab uses it to enforce the same result-mode boundary as same-tab refresh recovery.
+- **Next:** Preserve the full frontend suite's deterministic execution while continuing accessibility hardening.
 - **Verified:** Memory Lab fixture-catalog retry focus now restores in a layout effect after the retry settles, eliminating frame scheduling from the focus transition.
 - **Verified:** Explicit health-retry focus returns to the persistent memory-status announcement in a layout effect after the health state settles.
 

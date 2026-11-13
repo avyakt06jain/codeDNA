@@ -1134,7 +1134,7 @@ A CodeDNA v0.1 architecture is demonstrated, not just specified, when:
 
 **Final architecture principle:** Hindsight makes prior experiences discoverable; CodeDNA makes them authoritative only when justified, actionable only when applicable, and useful only when they demonstrably change a future code review.
 
-Same-tab review-job locators also persist the expected `memory` or `baseline` mode selected at creation. Refresh polling and same-job retries use that saved mode when validating the completed result, so a result from the other mode is rejected. New-tab discovery does not yet include the mode.
+Review active-job discovery returns the backend-owned `memory` or `baseline` mode for active review jobs. The browser persists that mode in its per-tab locator and uses it during refresh polling and same-job retries, rejecting a completed result for the other mode. Empty and comparison discovery responses carry a null review mode.
 
 After a manual health retry settles, the shell restores keyboard focus to the persistent memory-status announcement in a layout effect, so the result is focused as soon as its updated state is committed.
 
