@@ -7,7 +7,7 @@
 - Date: 2026-11-13
 - Latest verified checkpoint: same-tab and cross-tab review-job recovery preserve the backend-owned memory/baseline mode and reject results from the other mode.
 - Latest checks: frontend focused active-discovery tests **2 passed**; full frontend suite **325 passed across 5 files**; frontend build **PASS**; backend pytest **34 passed**. No provider requests were made.
-- Phase: G0–G5 MVP gates complete; the evolved judge demo was exercised against a restarted local API.
+- Phase: G0–G5 MVP gates complete; the evolved judge demo and review-mode recovery were exercised against a restarted local API.
 - Implementation: The retain → recall → validate → review → feedback → supersede → ablate loop is verified locally against real Hindsight and Gemini. `CODEDNA_DEMO_SCENE=evolved` leaves `DEC-0103` active and `DEC-0042` superseded.
 - Git: `main` is initialized, connected to GitHub, and verified checkpoints are pushed without rewriting published history.
 
@@ -144,7 +144,7 @@
 
 ## In Progress
 
-- Post-MVP trust hardening continues by preserving the expected memory/baseline review mode across same-tab refresh recovery.
+- No implementation slice is currently in progress. The latest cross-tab review-mode recovery checkpoint is complete.
 
 ## Blocked
 
@@ -168,9 +168,16 @@
 
 ## Next Action
 
-Review durable-worker recovery and restart behavior for gaps beyond the existing explicit interrupted-job reconciliation.
+Choose the next reliability slice after reviewing current recovery coverage; durable workers remain deferred production hardening and require a deployment/runtime decision.
 
 ## Session Log
+
+### 2026-11-13 — Close review-mode tracking follow-up
+
+- Goal: Align progress and roadmap summaries with the already pushed same-tab and cross-tab review-mode implementation.
+- Implemented: corrected the top-level state and next action; all implementation changes were previously committed as `dd3b253` and verified with 325 frontend tests, frontend build, and 34 backend tests.
+- This session: documentation-only review; repository clean before edit, local API/UI stopped, no code tests rerun.
+- Next: select a separately scoped reliability slice when one is identified.
 
 ### 2026-11-13 — Reconcile review-mode tracking
 
