@@ -168,9 +168,16 @@
 
 ## Next Action
 
-Choose the next reliability slice after reviewing current recovery coverage; durable workers remain deferred production hardening and require a deployment/runtime decision.
+Keep the demo services stopped between sessions; start them with the documented local commands when interactive verification is needed. Durable workers remain deferred until deployment/runtime requirements are chosen.
 
 ## Session Log
+
+### 2026-11-13 — No new implementation slice selected
+
+- Goal: Inspect for the next safe reliability improvement after review-job mode recovery.
+- Observed: Git tree was clean; local API and frontend listeners were stopped. Startup recovery already marks interrupted jobs failed without replay.
+- Decision: Durable worker implementation remains deferred because it requires a deployment/runtime choice. No code changes or provider calls were made.
+- Next: Reassess after an actionable runtime requirement or a newly identified bounded reliability gap.
 
 ### 2026-11-13 — Close review-mode tracking follow-up
 
