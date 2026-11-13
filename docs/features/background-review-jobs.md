@@ -119,3 +119,4 @@ An HTTP `404` has separate terminal meaning: the saved active-job locator no lon
 - A live paired job returned queued state immediately and later resolved to two persisted runs with all six provenance/contamination guardrails passing.
 - An isolated live API restart converted a persisted queued job to `job_interrupted_by_restart` and reported `interrupted_jobs: 1` without touching the running demo.
 - Same-tab review locators preserve the expected mode across refresh and same-job retry; a saved baseline locator rejects a memory-mode result. New-tab active discovery does not yet return mode.
+- Manual fixture-catalog retries restore focus to the catalog heading on success or the retry control on failure after state settles; focused regression tests cover both outcomes.

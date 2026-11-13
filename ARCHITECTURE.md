@@ -1135,3 +1135,5 @@ A CodeDNA v0.1 architecture is demonstrated, not just specified, when:
 **Final architecture principle:** Hindsight makes prior experiences discoverable; CodeDNA makes them authoritative only when justified, actionable only when applicable, and useful only when they demonstrably change a future code review.
 
 Same-tab review-job locators also persist the expected `memory` or `baseline` mode selected at creation. Refresh polling and same-job retries use that saved mode when validating the completed result, so a result from the other mode is rejected. New-tab discovery does not yet include the mode.
+
+Memory Lab's manual fixture-catalog retry restores keyboard focus after the refreshed catalog settles. The focus target is selected synchronously in a layout effect, avoiding a frame-timing race between the state update and the focus restoration.

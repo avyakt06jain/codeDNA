@@ -219,6 +219,7 @@
 - **Verified:** Per-tab recovery locators now persist the validated creation/update timing in a versioned, fail-closed JSON record. Same-tab refresh restores that timing as the first-poll floor, accepted status reads advance it, terminal cleanup removes it, and valid legacy ID-only locators remain recoverable.
 - **Verified:** Same-tab review locators persist the expected memory/baseline mode and apply it during initial refresh polling and manual same-job retry; a mismatched completed result is rejected without latest-result recovery or a replacement POST.
 - **Next:** Include the backend-owned mode in active-job discovery so a new tab can enforce the same mode boundary.
+- **Verified:** Memory Lab fixture-catalog retry focus now restores in a layout effect after the retry settles, eliminating frame scheduling from the focus transition.
 
 ## Documentation and version-control policy
 

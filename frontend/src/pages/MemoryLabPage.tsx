@@ -183,13 +183,11 @@ export function MemoryLabPage() {
     };
   }, [casesRetryKey]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!manualCasesRetry.current || casesLoading) return;
     manualCasesRetry.current = false;
-    window.requestAnimationFrame(() => {
-      if (casesError) casesRetryButton.current?.focus();
-      else casesHeading.current?.focus();
-    });
+    if (casesError) casesRetryButton.current?.focus();
+    else casesHeading.current?.focus();
   }, [casesError, casesLoading]);
 
   useEffect(() => {
